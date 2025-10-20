@@ -1,0 +1,17 @@
+[project]
+name = "auth"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.116.1",
+    "httpx>=0.28.1",
+    "logging>=0.4.9.6",
+    "pydantic>=2.11.7",
+    "pydantic-settings>=2.10.1",
+    "pytest>=8.4.1",
+    "requests>=2.32.5",
+    "uvicorn>=0.35.0",
+]

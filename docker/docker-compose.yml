@@ -1,0 +1,46 @@
+name: python_template
+
+networks:
+  web:
+    name: "${DOCKER_NETWORK_WEB:-core_web}"
+    external: ${DOCKER_NETWORK_EXTERNAL:-true}
+  internal:
+    name: "${DOCKER_NETWORK_INTERNAL:-core_internal}"
+    external: ${DOCKER_NETWORK_EXTERNAL:-true}
+
+services:
+  app:
+    image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-python_template}:${IMAGE_TAG:-latest}
+    build:
+      context: ${BUILD_CONTEXT:-..}
+      dockerfile: docker/Dockerfile
+    container_name: python_template
+    restart: unless-stopped
+    networks:
+      - web
+      - internal
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
+    env_file:
+      - path: .env.${ENVIRONMENT:-development}
+        required: true
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8020}/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=${TRAEFIK_ENABLED:-false}"
+      - "traefik.docker.network=${TRAEFIK_NETWORK:-core_web}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.rule=Host(`${TRAEFIK_DOMAIN}`)"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.tls=true"
+      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}"
+      - "traefik.http.services.${TRAEFIK_ROUTER_NAME:-python-template}.loadbalancer.server.port=${SERVER_PORT:-8020}"
+    # Uncomment for development hot reload
+    # volumes:
+    #   - ../app:/app/app
+    #   - ../main.py:/app/main.py
