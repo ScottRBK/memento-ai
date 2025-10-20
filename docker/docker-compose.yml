@@ -31,15 +31,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
-    labels:
-      - "traefik.enable=${TRAEFIK_ENABLED:-false}"
-      - "traefik.docker.network=${TRAEFIK_NETWORK:-core_web}"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.rule=Host(`${TRAEFIK_DOMAIN}`)"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.tls=true"
-      - "traefik.http.routers.${TRAEFIK_ROUTER_NAME:-python-template}.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-le}"
-      - "traefik.http.services.${TRAEFIK_ROUTER_NAME:-python-template}.loadbalancer.server.port=${SERVER_PORT:-8020}"
+      start_period: 10s 
     # Uncomment for development hot reload
     # volumes:
     #   - ../app:/app/app
