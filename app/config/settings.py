@@ -23,7 +23,14 @@ class Settings(BaseSettings):
     PORT: int = 8020
     LOG_LEVEL: str = "INFO"
 
-
+    # Database Configuration
+    DATABASE="Postgres"
+    PGPORT=5099
+    POSTGRES_DB="veridian"
+    POSTGRES_USER="veridian"
+    POSTGRES_PASSWORD="veridian"
+    DB_LOGGING=False 
+    
     """Pydantic Configuration"""
 
     model_config = ConfigDict(

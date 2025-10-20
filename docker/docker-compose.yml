@@ -1,12 +1,14 @@
 name:  ${COMPOSE_PROJECT_NAME:-Veridian}
+networks:
+  veridian:
 
 services:
-  Veridian-app:
+  veridian-service:
     image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-python_template}:${IMAGE_TAG:-latest}
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: docker/Dockerfile
-    container_name: Veridian-app
+    container_name: veridian-service 
     restart: unless-stopped
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
@@ -15,6 +17,8 @@ services:
         required: true
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-example}
+    networks:
+      - "veridian"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8020}/health || exit 1"]
       interval: 10s
@@ -25,3 +29,29 @@ services:
     # volumes:
     #   - ../app:/app/app
     #   - ../main.py:/app/main.py
+     
+  veridian-db:
+    image: pgvector/pgvector:pg16
+    networks:
+      - "veridian" 
+    container_name: "veridian-db"
+    restart: unless-stopped
+    env_file:
+      - path: .env.${ENVIRONMENT:-example}
+        required: true
+    ports:
+      - "127.0.0.1:${PGPORT:-5099}:${PGPORT:-5099}"
+    volumes:
+      - veridian_db_data:/var/lib/postgresql/data 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-veridian} -d ${POSTGRES_DB:-veridian}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+volumes:
+  veridian_db_data: 
+
+    
+    
