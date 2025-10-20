@@ -1,4 +1,4 @@
-"This module defines the models for the auth service"
+"This module defines the models for the health service"
 
 from pydantic import BaseModel, Field
 from datetime import datetime
