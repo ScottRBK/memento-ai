@@ -1,6 +1,12 @@
-from typing import Protocol 
+from typing import Protocol, Optional
+from uuid import UUID
+from app.models.user_models import User, UserWrite
+
 
 class UserRepository(Protocol):
     "Contract for user repository"
     
-    async def get_user_by_id(self, user_id: it)
+    async def get_user_by_id(self, user_id: UUID) -> Optional[User]: ...
+    async def get_user_by_external_id(self, external_id: str) -> Optional[User]: ...
+    async def create_user(self, user_input: UserWrite) -> User: ...
+    async def update_user(self, user_id: UUID, user_input: UserWrite) -> User: ...
