@@ -1,4 +1,4 @@
-name:  ${COMPOSE_PROJECT_NAME:-Veridian}
+name:  ${COMPOSE_PROJECT_NAME:-Memento}
 networks:
   memento:
 
@@ -42,16 +42,16 @@ services:
     ports:
       - "127.0.0.1:${PGPORT:-5099}:${PGPORT:-5099}"
     volumes:
-      - veridian_db_data:/var/lib/postgresql/data 
+      - memento_db_data:/var/lib/postgresql/data 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-veridian} -d ${POSTGRES_DB:-veridian}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-memento} -d ${POSTGRES_DB:-memento}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 
 volumes:
-  veridian_db_data: 
+  memento_db_data: 
 
     
     

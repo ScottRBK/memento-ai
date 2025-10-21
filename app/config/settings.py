@@ -13,9 +13,9 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 class Settings(BaseSettings):
     # Application Info
-    SERVICE_NAME: str = "Python Template"
-    SERVICE_VERSION: str = "v0.1.0"
-    SERVICE_DESCRIPTION: str = "Python FastAPI Template Service"
+    SERVICE_NAME: str = "Memento"
+    SERVICE_VERSION: str = "v0.0.1"
+    SERVICE_DESCRIPTION: str = "Memento Memory Service"
 
     # Server Configuration
     HOST: str = "0.0.0.0"
@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     # Database Configuration
     DATABASE: str = "Postgres"
     PGPORT: int = 5099
-    POSTGRES_DB: str = "veridian"
-    POSTGRES_USER: str = "veridian"
-    POSTGRES_PASSWORD: str = "veridian"
+    POSTGRES_DB: str = "memento"
+    POSTGRES_USER: str = "memento"
+    POSTGRES_PASSWORD: str = "memento"
     DB_LOGGING: bool = False
 
     # Auth Configuration

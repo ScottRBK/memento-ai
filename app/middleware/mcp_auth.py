@@ -3,7 +3,7 @@ Authentication Middleware helpers for integrating with FastMCP
 """
 from typing import Optional
 from app.services.user_service import UserService
-from app.models.user_models import User, UserWrite
+from app.models.user_models import User, UserCreate
 from app.config.settings import settings
 _user_service: Optional[UserService]
 
@@ -26,7 +26,7 @@ async def get_mcp_user() -> User:
     """
 
     if not settings.AUTH_ENABLED:
-        default_user = UserWrite(
+        default_user = UserCreate(
             external_id=settings.DEFAULT_USER_ID,
             name=settings.DEFAULT_USER_NAME,
             email=settings.DEFAULT_USER_EMAIL

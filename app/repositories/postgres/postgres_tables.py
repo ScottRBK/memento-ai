@@ -27,7 +27,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class User(Base):
+class UsersTable(Base):
     """
     User Table Model 
     """
@@ -37,7 +37,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255))
     email: Mapped[str] = mapped_column(String(255))
     idp_metadata: Mapped[dict] = mapped_column(JSONB, nullable=True, default=dict) 
-    notes: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -64,6 +64,6 @@ class PostgresDatabaseAdapter:
     def construct_postres_connection_string(self) -> str:
        return (
            f"postgres+psycopg://{settings.POSTGRES_USER}:"
-           f"{settings.POSTGRES_PASSWORD}@veridian-db:"
+           f"{settings.POSTGRES_PASSWORD}@memento-db:"
            f"{settings.PGPORT}/{settings.POSTGRES_DB}"
        )

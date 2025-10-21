@@ -8,6 +8,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "dotenv>=0.9.9",
     "fastapi>=0.116.1",
+    "fastmcp>=2.12.5",
     "httpx>=0.28.1",
     "logging>=0.4.9.6",
     "pgvector>=0.4.1",
