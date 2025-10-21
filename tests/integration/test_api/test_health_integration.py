@@ -1,16 +1,17 @@
-import pytest
-import requests
-import os
-from dotenv import load_dotenv 
-from app.config.settings import settings 
-from requests import Response
+from fastapi.testclient import TestClient
+from app.main import app
+from app.config.settings import settings
 
-load_dotenv()
 
-app_name = os.getenv("APP_NAME", "app")
-app_port = os.getenv("APP_PORT", 8010)
-@pytest.mark.integration
-def test_health_endpoint_returns_200():
-    response: Response = requests.get(f"http://{app_name}:{app_port}")
+def test_health_endpoint_returns_service_metadata():
+    """Ensure the health endpoint exposes service metadata via the FastAPI router."""
+    with TestClient(app) as client:
+        response = client.get("/health")
 
     assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["status"] == "healthy"
+    assert payload["service"] == settings.SERVICE_NAME
+    assert payload["version"] == settings.SERVICE_VERSION
+    assert "timestamp" in payload and payload["timestamp"]

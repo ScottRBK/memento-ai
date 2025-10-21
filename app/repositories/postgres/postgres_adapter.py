@@ -23,14 +23,6 @@ class PostgresDatabaseAdapter:
          autoflush=False
         )
 
-    @property
-    def engine(self) -> AsyncEngine:
-       return self._engine
-
-    @property
-    def session_factory(self) -> async_sessionmaker[AsyncSession]:
-       return self._session_factory  
-   
     @asynccontextmanager
     async def session(self) -> AsyncIterator[AsyncSession]:
         session = self._session_factory()

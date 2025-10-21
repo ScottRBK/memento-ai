@@ -1,14 +1,14 @@
 name:  ${COMPOSE_PROJECT_NAME:-Veridian}
 networks:
-  veridian:
+  memento:
 
 services:
-  veridian-service:
+  memento-service:
     image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-python_template}:${IMAGE_TAG:-latest}
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: docker/Dockerfile
-    container_name: veridian-service 
+    container_name: memento-service 
     restart: unless-stopped
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
@@ -18,7 +18,7 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-example}
     networks:
-      - "veridian"
+      - "memento"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8020}/health || exit 1"]
       interval: 10s
@@ -30,11 +30,11 @@ services:
     #   - ../app:/app/app
     #   - ../main.py:/app/main.py
      
-  veridian-db:
+  memento-db:
     image: pgvector/pgvector:pg16
     networks:
-      - "veridian" 
-    container_name: "veridian-db"
+      - "memento" 
+    container_name: "memento-db"
     restart: unless-stopped
     env_file:
       - path: .env.${ENVIRONMENT:-example}
