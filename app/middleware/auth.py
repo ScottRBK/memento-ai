@@ -1,22 +1,30 @@
 """
-Authentication Middleware helpers for integrating with FastMCP
+Authentication Middleware helpers for integrating with FastMCP and FastAPI
 """
 from typing import Optional
 from app.services.user_service import UserService
 from app.models.user_models import User, UserCreate
 from app.config.settings import settings
-_user_service: Optional[UserService]
+_user_service: Optional[UserService] = None
 
-def init_mcp_auth(user_service: UserService):
-    """Initiates MCP auth with UserService Instance"""
+def init_auth(user_service: UserService):
+    """Initiates auth with UserService Instance"""
     global _user_service
     _user_service = user_service
+    
 
-async def get_mcp_user() -> User:
+def get_user_service() -> UserService:
+    """Gets the initialised user service"""
+
+    if _user_service is None:
+        raise RuntimeError("User Service not initialised. Call init_auth() first")
+    return _user_service
+
+async def get_user_from_auth() -> User:
     """
-    Provides user context for MCP interaction. 
+    Provides user context for MCP and API interaction. 
 
-    Works with FastMCP's authentication system:
+    Works with FastMCP and FastAPIs authentication approach
     - When AUTH_ENABLED=true in the environments file then this will validate the token
     and provision the user
     - When AUTH_ENABLED=false then it will use a default user profile

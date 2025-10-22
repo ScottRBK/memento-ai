@@ -5,23 +5,39 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastmcp import FastMCP
 from app.config.settings import settings
 from app.routes.api.health import router as health_router 
-
+from app.middleware.auth import init_auth
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.repositories.postgres.user_repository import PostgresUserRepository  
+from app.services.user_service import UserService
+from app.routes.mcp import user_tools
 import logging 
 
 logger = logging.getLogger(__name__)
+
+if settings.DATABASE == "Postgres":
+    db_adapter = PostgresDatabaseAdapter()
+    user_repository = PostgresUserRepository(db_adapter=db_adapter) 
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """"Manages application lifecycle."""
 
     logger.info(f"Starting {settings.SERVICE_NAME}")
-
+    await db_adapter.init_db()
+    logger.info(f"Database Initialised")
+    
+    user_service = UserService(user_repository)
+    init_auth(user_service=user_service)
+    logger.info("MCP Authentication Enabled")
+ 
     yield 
 
     logger.info(f"Shutting down {settings.SERVICE_NAME}")
-
+    await db_adapter.dispose()
     logger.info(f"Shut down of {settings.SERVICE_NAME} completed") 
 
 
@@ -49,6 +65,10 @@ async def root():
             "health": "/health"
         }
     }
+
+mcp = FastMCP(settings.SERVICE_NAME, lifespan=lifespan)
+
+user_tools.register(mcp)
 
 if __name__ == "__main__":
     import uvicorn

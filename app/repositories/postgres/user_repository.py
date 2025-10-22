@@ -10,7 +10,7 @@ from app.repositories.postgres.postgres_tables import UsersTable
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.models.user_models import User, UserCreate, UserUpdate
 
-class UserRepository:
+class PostgresUserRepository:
     """
     Repository or User entity operations in Postgres
     """

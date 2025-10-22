@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy import text
 from contextlib import asynccontextmanager
 from typing import AsyncIterator 
+from uuid import UUID
 
 from app.repositories.postgres.postgres_tables import Base
 from app.config.settings import settings 
@@ -11,7 +12,7 @@ class PostgresDatabaseAdapter:
 
     def __init__(self): 
         self._engine: AsyncEngine = create_async_engine(
-         url=self.construct_postres_connection_string(),
+         url=self.construct_postgres_connection_string(),
          echo=settings.DB_LOGGING,
          future=True,
          pool_pre_ping=True
@@ -19,20 +20,38 @@ class PostgresDatabaseAdapter:
       
         self._session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
          bind=self._engine,
-         expore_on_commit=False,
+         expire_on_commit=False,
          autoflush=False
         )
 
     @asynccontextmanager
-    async def session(self) -> AsyncIterator[AsyncSession]:
-        session = self._session_factory()
-        try:
+    async def session(self, user_id: UUID)-> AsyncIterator[AsyncSession]:
+      """Create a user-scoped session with RLS context"""
+      session = self._session_factory()
+      try:
+         await session.execute(
+            text("SET LOCAL app.current_user_id = :user_id"),
+            {"user_id": str(user_id)}
+         )
+         yield session
+         await session.commit()
+      except Exception:
+         await session.rollback()
+         raise
+      finally:
+         await session.close()
+
+    @asynccontextmanager
+    async def system_session(self) -> AsyncIterator[AsyncSession]:
+       """Create a system session (no RLS) for admin operations"""
+       session = self._session_factory()  # Same factory, no RLS context
+       try:
            yield session
            await session.commit()
-        except Exception:
+       except Exception:
            await session.rollback()
            raise
-        finally:
+       finally:
            await session.close()
            
     async def init_db(self) -> None:
@@ -41,7 +60,7 @@ class PostgresDatabaseAdapter:
         - Fresh database: Creates all tables + stamps Alembic to current revision
         - Existing database: Runs pending Alembic migrations    
        """
-       async with self.engine.being() as conn:
+       async with self.engine.begin() as conn:
             # Start by enabling pg vector extension
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             #TODO: Add logging
@@ -61,7 +80,7 @@ class PostgresDatabaseAdapter:
     async def dispose(self) -> None:
        await self._engine.dispose()
 
-    def construct_postres_connection_string(self) -> str:
+    def construct_postgres_connection_string(self) -> str:
        return (
            f"postgres+psycopg://{settings.POSTGRES_USER}:"
            f"{settings.POSTGRES_PASSWORD}@memento-db:"
