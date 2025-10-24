@@ -13,8 +13,13 @@ from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.user_repository import PostgresUserRepository  
 from app.services.user_service import UserService
 from app.routes.mcp import user_tools
-import logging 
+from app.config.logging_config import configure_logging, shutdown_logging
 
+import logging 
+queue_listener = configure_logging(
+    log_level=settings.LOG_LEVEL,
+    log_format=settings.LOG_FORMAT
+)
 logger = logging.getLogger(__name__)
 
 if settings.DATABASE == "Postgres":
@@ -26,9 +31,9 @@ if settings.DATABASE == "Postgres":
 async def lifespan(app: FastAPI):
     """"Manages application lifecycle."""
 
-    logger.info(f"Starting {settings.SERVICE_NAME}")
+    logger.info("Starting service", extra={"service": settings.SERVICE_NAME}) 
     await db_adapter.init_db()
-    logger.info(f"Database Initialised")
+    logger.info("Database Initialised")
     
     user_service = UserService(user_repository)
     init_auth(user_service=user_service)
@@ -36,9 +41,12 @@ async def lifespan(app: FastAPI):
  
     yield 
 
-    logger.info(f"Shutting down {settings.SERVICE_NAME}")
+    logger.info("Shutting down", extra={"service": settings.SERVICE_NAME})
     await db_adapter.dispose()
-    logger.info(f"Shut down of {settings.SERVICE_NAME} completed") 
+    logger.info("Database connections closed") 
+    
+    logger.info("Shutdown complete")
+    shutdown_logging()
 
 
 app = FastAPI(
@@ -66,7 +74,9 @@ async def root():
         }
     }
 
+logger.info("Registering MCP services")
 mcp = FastMCP(settings.SERVICE_NAME, lifespan=lifespan)
+logger.info("MCP services registered")
 
 user_tools.register(mcp)
 

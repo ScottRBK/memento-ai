@@ -5,12 +5,17 @@ from typing import Optional
 from app.services.user_service import UserService
 from app.models.user_models import User, UserCreate
 from app.config.settings import settings
+
+import logging
+logger = logging.getLogger(__name__)
+
 _user_service: Optional[UserService] = None
 
 def init_auth(user_service: UserService):
     """Initiates auth with UserService Instance"""
     global _user_service
     _user_service = user_service
+    logger.info("Authentication middleware intialised")
     
 
 def get_user_service() -> UserService:
@@ -34,6 +39,7 @@ async def get_user_from_auth() -> User:
     """
 
     if not settings.AUTH_ENABLED:
+        logger.info("Authentication disabled - using default user")
         default_user = UserCreate(
             external_id=settings.DEFAULT_USER_ID,
             name=settings.DEFAULT_USER_NAME,
@@ -42,3 +48,4 @@ async def get_user_from_auth() -> User:
         return await _user_service.get_or_create_user(user=default_user)
     
     #TODO: Implement Token validaiton and provisioning
+    logger.warning("Token authentication not yet implemented")

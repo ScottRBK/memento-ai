@@ -7,6 +7,8 @@ from uuid import UUID
 from app.repositories.postgres.postgres_tables import Base
 from app.config.settings import settings 
 
+import logging
+logger = logging.getLogger(__name__)
 
 class PostgresDatabaseAdapter:
 
@@ -35,7 +37,10 @@ class PostgresDatabaseAdapter:
          )
          yield session
          await session.commit()
-      except Exception:
+      except Exception as e:
+         logger.exception(
+            msg="Database session intialisation failed",
+            extra={"error": str(e)})
          await session.rollback()
          raise
       finally:
@@ -48,7 +53,10 @@ class PostgresDatabaseAdapter:
        try:
            yield session
            await session.commit()
-       except Exception:
+       except Exception as e:
+           logger.exception(
+            msg="Database system session intialisation failed",
+            extra={"error": str(e)})
            await session.rollback()
            raise
        finally:
@@ -60,21 +68,26 @@ class PostgresDatabaseAdapter:
         - Fresh database: Creates all tables + stamps Alembic to current revision
         - Existing database: Runs pending Alembic migrations    
        """
-       async with self.engine.begin() as conn:
+       async with self._engine.begin() as conn:
             # Start by enabling pg vector extension
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            #TODO: Add logging
+            logger.info("Intialising Database")
             result = await conn.execute(text(
             "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alembic_version')"
             ))
             
             if not result.scalar():
                 #Fresh Database
+                logger.info("Fresh database detected - creating schema")
                 await conn.run_sync(Base.metadata.create_all) 
+                logger.info("Database schema created successfully")
                 #TODO: Mark almebic as current version
+                logger.warning("Alembic version not set - alembic migrations not implemented yet")
             else:
                # EXISTING DATABASE
+               logger.info("Existing Database Detected")
                #TODO: implement alembic migrations
+               logger.warning("Alembic migration not applied, alembic migrations not implemented yet")
                pass
 
     async def dispose(self) -> None:
@@ -82,7 +95,7 @@ class PostgresDatabaseAdapter:
 
     def construct_postgres_connection_string(self) -> str:
        return (
-           f"postgres+psycopg://{settings.POSTGRES_USER}:"
-           f"{settings.POSTGRES_PASSWORD}@memento-db:"
+           f"postgresql+asyncpg://{settings.POSTGRES_USER}:"
+           f"{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:"
            f"{settings.PGPORT}/{settings.POSTGRES_DB}"
        )

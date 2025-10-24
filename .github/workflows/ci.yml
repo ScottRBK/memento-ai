@@ -2,38 +2,33 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: ["**"]
   pull_request:
-    branches: [master]
+    branches: ["**"]
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
+          python-version-file: "pyproject.toml"
 
       - name: Install dependencies
-        run: uv sync --frozen
-
-      - name: Run unit tests
-        run: uv run pytest tests/unit -v --tb=short
+        run: uv sync --all-extras --dev
 
       - name: Run integration tests
-        run: uv run pytest tests/integration -v --tb=short
-        env:
-          APP_URL: http://localhost:8020
+        run: uv run pytest tests/integration/ -v
 
-      - name: Cleanup
-        if: always()
-        run: echo "Tests completed"
+      - name: Run linting
+        run: uv run ruff check .

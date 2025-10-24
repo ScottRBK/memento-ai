@@ -26,7 +26,7 @@ async def health_check() -> HealthStatus:
         service = settings.SERVICE_NAME,
         version = settings.SERVICE_VERSION
     )
-    logger.info(f"Health check response: {health_check}")
+    logger.info("Health check completed", extra={"status": health_check.status})
 
     return health_check
 

@@ -2,7 +2,6 @@ name: Build
 
 on:
   push:
-    branches: [master]
     tags:
       - 'v*'
 
@@ -34,12 +33,11 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ steps.repo.outputs.owner }}/python_template
+          images: ghcr.io/${{ steps.repo.outputs.owner }}/memento-ai
           tags: |
-            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
+            type=sha,prefix={{version}}-sha-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
