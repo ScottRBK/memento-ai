@@ -13,10 +13,9 @@ import logging.config
 import logging.handlers 
 import re
 from queue import Queue
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from typing import Optional
 from uuid import UUID
-from datetime import datetime, date 
 
 class ConsoleFormatter(logging.Formatter):
     """

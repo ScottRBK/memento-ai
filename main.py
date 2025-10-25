@@ -1,7 +1,6 @@
 """
     FastAPI application for a python service 
 """
-import asyncio
 from contextlib import asynccontextmanager
 from fastmcp import FastMCP
 from starlette.requests import Request

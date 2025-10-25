@@ -10,7 +10,6 @@ for user operations.
 
 from fastmcp import FastMCP
 
-from app.services.user_service import UserService
 from app.models.user_models import UserUpdate
 from app.middleware.auth import get_user_from_auth, get_user_service
 from app.config.logging_config import logging

@@ -19,7 +19,7 @@ async def test_get_current_user_e2e(docker_services, mcp_server_url):
         result = await client.call_tool("get_current_user", {})
 
         # Access attributes from Root object
-        assert result.data.success == True
+        assert result.data.success 
         assert result.data.data is not None
         assert result.data.data.external_id is not None
         assert result.data.data.name is not None

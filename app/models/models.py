@@ -2,7 +2,6 @@
 
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional
 
 class HealthStatus(BaseModel):
     status: str = Field(..., description="Health Status of the Service", examples=["healthy", "unhealthy"])

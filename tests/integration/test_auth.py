@@ -5,7 +5,6 @@ Tests authentication helpers with stubbed database
 """
 import pytest
 from app.middleware import auth
-from app.models.user_models import UserCreate
 from app.config.settings import settings
 
 

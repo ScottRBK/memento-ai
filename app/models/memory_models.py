@@ -146,8 +146,8 @@ class MemoryUpdate(BaseModel):
     
 class Memory(MemoryCreate):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     project_ids: List[int] = Field(default_factory=list)
     linked_memory_ids: List[int] = Field(default_factory=list)
     code_artifact_ids: List[int] = Field(default_factory=list, description="Linked code artifact IDs")
