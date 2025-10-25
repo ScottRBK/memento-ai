@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from uuid import uuid4, UUID
 from typing import Optional
@@ -21,3 +21,5 @@ class User(UserCreate):
     id: UUID = Field(default_factory=lambda: uuid4()) 
     updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True) 
+    
+    model_config = ConfigDict(from_attributes=True) 

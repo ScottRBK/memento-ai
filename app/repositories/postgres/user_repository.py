@@ -29,7 +29,7 @@ class PostgresUserRepository:
         Returns:
             User object or None if not found
         """
-        async with self.db_adapter.session() as session:
+        async with self.db_adapter.system_session() as session:
             result = await session.execute(select(UsersTable).where(UsersTable.id==user_id))
             user_orm = result.scalars().first()
             if user_orm:
@@ -46,7 +46,7 @@ class PostgresUserRepository:
         Returns:
             User object or None if not found
         """
-        async with self.db_adapter.session() as session:
+        async with self.db_adapter.system_session() as session:
             result = await session.execute(select(UsersTable).where(UsersTable.external_id==external_id))
             user_orm = result.scalars().first()
             if user_orm:
@@ -64,7 +64,7 @@ class PostgresUserRepository:
             Returns:
                 User object
         """
-        async with self.db_adapter.session() as session:
+        async with self.db_adapter.system_session() as session:
             new_user = UsersTable(**user.model_dump())
             session.add(new_user)
             await session.flush()
@@ -81,7 +81,7 @@ class PostgresUserRepository:
             Returns:
                 User object
         """
-        async with self.db_adapter.session() as session:
+        async with self.db_adapter.system_session() as session:
             update_data = updated_user.model_dump(exclude_unset=True)
             update_data['updated_at'] = datetime.now(timezone.utc)
             
