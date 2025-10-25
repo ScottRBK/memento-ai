@@ -15,6 +15,8 @@ import re
 from queue import Queue
 from datetime import datetime, timezone
 from typing import Optional
+from uuid import UUID
+from datetime import datetime, date 
 
 class ConsoleFormatter(logging.Formatter):
     """
@@ -159,8 +161,16 @@ class JSONFormatter(logging.Formatter):
         except ImportError:
             # Middleware not yet created, skip contextvar injection
             pass
-
-        return json.dumps(log_data)
+        
+        return json.dumps(log_data, default=_serialise_log_value)
+    
+def _serialise_log_value(obj):
+    """Handle non-JSON-serialisable types"""
+    if isinstance(obj, UUID):
+        return str(obj)
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serialisable")
 
 
 # Global listener instance (stored for cleanup)

@@ -10,7 +10,6 @@ Tests the complete stack: HTTP → FastMCP Client → MCP Protocol → Service �
 import pytest
 from fastmcp import Client
 
-
 @pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_get_current_user_e2e(docker_services, mcp_server_url):
@@ -20,11 +19,11 @@ async def test_get_current_user_e2e(docker_services, mcp_server_url):
         result = await client.call_tool("get_current_user", {})
 
         # Access attributes from Root object
-        assert result.data.success is True
+        assert result.data.success == True
         assert result.data.data is not None
-        assert result.data.data["external_id"] is not None
-        assert result.data.data["name"] is not None
-        assert result.data.data["email"] is not None
+        assert result.data.data.external_id is not None
+        assert result.data.data.name is not None
+        assert result.data.data.email is not None
 
 
 @pytest.mark.e2e
@@ -44,8 +43,8 @@ async def test_update_user_notes_e2e(docker_services, mcp_server_url):
         )
 
         assert update_result.data.success is True
-        assert update_result.data.data["notes"] == "Test notes from E2E test"
-        assert update_result.data.data["id"] == user_data["id"]
+        assert update_result.data.data.notes == "Test notes from E2E test"
+        assert update_result.data.data.id == user_data.id
 
 
 @pytest.mark.e2e
@@ -63,6 +62,6 @@ async def test_user_persistence_e2e(docker_services, mcp_server_url):
         assert result2.data.success is True
         user2 = result2.data.data
 
-        assert user1["id"] == user2["id"]
-        assert user1["external_id"] == user2["external_id"]
-        assert user1["created_at"] == user2["created_at"]
+        assert user1.id == user2.id
+        assert user1.external_id == user2.external_id
+        assert user1.created_at == user2.created_at

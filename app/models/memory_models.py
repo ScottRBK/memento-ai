@@ -1,6 +1,6 @@
 from typing import List, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 from app.config.settings import settings
@@ -59,7 +59,9 @@ class MemoryCreate(BaseModel):
           5-6: Minor context, 
           <5: Discourage""")
     project_ids: Optional[List[int]] =  Field(default=None, description="Associated project IDs")
-    
+    code_artifact_ids: Optional[List[int]] = Field(default=None, description="Code artifact IDs to link (create artifacts first)")
+    document_ids: Optional[List[int]] = Field(default=None, description="Document IDs to link (create documents first)")
+
     field_validator("keywords", "tags")
     @classmethod
     def validate_lists(cls, v, info):
@@ -120,6 +122,9 @@ class MemoryUpdate(BaseModel):
                 • <5: Generally discourage (ephemeral information)
         """),
     project_ids: Optional[List[int]] = Field(None,description="Associated project IDs")
+    code_artifact_ids: Optional[List[int]] = Field(default=None, description="Code artifact IDs to link (create artifacts first)")
+    document_ids: Optional[List[int]] = Field(default=None, description="Document IDs to link (create documents first)")
+
 
     field_validator("keywords", "tags")
     @classmethod
@@ -139,10 +144,69 @@ class MemoryUpdate(BaseModel):
         
         return cleaned
     
-    class Memory(MemoryCreate):
-        id: int
-        created_at: datetime
-        updated_at: datetime
+class Memory(MemoryCreate):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    project_ids: List[int] = Field(default_factory=list)
+    linked_memory_ids: List[int] = Field(default_factory=list)
+    code_artifact_ids: List[int] = Field(default_factory=list, description="Linked code artifact IDs")
+    document_ids: List[int] = Field(default_factory=list, description="Linked document IDs")
+
+    model_config = ConfigDict(from_attributes=True)
+    
+class MemorySummary(BaseModel):
+    """Lightweight memory summary for list views"""
+    id: int
+    title: str
+    keywords: List[str]
+    tags: List[str]
+    importance: int
+    created_at: datetime
+    updated_at: datetime 
+
+    model_config = ConfigDict(from_attributes=True)
+    
+class MemoryQueryRequest(BaseModel):
+    """Request model for querying memories"""
+    query: str = Field(..., min_length=1, description="Query Text")
+    k: int = Field(5, ge=1, le=20, description="Number of primary results")
+    included_links: int = Field(1, ge=0, le=5,  description="Number of memory hops to include **CAUTION - CONTEXT BLOAT OVER 1**")
+    token_context_threshold: int = Field(8000, ge=4000, le=25000, description="Threshold before context cut off of retrieve memories")
+    max_links_per_primary: int = Field(5, ge=0, le=10, description="Maxlinks per primary result")
+    importance_threshold: Optional[int] = Field(None, ge=1, le=10, description="Minimum importance score")
+    project_id: Optional[int] = Field(None, description="Filter/boost by project")
+    
+class LinkedMemory(BaseModel):
+    """Memory with linked context"""
+    memory: Memory
+    link_source_id: int = Field(..., description="ID of memory this is linked from")
+    
+    model_config = ConfigDict(from_attributes=True)
+    
+class MemoryQueryResult(BaseModel):
+    """Response Moddel for memory query"""
+    query: str
+    primary_memories: List[Memory]
+    linked_memories: List[LinkedMemory] = Field(default_factory=list)
+    total_count = int
+    token_count = int
+    truncated: bool = Field(False, description="Whether the results were truncated due to token budget")
+    
+class MemoryLinkRequest(BaseModel):
+    """Request model for linking memories"""
+    memory_id: int = Field(..., description="Source memory ID")
+    related_ids: List[int] = Field(..., min_length=1, description="Target memory IDs to link")
+    
+    @field_validator("related_ids")
+    @classmethod
+    def validate_related_ids(cls, v, info):
+        """Ensure memory is not linking to itself"""
+        if "memory_id" in info.data and info.data["memory)id"] in v:
+            raise ValueError("Cannot link memory to itself")
+        return v
+
+        
         
     
     

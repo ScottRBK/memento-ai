@@ -13,6 +13,9 @@ from fastmcp import FastMCP
 from app.services.user_service import UserService
 from app.models.user_models import UserUpdate
 from app.middleware.auth import get_user_from_auth, get_user_service
+from app.config.logging_config import logging
+
+logger = logging.getLogger(__name__)
 
 
 def register(mcp: FastMCP):
@@ -68,11 +71,16 @@ def register(mcp: FastMCP):
         """
         try:
             user = await get_user_from_auth()
+            logger.info("successfully retrieved current user", extra={"user": user.name, "user_id": user.id, "external_id": user.external_id})
             return {
                 "success": True,
                 "data": user.model_dump()
             }
         except Exception as e:
+            logger.exception(
+                msg="Retrieving user information failed",
+                extra={"error": str(e)}
+            )
             return {
                 "success": False,
                 "error": {
@@ -158,6 +166,10 @@ def register(mcp: FastMCP):
                 "data": updated_user.model_dump()
             }
         except Exception as e:
+            logger.exception(
+                msg="User update failed",
+                extra={"error": str(e)}
+            )
             return {
                 "success": False,
                 "error": {
