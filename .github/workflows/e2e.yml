@@ -8,22 +8,6 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: memento
-          POSTGRES_PASSWORD: memento
-          POSTGRES_DB: memento_test
-        ports:
-          - 5099:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,16 +25,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5099 -U memento; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-
       - name: Run E2E tests
         run: uv run pytest tests/e2e/ -v -m e2e
-        env:
-          POSTGRES_DB: memento_test
-          PGPORT: 5099
-          AUTH_ENABLED: false
+     
