@@ -18,6 +18,7 @@ COPY README.md ./
 RUN uv sync --frozen --no-dev
 
 # Copy application code
+COPY main.py ./
 COPY app ./app
 COPY tests ./tests
 COPY pytest.ini ./
@@ -26,4 +27,4 @@ COPY pytest.ini ./
 EXPOSE 8020
 
 # Run application
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8020"]
+CMD ["uv", "run", "main.py"] 

@@ -19,14 +19,12 @@ async def test_get_current_user_e2e(docker_services, mcp_server_url):
         # Call MCP tool using FastMCP Client
         result = await client.call_tool("get_current_user", {})
 
-        # FastMCP tools return structured data in result.data
-        data = result.data
-
-        assert data["success"] is True
-        assert "data" in data
-        assert data["data"]["external_id"] is not None
-        assert data["data"]["name"] is not None
-        assert data["data"]["email"] is not None
+        # Access attributes from Root object
+        assert result.data.success is True
+        assert result.data.data is not None
+        assert result.data.data["external_id"] is not None
+        assert result.data.data["name"] is not None
+        assert result.data.data["email"] is not None
 
 
 @pytest.mark.e2e
@@ -36,7 +34,8 @@ async def test_update_user_notes_e2e(docker_services, mcp_server_url):
     async with Client(mcp_server_url) as client:
         # First, get current user
         get_result = await client.call_tool("get_current_user", {})
-        user_data = get_result.data["data"]
+        assert get_result.data.success is True
+        user_data = get_result.data.data
 
         # Update notes using MCP tool
         update_result = await client.call_tool(
@@ -44,11 +43,9 @@ async def test_update_user_notes_e2e(docker_services, mcp_server_url):
             {"user_notes": "Test notes from E2E test"}
         )
 
-        updated_data = update_result.data
-
-        assert updated_data["success"] is True
-        assert updated_data["data"]["notes"] == "Test notes from E2E test"
-        assert updated_data["data"]["id"] == user_data["id"]
+        assert update_result.data.success is True
+        assert update_result.data.data["notes"] == "Test notes from E2E test"
+        assert update_result.data.data["id"] == user_data["id"]
 
 
 @pytest.mark.e2e
@@ -58,11 +55,13 @@ async def test_user_persistence_e2e(docker_services, mcp_server_url):
     async with Client(mcp_server_url) as client:
         # First call - creates user
         result1 = await client.call_tool("get_current_user", {})
-        user1 = result1.data["data"]
+        assert result1.data.success is True
+        user1 = result1.data.data
 
         # Second call - should return same user
         result2 = await client.call_tool("get_current_user", {})
-        user2 = result2.data["data"]
+        assert result2.data.success is True
+        user2 = result2.data.data
 
         assert user1["id"] == user2["id"]
         assert user1["external_id"] == user2["external_id"]

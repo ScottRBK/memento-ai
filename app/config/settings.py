@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     SERVICE_DESCRIPTION: str = "Memento Memory Service"
 
     # Server Configuration
-    HOST: str = "0.0.0.0"
+    SERVER_HOST: str = "0.0.0.0"
     SERVER_PORT: int = 8020
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "console"

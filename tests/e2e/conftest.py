@@ -141,6 +141,12 @@ def docker_services():
 
 
 @pytest.fixture
-def mcp_server_url():
-    """Returns the URL of the running MCP server for E2E tests"""
+def server_base_url():
+    """Returns the base URL of the running server for E2E tests"""
     return f"http://localhost:{settings.SERVER_PORT}"
+
+
+@pytest.fixture
+def mcp_server_url():
+    """Returns the MCP protocol endpoint URL for E2E tests"""
+    return f"http://localhost:{settings.SERVER_PORT}/mcp"

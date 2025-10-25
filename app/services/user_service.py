@@ -58,10 +58,10 @@ class UserService:
             else:
                 return existing_user        
         else: 
-            logger.info("Creating user", 
+            logger.info("Creating user",
                         extra={
                             "external_id": user.external_id,
-                            "name": user.name})
+                            "user_name": user.name})
             new_user = await self.user_repo.create_user(user=user)
             logger.info("User created")
             return new_user
@@ -93,10 +93,10 @@ class UserService:
             else:
                 return existing_user        
         else:
-            logger.info("User record not found, creating user", 
+            logger.info("User record not found, creating user",
             extra={
                 "external_id": user_update.external_id,
-                "name": user_update.name})
+                "user_name": user_update.name})
             create_user = UserCreate(**user_update.model_dump())
             logger.info("User created")
             return await self.user_repo.create_user(user=create_user)

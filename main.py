@@ -1,13 +1,14 @@
 """
     FastAPI application for a python service 
 """
-
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
 from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
 from app.config.settings import settings
-from app.routes.api.health import router as health_router 
+from app.routes.api import health 
 from app.middleware.auth import init_auth
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.user_repository import PostgresUserRepository  
@@ -26,9 +27,8 @@ if settings.DATABASE == "Postgres":
     db_adapter = PostgresDatabaseAdapter()
     user_repository = PostgresUserRepository(db_adapter=db_adapter) 
 
-
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     """"Manages application lifecycle."""
 
     logger.info("Starting service", extra={"service": settings.SERVICE_NAME}) 
@@ -48,23 +48,16 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown complete")
     shutdown_logging()
 
+logger.info("Registering MCP services")
+mcp = FastMCP(settings.SERVICE_NAME, lifespan=lifespan)
+logger.info("MCP services registered")
 
-app = FastAPI(
-    title = settings.SERVICE_NAME,
-    description = settings.SERVICE_DESCRIPTION,
-    version = settings.SERVICE_VERSION,
-    docs_url = "/docs",
-    redoc_url = "/redoc",
-    lifespan=lifespan
-)
 
-app.include_router(health_router)
-
-@app.get("/")
-async def root():
+@mcp.custom_route("/", methods=["GET"])
+async def root(request: Request) -> JSONResponse:
     """Root endpoint with basic service information."""
     logger.info("Root endpoint accessed")
-    return {
+    return JSONResponse({
         "service": settings.SERVICE_NAME,
         "version": settings.SERVICE_VERSION,
         "status": "running",
@@ -72,22 +65,16 @@ async def root():
         "endpoints": {
             "health": "/health"
         }
-    }
+    })
 
-logger.info("Registering MCP services")
-mcp = FastMCP(settings.SERVICE_NAME, lifespan=lifespan)
-logger.info("MCP services registered")
+# API Routes
+health.register(mcp)
 
+# MCP Routes 
 user_tools.register(mcp)
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "main:app",
-        host=settings.HOST,
-        port=settings.SERVER_PORT,
-        log_level=settings.LOG_LEVEL.lower()
-    )
+    mcp.run(transport="http", host=settings.SERVER_HOST, port=settings.SERVER_PORT)
     
     
 
