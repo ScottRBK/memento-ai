@@ -8,7 +8,7 @@ from pydantic import ConfigDict
 
 load_dotenv()
 
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "example")
 
 
 class Settings(BaseSettings):
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # Server Configuration
     HOST: str = "0.0.0.0"
-    PORT: int = 8020
+    SERVER_PORT: int = 8020
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "console"
 
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     """Pydantic Configuration"""
 
     model_config = ConfigDict(
-        env_file=f".env.{ENVIRONMENT}",
+        env_file=f"docker/.env.{ENVIRONMENT}",
         extra="ignore"
     )
 
