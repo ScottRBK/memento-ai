@@ -21,46 +21,45 @@ class MemoryCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.MEMORY_TITLE_MAX_LENGTH,
-        description=f"Memory title (max {settings.MEMORY_TITLE_MAX_LENGTH}) - Must be easily scannable"
+        description="Concise, scannable title (5-50 words). Examples: 'Python QueueHandler prevents asyncio blocking', 'TTS preference: XTTS-v2'"
     )
     content: str = Field(
         ...,
         min_length=1,
         max_length=settings.MEMORY_CONTENT_MAX_LENGTH,
-        description=f"""Memory content (max {settings.MEMORY_CONTENT_MAX_LENGTH} chars)
-        One concept per memory, for detailed analysis > 300 words use create_document instead
-        """
+        description="ONE concept, self-contained (max ~400 words). If >300 words, use create_document and extract atomic memories instead."
     )
     context: str = Field(
-    ...,
-    max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
-    description=f"""Rich contextual description explaining WHY this memory matters, HOW it relates to other concepts, 
-        "and WHAT implications it has. Goes beyond summarizing content—provides semantic depth for 
-        "intelligent linking and retrieval in the knowledge graph. "
-        "Max {settings.MEMORY_CONTEXT_MAX_LENGTH} chars"""           
+        ...,
+        max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
+        description="WHY this matters, HOW it relates to other concepts, WHAT implications. Enables intelligent auto-linking and semantic retrieval."
     )
-    keywords: List[str] = Field (
+    keywords: List[str] = Field(
         default_factory=list,
-        description=f"List of keywords for semantic clustering (max {settings.MEMORY_KEYWORDS_MAX_COUNT})" 
+        description="Search terms for semantic discovery (e.g., 'python', 'asyncio', 'logging'). Max 10."
     )
     tags: List[str] = Field(
         default_factory=list,
-        description=f"List of tags for categorization (max {settings.MEMORY_TAGS_MAX_COUNT})"
+        description="Categories for grouping memories (e.g., 'pattern', 'decision', 'bug-fix'). Max 10."
     )
     importance: int = Field(
-        7, 
-        ge=1, 
-        le=10, 
-        description="""Importance score (1-10).
-          9-10: Personal facts/foundational patterns, 
-          8-9: Critical solutions/decisions, 
-          7-8: Useful patterns/preferences, 
-          6-7: Milestones/specific solutions, 
-          5-6: Minor context, 
-          <5: Discourage""")
-    project_ids: Optional[List[int]] =  Field(default=None, description="Associated project IDs")
-    code_artifact_ids: Optional[List[int]] = Field(default=None, description="Code artifact IDs to link (create artifacts first)")
-    document_ids: Optional[List[int]] = Field(default=None, description="Document IDs to link (create documents first)")
+        7,
+        ge=1,
+        le=10,
+        description="Importance 1-10 (default 7): 9-10=personal facts/foundational patterns, 8-9=critical solutions/decisions, 7-8=useful patterns/preferences, 6-7=milestones/solutions, <6=discourage."
+    )
+    project_ids: Optional[List[int]] = Field(
+        default=None,
+        description="Link to project(s) for scoped queries. Enables 'show memories for Project X' filtering."
+    )
+    code_artifact_ids: Optional[List[int]] = Field(
+        default=None,
+        description="Code artifact IDs to link (create artifacts first). Links implementation examples to this memory."
+    )
+    document_ids: Optional[List[int]] = Field(
+        default=None,
+        description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
+    )
 
     field_validator("keywords", "tags")
     @classmethod
@@ -76,7 +75,7 @@ class MemoryCreate(BaseModel):
         max_count = settings.MEMORY_KEYWORDS_MAX_COUNT if field_name == "keywords" else settings.MEMORY_TAGS_MAX_COUNT
 
         if len(cleaned) > max_count:
-            raise ValueError(f"Too manu {field_name}" ({len(cleaned)}, max ({max_count})))
+            raise ValueError(f"Too many {field_name} ({len(cleaned)}, max {max_count})")
         
         return cleaned
         
@@ -86,44 +85,46 @@ class MemoryUpdate(BaseModel):
         None,
         min_length=1,
         max_length=settings.MEMORY_TITLE_MAX_LENGTH,
-        description=f"Memory title (max {settings.MEMORY_TITLE_MAX_LENGTH})",
+        description="New title (5-50 words, scannable). Unchanged if null."
     )
     content: Optional[str] = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_CONTENT_MAX_LENGTH,
-        description=f"Memory content (max {settings.MEMORY_CONTENT_MAX_LENGTH})",
+        description="New content (ONE concept, max ~400 words). Unchanged if null."
     )
     context: Optional[str] = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
-        description=f"""Rich contextual description (WHY/HOW/WHAT).
-        Max {settings.MEMORY_CONTEXT_MAX_LENGTH}"""
-    ),
+        description="New context (WHY/HOW/WHAT for auto-linking). Unchanged if null."
+    )
     keywords: Optional[List[str]] = Field(
         None,
-        description=f"List of keywords (max {settings.MEMORY_KEYWORDS_MAX_COUNT})"
-    ),
+        description="New search terms (max 10). Replaces existing if provided, unchanged if null."
+    )
     tags: Optional[List[str]] = Field(
         None,
-        description=f"List of tags (max {settings.MEMORY_TAGS_MAX_COUNT})"
-    ),
+        description="New categories (max 10). Replaces existing if provided, unchanged if null."
+    )
     importance: Optional[int] = Field(
-        None, 
-        ge=1, 
+        None,
+        ge=1,
         le=10,
-        description=""""importance: Importance score 1-10 (default: 7). Scale:
-                • 9-10: Personal facts, foundational architectural patterns (always relevant)
-                • 8-9: Critical technical solutions, major architectural decisions
-                • 7-8: Useful patterns, strong preferences, tool choices
-                • 6-7: Project milestones, specific solutions
-                • 5-6: Minor context (manual creation only, not auto-suggested)
-                • <5: Generally discourage (ephemeral information)
-        """),
-    project_ids: Optional[List[int]] = Field(None,description="Associated project IDs")
-    code_artifact_ids: Optional[List[int]] = Field(default=None, description="Code artifact IDs to link (create artifacts first)")
-    document_ids: Optional[List[int]] = Field(default=None, description="Document IDs to link (create documents first)")
+        description="New importance 1-10: 9-10=personal/foundational, 8-9=critical, 7-8=useful, 6-7=milestones, <6=discourage. Unchanged if null."
+    )
+    project_ids: Optional[List[int]] = Field(
+        None,
+        description="New project associations. Replaces existing if provided, unchanged if null."
+    )
+    code_artifact_ids: Optional[List[int]] = Field(
+        None,
+        description="New code artifact links. Replaces existing if provided, unchanged if null."
+    )
+    document_ids: Optional[List[int]] = Field(
+        None,
+        description="New document links. Replaces existing if provided, unchanged if null."
+    )
 
 
     field_validator("keywords", "tags")
@@ -140,7 +141,7 @@ class MemoryUpdate(BaseModel):
         max_count = settings.MEMORY_KEYWORDS_MAX_COUNT if field_name == "keywords" else settings.MEMORY_TAGS_MAX_COUNT
 
         if len(cleaned) > max_count:
-            raise ValueError(f"Too manu {field_name}" ({len(cleaned)}, max ({max_count})))
+            raise ValueError(f"Too many {field_name} ({len(cleaned)}, max {max_count})")
         
         return cleaned
     
@@ -169,13 +170,45 @@ class MemorySummary(BaseModel):
     
 class MemoryQueryRequest(BaseModel):
     """Request model for querying memories"""
-    query: str = Field(..., min_length=1, description="Query Text")
-    k: int = Field(5, ge=1, le=20, description="Number of primary results")
-    included_links: int = Field(1, ge=0, le=5,  description="Number of memory hops to include **CAUTION - CONTEXT BLOAT OVER 1**")
-    token_context_threshold: int = Field(8000, ge=4000, le=25000, description="Threshold before context cut off of retrieve memories")
-    max_links_per_primary: int = Field(5, ge=0, le=10, description="Maxlinks per primary result")
-    importance_threshold: Optional[int] = Field(None, ge=1, le=10, description="Minimum importance score")
-    project_id: Optional[int] = Field(None, description="Filter/boost by project")
+    query: str = Field(
+        ...,
+        min_length=1,
+        description="Natural language query for semantic search (e.g., 'Python logging best practices')"
+    )
+    k: int = Field(
+        5,
+        ge=1,
+        le=20,
+        description="Number of top semantic matches to return (primary results)"
+    )
+    included_links: int = Field(
+        1,
+        ge=0,
+        le=5,
+        description="Graph traversal depth (0=no links, 1=direct neighbors, 2+=exponential context bloat). Recommended: 0-1."
+    )
+    token_context_threshold: int = Field(
+        8000,
+        ge=4000,
+        le=25000,
+        description="Max tokens before truncating results (8K default fits most LLM contexts)"
+    )
+    max_links_per_primary: int = Field(
+        5,
+        ge=0,
+        le=10,
+        description="Max linked memories per primary result (controls context expansion)"
+    )
+    importance_threshold: Optional[int] = Field(
+        None,
+        ge=1,
+        le=10,
+        description="Filter out memories below this importance (e.g., 7=only important memories)"
+    )
+    project_id: Optional[int] = Field(
+        None,
+        description="Filter results to specific project (scoped search within project context)"
+    )
     
 class LinkedMemory(BaseModel):
     """Memory with linked context"""
@@ -185,12 +218,12 @@ class LinkedMemory(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     
 class MemoryQueryResult(BaseModel):
-    """Response Moddel for memory query"""
+    """Response Model for memory query"""
     query: str
     primary_memories: List[Memory]
     linked_memories: List[LinkedMemory] = Field(default_factory=list)
-    total_count = int
-    token_count = int
+    total_count: int
+    token_count: int
     truncated: bool = Field(False, description="Whether the results were truncated due to token budget")
     
 class MemoryLinkRequest(BaseModel):
@@ -202,7 +235,7 @@ class MemoryLinkRequest(BaseModel):
     @classmethod
     def validate_related_ids(cls, v, info):
         """Ensure memory is not linking to itself"""
-        if "memory_id" in info.data and info.data["memory)id"] in v:
+        if "memory_id" in info.data and info.data["memory_id"] in v:
             raise ValueError("Cannot link memory to itself")
         return v
 
