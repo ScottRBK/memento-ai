@@ -9,3 +9,6 @@ debug/
 
 # Virtual environments
 .venv
+
+# VS Code
+.vscode
