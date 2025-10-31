@@ -38,13 +38,16 @@ class Settings(BaseSettings):
     DEFAULT_USER_NAME: str = "default-user-name"
     DEFAULT_USER_EMAIL: str = "default-user-email"
 
-
     # Memory Configuration
     MEMORY_TITLE_MAX_LENGTH: int = 200      # Must be "easily titled" - scannable
     MEMORY_CONTENT_MAX_LENGTH: int = 2000   # ~300-400 words - single concept
     MEMORY_CONTEXT_MAX_LENGTH: int = 500    # Brief contextual description
     MEMORY_KEYWORDS_MAX_COUNT: int = 10     # For semantic clustering
     MEMORY_TAGS_MAX_COUNT: int = 10         # For categorization
+    MEMORY_TOKEN_BUDGET: int = 8000         # token budget for retrieved memories (to protect context window)
+    MEMORY_MAX_MEMORIES: int = 20           # maximum number of memories that can be retrieved from a query
+    MEMORY_NUM_AUTO_LINK: int = 3           # number of memories to automatically link
+
 
     """Pydantic Configuration"""
 

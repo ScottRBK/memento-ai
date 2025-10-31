@@ -1,26 +1,17 @@
 from typing import Protocol, Optional, List
 from uuid import UUID
 
-from app.models.memory_models import Memory, MemoryUpdate
+from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
 
 
 class MemoryRepository(Protocol):
     "Contract for the Memory Repository"
     
-    async def semantic_search(
+    async def search(
             self,
             user_id: UUID,
             query: str, 
-            k: int, 
-            importance_threshold: Optional[int],
-            project_ids: Optional[List[int]], 
-            exclude_ids: Optional[List[int]]
-    ) -> Memory:
-        ...
-    async def hybrid_search(
-            self,
-            user_id: UUID, 
-            query: str, 
+            query_context: str,
             k: int, 
             importance_threshold: Optional[int],
             project_ids: Optional[List[int]], 
@@ -30,16 +21,12 @@ class MemoryRepository(Protocol):
     async def create_memory(
             self,
             user_id: UUID, 
-            title: str,
-            content: str, 
-            context: str,
-            keywords: List[str],
-            tags: List[str],
-            importance: int
+            memory: MemoryCreate
     ) -> Memory:
         ...
     async def create_links_batch(
             self,
+            user_id: int,
             source_id: int,
             target_ids: List[int],
     ) -> int:
@@ -70,6 +57,13 @@ class MemoryRepository(Protocol):
             memory_id: int,
             user_id: UUID,
             max_links: int = 5,
+    ) -> List[Memory]:
+        ...
+    async def find_similar_memories(
+            self,
+            memory_id: int,
+            user_id: UUID,
+            max_links: int
     ) -> List[Memory]:
         ...
             

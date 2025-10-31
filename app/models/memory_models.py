@@ -35,11 +35,13 @@ class MemoryCreate(BaseModel):
         description="WHY this matters, HOW it relates to other concepts, WHAT implications. Enables intelligent auto-linking and semantic retrieval."
     )
     keywords: List[str] = Field(
-        default_factory=list,
+        ...,
+        max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
         description="Search terms for semantic discovery (e.g., 'python', 'asyncio', 'logging'). Max 10."
     )
     tags: List[str] = Field(
-        default_factory=list,
+        ...,
+        max_length=settings.MEMORY_TAGS_MAX_COUNT,
         description="Categories for grouping memories (e.g., 'pattern', 'decision', 'bug-fix'). Max 10."
     )
     importance: int = Field(
@@ -101,10 +103,12 @@ class MemoryUpdate(BaseModel):
     )
     keywords: Optional[List[str]] = Field(
         None,
+        max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
         description="New search terms (max 10). Replaces existing if provided, unchanged if null."
     )
     tags: Optional[List[str]] = Field(
         None,
+        max_length=settings.MEMORY_TAGS_MAX_COUNT,
         description="New categories (max 10). Replaces existing if provided, unchanged if null."
     )
     importance: Optional[int] = Field(
@@ -175,13 +179,18 @@ class MemoryQueryRequest(BaseModel):
         min_length=1,
         description="Natural language query for semantic search (e.g., 'Python logging best practices')"
     )
+    query_context: str = Field(
+        ...,
+        min_length=1,
+        description="Contextual reasoning behind why you are searching for this information"
+    )
     k: int = Field(
-        5,
+        3,
         ge=1,
         le=20,
         description="Number of top semantic matches to return (primary results)"
     )
-    included_links: int = Field(
+    include_links: int = Field(
         1,
         ge=0,
         le=5,
