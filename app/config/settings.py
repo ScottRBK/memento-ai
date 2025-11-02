@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     MEMORY_TOKEN_BUDGET: int = 8000         # token budget for retrieved memories (to protect context window)
     MEMORY_MAX_MEMORIES: int = 20           # maximum number of memories that can be retrieved from a query
     MEMORY_NUM_AUTO_LINK: int = 3           # number of memories to automatically link
+    
+    # Search Configuration
+    EMBEDDING_PROVIDER: str = "FastEmbed"
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_DIMENSIONS: int = 384
 
 
     """Pydantic Configuration"""

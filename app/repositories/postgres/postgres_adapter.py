@@ -79,8 +79,19 @@ class PostgresDatabaseAdapter:
             if not result.scalar():
                 #Fresh Database
                 logger.info("Fresh database detected - creating schema")
+                
                 await conn.run_sync(Base.metadata.create_all) 
+                
                 logger.info("Database schema created successfully")
+                
+                await conn.execute(text("""
+                  DROP INDEX IF EXISTS ix_memories_embedding;
+                  CREATE INDEX ix_memories_embedding
+                  ON memories USING hnsw (embedding vector_cosine_ops)
+                  WITH (m = 16, ef_construction = 64)
+                """))
+                logger.info("HNSW index created on memories.embedding with optimised parameters")
+
                 #TODO: Mark almebic as current version
                 logger.warning("Alembic version not set - alembic migrations not implemented yet")
             else:
