@@ -1,4 +1,4 @@
-from typing import Protocol, Optional, List
+from typing import Protocol, List
 from uuid import UUID
 
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
@@ -13,9 +13,9 @@ class MemoryRepository(Protocol):
             query: str, 
             query_context: str,
             k: int, 
-            importance_threshold: Optional[int],
-            project_ids: Optional[List[int]], 
-            exclude_ids: Optional[List[int]]
+            importance_threshold: int | None,
+            project_ids: List[int] | None,
+            exclude_ids: List[int] | None
     ) -> Memory:
         ...
     async def create_memory(
@@ -35,14 +35,14 @@ class MemoryRepository(Protocol):
             self,
             memory_id: int,
             user_id: UUID
-    ) -> Optional[Memory]:
+    ) -> Memory | None:
         ...
     async def update_memory(
             self,
             memory_id: int,
             user_id: UUID,
             updated_memory: MemoryUpdate
-    ) -> Optional[Memory]:
+    ) -> Memory | None:
         ...
     async def mark_obsolete(
             self,

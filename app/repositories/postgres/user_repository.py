@@ -1,7 +1,6 @@
 """
-User repository for data acess operations
+User repository for postgres data acess operations
 """
-from typing import Optional
 from uuid import UUID
 from sqlalchemy import select, update
 from datetime import datetime, timezone
@@ -19,7 +18,7 @@ class PostgresUserRepository:
         self.db_adapter = db_adapter
     
     
-    async def get_user_by_id(self, user_id: UUID) -> Optional[User]:
+    async def get_user_by_id(self, user_id: UUID) -> User | None: 
         """
         Gets a user by their internal id
 
@@ -36,7 +35,7 @@ class PostgresUserRepository:
                 return User.model_validate(user_orm)
             return None 
 
-    async def get_user_by_external_id(self, external_id: str) -> Optional[User]:
+    async def get_user_by_external_id(self, external_id: str) -> User | None:
         """
         Gets a user by their external id
 

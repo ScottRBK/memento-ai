@@ -1,7 +1,6 @@
 """
 Authentication Middleware helpers for integrating with FastMCP and FastAPI
 """
-from typing import Optional
 from app.services.user_service import UserService
 from app.models.user_models import User, UserCreate
 from app.config.settings import settings
@@ -9,7 +8,7 @@ from app.config.settings import settings
 import logging
 logger = logging.getLogger(__name__)
 
-_user_service: Optional[UserService] = None
+_user_service: UserService | None = None
 
 def init_auth(user_service: UserService):
     """Initiates auth with UserService Instance"""

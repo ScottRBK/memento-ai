@@ -8,13 +8,12 @@ This module provides:
 """
 
 from contextvars import ContextVar
-from typing import Optional
 
 
-request_id_var: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
-user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
+request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
+user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)
 
-def get_request_id() -> Optional[str]:
+def get_request_id() -> str | None:
     """Get the current requst/operation ID from context."""
     return request_id_var.get()
 
@@ -22,7 +21,7 @@ def set_request_id(request_id: str) -> None:
     """Set the request/operation ID in context."""
     request_id_var.set(request_id)
 
-def get_user_id() -> Optional[str]:
+def get_user_id() -> str | None:
     """Get the current user id from context"""
     return user_id_var.get()
 

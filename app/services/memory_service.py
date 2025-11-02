@@ -8,7 +8,7 @@ This service implements the primary functionality for the Veridian Memory System
     - Manual linking between memories
     - Retrieval with project associations
 """
-from typing import Optional, List
+from typing import List
 from uuid import UUID
 
 from app.config.logging_config import logging
@@ -154,7 +154,7 @@ class MemoryService:
             user_id: UUID,
             memory_id: int,
             updated_memory: MemoryUpdate
-    ) -> Optional[Memory]:
+    ) -> Memory | None:
         """
         Update an existing memory
 
@@ -216,7 +216,7 @@ class MemoryService:
             user_id: UUID,
             memory_id: int,
             reason: str,
-            superseeded_by: Optional[int] = None,
+            superseeded_by: int | None = None,
     ) -> bool:
         """
         Mark a memory as obsolete (soft delete)
@@ -260,7 +260,7 @@ class MemoryService:
             self,
             user_id: int,
             memory_id: int
-    )  -> Optional[Memory]:
+    )  -> Memory | None:
         """
         Retrieve a single emmory by id
 
@@ -345,7 +345,7 @@ class MemoryService:
             self,
             memory_id: int,
             user_id: UUID
-    ) -> Optional[List[int]]: 
+    ) -> List[int] | None: 
         """
         Automatically link new memory to similar memories
         

@@ -2,7 +2,6 @@
 Integration test fixtures with in-memory stubs (no real database required)
 """
 import pytest
-from typing import Optional
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
@@ -18,10 +17,10 @@ class InMemoryUserRepository(UserRepository):
         self._users: dict[UUID, User] = {}
         self._external_id_index: dict[str, UUID] = {}
 
-    async def get_user_by_id(self, user_id: UUID) -> Optional[User]:
+    async def get_user_by_id(self, user_id: UUID) -> User | None:
         return self._users.get(user_id)
 
-    async def get_user_by_external_id(self, external_id: str) -> Optional[User]:
+    async def get_user_by_external_id(self, external_id: str) -> User | None:
         user_id = self._external_id_index.get(external_id)
         if user_id:
             return self._users.get(user_id)
@@ -46,7 +45,7 @@ class InMemoryUserRepository(UserRepository):
         self._external_id_index[user.external_id] = user_id
         return new_user
 
-    async def update_user(self, user_id: UUID, updated_user: UserUpdate) -> Optional[User]:
+    async def update_user(self, user_id: UUID, updated_user: UserUpdate) -> User | None:
         user = self._users.get(user_id)
         if not user:
             return None

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
@@ -50,15 +50,15 @@ class MemoryCreate(BaseModel):
         le=10,
         description="Importance 1-10 (default 7): 9-10=personal facts/foundational patterns, 8-9=critical solutions/decisions, 7-8=useful patterns/preferences, 6-7=milestones/solutions, <6=discourage."
     )
-    project_ids: Optional[List[int]] = Field(
+    project_ids: List[int] | None = Field(
         default=None,
         description="Link to project(s) for scoped queries. Enables 'show memories for Project X' filtering."
     )
-    code_artifact_ids: Optional[List[int]] = Field(
+    code_artifact_ids: List[int] | None = Field(
         default=None,
         description="Code artifact IDs to link (create artifacts first). Links implementation examples to this memory."
     )
-    document_ids: Optional[List[int]] = Field(
+    document_ids: List[int] | None = Field(
         default=None,
         description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
     )
@@ -83,49 +83,49 @@ class MemoryCreate(BaseModel):
         
 class MemoryUpdate(BaseModel):
     """Request model for updating a memory"""
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_TITLE_MAX_LENGTH,
         description="New title (5-50 words, scannable). Unchanged if null."
     )
-    content: Optional[str] = Field(
+    content: str | None = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_CONTENT_MAX_LENGTH,
         description="New content (ONE concept, max ~400 words). Unchanged if null."
     )
-    context: Optional[str] = Field(
+    context: str | None = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
         description="New context (WHY/HOW/WHAT for auto-linking). Unchanged if null."
     )
-    keywords: Optional[List[str]] = Field(
+    keywords: List[str] | None = Field(
         None,
         max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
         description="New search terms (max 10). Replaces existing if provided, unchanged if null."
     )
-    tags: Optional[List[str]] = Field(
+    tags: List[str] | None = Field(
         None,
         max_length=settings.MEMORY_TAGS_MAX_COUNT,
         description="New categories (max 10). Replaces existing if provided, unchanged if null."
     )
-    importance: Optional[int] = Field(
+    importance: int | None = Field(
         None,
         ge=1,
         le=10,
         description="New importance 1-10: 9-10=personal/foundational, 8-9=critical, 7-8=useful, 6-7=milestones, <6=discourage. Unchanged if null."
     )
-    project_ids: Optional[List[int]] = Field(
+    project_ids: List[int] | None = Field(
         None,
         description="New project associations. Replaces existing if provided, unchanged if null."
     )
-    code_artifact_ids: Optional[List[int]] = Field(
+    code_artifact_ids: List[int] | None = Field(
         None,
         description="New code artifact links. Replaces existing if provided, unchanged if null."
     )
-    document_ids: Optional[List[int]] = Field(
+    document_ids: List[int] | None = Field(
         None,
         description="New document links. Replaces existing if provided, unchanged if null."
     )
@@ -208,13 +208,13 @@ class MemoryQueryRequest(BaseModel):
         le=10,
         description="Max linked memories per primary result (controls context expansion)"
     )
-    importance_threshold: Optional[int] = Field(
+    importance_threshold: int | None = Field(
         None,
         ge=1,
         le=10,
         description="Filter out memories below this importance (e.g., 7=only important memories)"
     )
-    project_id: Optional[int] = Field(
+    project_id: int | None = Field(
         None,
         description="Filter results to specific project (scoped search within project context)"
     )

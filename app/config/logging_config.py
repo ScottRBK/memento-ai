@@ -14,7 +14,6 @@ import logging.handlers
 import re
 from queue import Queue
 from datetime import datetime, timezone, date
-from typing import Optional
 from uuid import UUID
 
 class ConsoleFormatter(logging.Formatter):
@@ -173,7 +172,7 @@ def _serialise_log_value(obj):
 
 
 # Global listener instance (stored for cleanup)
-_queue_listener: Optional[logging.handlers.QueueListener] = None
+_queue_listener: logging.handlers.QueueListener | None = None
 
 
 def configure_logging(

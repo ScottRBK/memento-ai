@@ -2,7 +2,6 @@
 Service for user management and auto-provisioning
 """
 from uuid import UUID 
-from typing import Optional
 
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.user_protocol import UserRepository
@@ -19,7 +18,7 @@ class UserService:
     def __init__(self, user_repo: UserRepository):
        self.user_repo = user_repo 
 
-    async def get_user_by_id(self, user_id: UUID) -> Optional[User]:
+    async def get_user_by_id(self, user_id: UUID) -> User | None:
         """Get user by their internal id
         
         Args:
@@ -30,7 +29,7 @@ class UserService:
         """
         return await self.user_repo.get_user_by_id(user_id=user_id)
     
-    async def get_or_create_user(self, user: UserCreate) -> Optional[User]:
+    async def get_or_create_user(self, user: UserCreate) -> User | None:
         """Tries to fetch a user based on their external_id and if not exists creates them
 
         Args:
@@ -66,7 +65,7 @@ class UserService:
             logger.info("User created")
             return new_user
     
-    async def update_user(self, user_update: UserUpdate) -> Optional[User]:
+    async def update_user(self, user_update: UserUpdate) -> User | None:
         """
             Updates a user record with the updated user details passed to it
 

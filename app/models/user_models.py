@@ -1,21 +1,20 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from uuid import uuid4, UUID
-from typing import Optional
 
 class UserCreate(BaseModel):
     external_id: str
     name: str
     email: str
-    idp_metadata: Optional[dict] = None
-    notes: Optional[str] = None
+    idp_metadata: dict | None = None
+    notes: str | None = None
 
 class UserUpdate(BaseModel):
-    external_id: Optional[str] = None 
-    name: Optional[str] = None
-    email: Optional[str] = None
-    idp_metadata: Optional[dict] = None
-    notes: Optional[str] = None
+    external_id: str | None = None 
+    name: str | None = None
+    email: str | None = None
+    idp_metadata: dict | None = None
+    notes: str | None = None
 
 class User(UserCreate):
     id: UUID = Field(default_factory=lambda: uuid4()) 
