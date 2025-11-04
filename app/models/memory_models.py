@@ -214,9 +214,13 @@ class MemoryQueryRequest(BaseModel):
         le=10,
         description="Filter out memories below this importance (e.g., 7=only important memories)"
     )
-    project_id: int | None = Field(
+    project_ids: List[int] | None = Field(
         None,
-        description="Filter results to specific project (scoped search within project context)"
+        description="Filter results to specific projects (scoped search within project context)"
+    )
+    strict_project_filter: bool = Field(
+        False,
+        description="Opt out flag to exlcude memories from being retrieved from outside of the project"
     )
     
 class LinkedMemory(BaseModel):

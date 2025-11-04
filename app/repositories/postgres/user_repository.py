@@ -3,11 +3,13 @@ User repository for postgres data acess operations
 """
 from uuid import UUID
 from sqlalchemy import select, update
+from sqlalchemy.exc import NoResultFound
 from datetime import datetime, timezone
 
 from app.repositories.postgres.postgres_tables import UsersTable
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.models.user_models import User, UserCreate, UserUpdate
+from app.exceptions import NotFoundError
 
 class PostgresUserRepository:
     """
@@ -72,13 +74,17 @@ class PostgresUserRepository:
         
     async def update_user(self, user_id: UUID, updated_user: UserUpdate) -> User:
         """
-            Updates the user entity with the incoming UserCreate object
+            Updates the user entity with the incoming UserUpdate object
 
             Args:
-                User Update: user update object
+                user_id: User ID to update
+                updated_user: user update object
 
             Returns:
                 User object
+                
+            Raises:
+                NotFoundError: If user not found
         """
         async with self.db_adapter.system_session() as session:
             update_data = updated_user.model_dump(exclude_unset=True)
@@ -91,10 +97,12 @@ class PostgresUserRepository:
                 .returning(UsersTable)
             )
             
-            result = await session.execute(stmt)
-            user = result.scalar_one()
-            
-            return User.model_validate(user)
+            try:
+                result = await session.execute(stmt)
+                user = result.scalar_one()
+                return User.model_validate(user)
+            except NoResultFound:
+                raise NotFoundError(f"User with id {user_id} not found")
             
     
         

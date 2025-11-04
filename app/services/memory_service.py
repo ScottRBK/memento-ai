@@ -1,7 +1,7 @@
 """
 Memory Service - Core business logic for memory operations
 
-This service implements the primary functionality for the Veridian Memory System:
+This service implements the primary functionality for the Memento-AI Memory System:
     - Semantic search with token budget management
     - Memory creation with auto-linking
     - Memory updates 
@@ -62,8 +62,6 @@ class MemoryService:
                 MemoryQueryResults with primary memories, linked memories, and metadata
         """
         
-        project_ids = [memory_query.project_id]
-        
         logger.info("querying primary memories", extra={"query": memory_query.query})
         primary_memories = await self.memory_repo.search(
             user_id=user_id,
@@ -71,16 +69,22 @@ class MemoryService:
             query_context=memory_query.query_context,
             k=memory_query.k,
             importance_threshold=memory_query.importance_threshold,
-            project_ids=project_ids,
-        )
+            project_ids=memory_query.project_ids
+         )
         logger.info("primary memory query completed", extra={"number of messages found": len(primary_memories)})
         
         if memory_query.include_links and memory_query.max_links_per_primary > 0:
             logger.info("querying linked memories", extra={"number of primary memories": len(primary_memories)})
+            
+            linked_memory_projects = None
+            if memory_query.strict_project_filter:
+                linked_memory_projects = memory_query.project_ids
+
             linked_memories = await self._fetch_linked_memories(
                 user_id=user_id,
                 primary_memories=primary_memories,
-                max_links_per_primary=memory_query.max_links_per_primary
+                max_links_per_primary=memory_query.max_links_per_primary,
+                project_ids=linked_memory_projects,
             )
             logger.info("linked memory query completed", extra={"number of linked memories": len(linked_memories)})
         
@@ -166,7 +170,7 @@ class MemoryService:
         # TODO: Remember to update embeddings once repo implemented if the following
         # fields are part of the update: title, content, context, tags, keyword
         
-        existing_memory = self.memory_repo.get_memory_by_id(
+        existing_memory = await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
             user_id=user_id
         )
@@ -316,7 +320,7 @@ class MemoryService:
             "number of links to add": len(related_ids)
         })
         
-        source_memory = self.memory_repo.get_memory_by_id(
+        source_memory = await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
             user_id=user_id
         )
@@ -363,6 +367,8 @@ class MemoryService:
             max_links=settings.MEMORY_NUM_AUTO_LINK
         )
         
+        links_created = 0
+        
         if similar_memories:
             target_ids = [m.id for m in similar_memories]
             links_created = await self.memory_repo.create_links_batch(
@@ -381,14 +387,15 @@ class MemoryService:
                 "memory_id": memory_id
             })
 
-        return similar_memories
+        return links_created
             
 
     async def _fetch_linked_memories(
             self,
             user_id,
             primary_memories: List[Memory],
-            max_links_per_primary: int
+            max_links_per_primary: int,
+            project_ids: List[int] | None
     ) -> List[LinkedMemory]:
         """
         Fetch linked memories for each primary result
@@ -409,6 +416,7 @@ class MemoryService:
                 links = await self.memory_repo.get_linked_memories(
                     memory_id=primary.id,
                     user_id=user_id,
+                    project_ids=project_ids,
                     max_links=max_links_per_primary
                 )
 
@@ -441,7 +449,7 @@ class MemoryService:
             linked_memories: List[LinkedMemory],
             max_tokens: int,
             max_memories: int,
-    ) -> tuple [List[Memory], List[LinkedMemory], int, bool]:
+    ) -> tuple[List[Memory], List[LinkedMemory], int, bool]:
         """
         Apply token budget and count limits to memory results
 

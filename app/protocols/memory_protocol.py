@@ -16,7 +16,7 @@ class MemoryRepository(Protocol):
             importance_threshold: int | None,
             project_ids: List[int] | None,
             exclude_ids: List[int] | None
-    ) -> Memory:
+    ) -> List[Memory]:
         ...
     async def create_memory(
             self,
@@ -26,43 +26,44 @@ class MemoryRepository(Protocol):
         ...
     async def create_links_batch(
             self,
-            user_id: int,
+            user_id: UUID,
             source_id: int,
             target_ids: List[int],
-    ) -> int:
+    ) -> List[int]:
         ...
     async def get_memory_by_id(
             self,
+            user_id: UUID,
             memory_id: int,
-            user_id: UUID
-    ) -> Memory | None:
+    ) -> Memory:
         ...
     async def update_memory(
             self,
-            memory_id: int,
             user_id: UUID,
+            memory_id: int,
             updated_memory: MemoryUpdate
     ) -> Memory | None:
         ...
     async def mark_obsolete(
             self,
-            memory_id: int,
             user_id: UUID,
+            memory_id: int,
             reason: str,
             superseded_by: int
     ) -> bool:
         ...
     async def get_linked_memories(
             self,
-            memory_id: int,
             user_id: UUID,
+            memory_id: int,
+            project_ids: List[int] | None,
             max_links: int = 5,
     ) -> List[Memory]:
         ...
     async def find_similar_memories(
             self,
-            memory_id: int,
             user_id: UUID,
+            memory_id: int,
             max_links: int
     ) -> List[Memory]:
         ...

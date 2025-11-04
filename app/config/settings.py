@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER: str = "FastEmbed"
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
+    DENSE_SEARCH_CANDIDATES: int = 50     # number of candidates to retrieve from the dense search
 
 
     """Pydantic Configuration"""

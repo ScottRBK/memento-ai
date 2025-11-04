@@ -13,6 +13,7 @@ from fastmcp import FastMCP
 from app.models.user_models import UserUpdate
 from app.middleware.auth import get_user_from_auth, get_user_service
 from app.config.logging_config import logging
+from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,7 @@ def register(mcp: FastMCP):
         - Returns the updated User object with new notes value
         - Does not modify other user fields (name, email, etc.)
         - Auto-creates user if they don't exist
+        - Replaces existing value of notes field so remember to pass persist if still relevant
 
         **WHEN NOT TO USE**:
         - When you need to update other user fields (name, email) - those are managed by IDP
@@ -163,6 +165,18 @@ def register(mcp: FastMCP):
             return {
                 "success": True,
                 "data": updated_user.model_dump()
+            }
+        except NotFoundError as e:
+            logger.error(
+                msg="User not found during update",
+                extra={"error": str(e)}
+            )
+            return {
+                "success": False,
+                "error": {
+                    "code": "USER_NOT_FOUND",
+                    "message": str(e)
+                }
             }
         except Exception as e:
             logger.exception(

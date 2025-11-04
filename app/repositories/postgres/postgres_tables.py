@@ -74,12 +74,28 @@ class UsersTable(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False)
+
     # Relationships
     memories:   Mapped[List["MemoryTable"]] = relationship(
         "MemoryTable",
         back_populates="user",
         cascade="all, delete-orphan"
-    )    
+    )
+    projects: Mapped[List["ProjectsTable"]] = relationship(
+        "ProjectsTable",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    code_artifacts: Mapped[List["CodeArtifactsTable"]] = relationship(
+        "CodeArtifactsTable",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    ) 
+    documents: Mapped[List["DocumentsTable"]] = relationship(
+        "DocumentsTable",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )      
 
 class MemoryTable(Base):
     """
@@ -122,14 +138,29 @@ class MemoryTable(Base):
     )
     
     # Relationships
-    user: Mapped["UsersTable"] = relationship("UserTable", back_populates="memories")  
+    user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="memories")  
+    projects: Mapped[List["ProjectsTable"]] = relationship(
+        "ProjectsTable",
+        secondary=memory_project_association,
+        back_populates="memories",
+    )
+    code_artifacts: Mapped[List["CodeArtifactsTable"]] = relationship(
+        "CodeArtifactsTable",
+        secondary=memory_code_artifact_association,
+        back_populates="memories",
+    )
+    documents: Mapped[List["DocumentsTable"]] = relationship(
+        "DocumentsTable",
+        secondary=memory_document_association,
+        back_populates="memories",
+    )
     
     # Self-referential relationship for memory links (many-to-many)
     linked_memories: Mapped[List["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary="memory_links",
         primaryjoin="MemoryTable.id==MemoryLinkTable.source_id",
-        secondaryjoin="MemoryTable.id==MemoryLinkTable.source_id",
+        secondaryjoin="MemoryTable.id==MemoryLinkTable.target_id",
         back_populates="linking_memories"
     )
     
@@ -137,7 +168,7 @@ class MemoryTable(Base):
         "MemoryTable",
         secondary="memory_links",
         primaryjoin="MemoryTable.id==MemoryLinkTable.target_id",
-        secondaryjoin="MemoryTable.id==MemoryLink.source_id",
+        secondaryjoin="MemoryTable.id==MemoryLinkTable.source_id",
         back_populates="linked_memories",
         viewonly=True
     )
@@ -158,6 +189,7 @@ class MemoryLinkTable(Base):
     """
     __tablename__ = "memory_links"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     source_id: Mapped[int] = mapped_column(Integer, ForeignKey("memories.id", ondelete="CASCADE"), nullable=False)
     target_id: Mapped[int] = mapped_column(Integer, ForeignKey("memories.id", ondelete="CASCADE"), nullable=False)
 
@@ -181,7 +213,7 @@ class ProjectsTable(Base):
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASECADE"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     
     # Project information
     name: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -236,7 +268,7 @@ class CodeArtifactsTable(Base):
     __tablename__ = "code_artifacts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASECADE"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
 
     # Code Artifact information
@@ -286,7 +318,7 @@ class DocumentsTable(Base):
     __tablename__ = "documents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASECADE"), nullable=False)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
     
     # Document information
@@ -314,7 +346,7 @@ class DocumentsTable(Base):
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="documents")
     project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="documents")
     memories: Mapped[List["MemoryTable"]] = relationship(
-        "Memory",
+        "MemoryTable",
         secondary=memory_document_association,
         back_populates="documents",
     )
