@@ -116,7 +116,7 @@ class MemoryTable(Base):
 
    # Meta Data
     importance: Mapped[int] = mapped_column(Integer, nullable=False)
-    embedding: Mapped[Vector] = mapped_column(settings.EMBEDDING_DIMENSIONS, nullable=False)
+    embedding: Mapped[Vector] = mapped_column(Vector(settings.EMBEDDING_DIMENSIONS), nullable=False)
 
     # Lifecycle Management
     is_obsolete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -178,7 +178,7 @@ class MemoryTable(Base):
         Index("ix_memories_importance", "importance"),
         Index("ix_memories_tags", "tags", postgresql_using="gin"),
         Index("ix_memories_keywords", "keywords", postgresql_using="gin"),
-        Index("ix_memories_embedding", "embedding", postgresql_using="hnsw"),
+        Index("ix_memories_embedding", "embedding", postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"}),
         Index("ix_memories_is_obsolete", "is_obsolete"),
         Index("ix_memories_superseded_by", "superseded_by"),
     )

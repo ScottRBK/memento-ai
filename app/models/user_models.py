@@ -22,3 +22,11 @@ class User(UserCreate):
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True) 
     
     model_config = ConfigDict(from_attributes=True) 
+
+class UserResponse(BaseModel):
+    name: str
+    notes: str | None = None
+    updated_at: datetime
+    created_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

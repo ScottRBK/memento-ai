@@ -4,7 +4,7 @@ networks:
 
 services:
   memento-service:
-    image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-python_template}:${IMAGE_TAG:-latest}
+    image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-memento-ai}:${IMAGE_TAG:-latest}
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: docker/Dockerfile

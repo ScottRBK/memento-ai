@@ -9,8 +9,9 @@ for user operations.
 """
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
-from app.models.user_models import UserUpdate
+from app.models.user_models import UserUpdate, UserResponse
 from app.middleware.auth import get_user_from_auth, get_user_service
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
@@ -21,34 +22,8 @@ logger = logging.getLogger(__name__)
 def register(mcp: FastMCP):
     """Register the user tools with the provided service instance"""
 
-    @mcp.tool(
-        output_schema={
-            "type": "object",
-            "properties": {
-                "success": {"type": "boolean"},
-                "data": {
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": "string"},
-                        "external_id": {"type": "string"},
-                        "name": {"type": "string"},
-                        "email": {"type": "string"},
-                        "notes": {"type": ["string", "null"]},
-                        "created_at": {"type": "string"},
-                        "updated_at": {"type": "string"}
-                    }
-                },
-                "error": {
-                    "type": "object",
-                    "properties": {
-                        "code": {"type": "string"},
-                        "message": {"type": "string"}
-                    }
-                }
-            }
-        }
-    )
-    async def get_current_user() -> dict:
+    @mcp.tool()
+    async def get_current_user() -> UserResponse:
         """
         Returns information about the current user
 
@@ -72,51 +47,17 @@ def register(mcp: FastMCP):
         try:
             user = await get_user_from_auth()
             logger.info("successfully retrieved current user", extra={"user": user.name, "user_id": user.id, "external_id": user.external_id})
-            return {
-                "success": True,
-                "data": user.model_dump()
-            }
+            return UserResponse(**user.model_dump())
         except Exception as e:
             logger.exception(
                 msg="Retrieving user information failed",
                 extra={"error": str(e)}
             )
-            return {
-                "success": False,
-                "error": {
-                    "code": "USER_FETCH_ERROR",
-                    "message": f"Failed to retrieve user: {str(e)}"
-                }
-            }
+            raise ToolError(f"Failed to retrieve user {str(e)}")
+            
 
-    @mcp.tool(
-        output_schema={
-            "type": "object",
-            "properties": {
-                "success": {"type": "boolean"},
-                "data": {
-                    "type": "object",
-                    "properties": {
-                        "id": {"type": "string"},
-                        "external_id": {"type": "string"},
-                        "name": {"type": "string"},
-                        "email": {"type": "string"},
-                        "notes": {"type": ["string", "null"]},
-                        "created_at": {"type": "string"},
-                        "updated_at": {"type": "string"}
-                    }
-                },
-                "error": {
-                    "type": "object",
-                    "properties": {
-                        "code": {"type": "string"},
-                        "message": {"type": "string"}
-                    }
-                }
-            }
-        }
-    )
-    async def update_user_notes(user_notes: str) -> dict:
+    @mcp.tool()
+    async def update_user_notes(user_notes: str) -> UserResponse:
         """
         Update the notes field for the current user
 
@@ -154,39 +95,20 @@ def register(mcp: FastMCP):
             updated_user = await service.update_user(user_update=user_update)
 
             if not updated_user:
-                return {
-                    "success": False,
-                    "error": {
-                        "code": "UPDATE_FAILED",
-                        "message": "Failed to update user notes"
-                    }
-                }
+               raise NotFoundError() 
 
-            return {
-                "success": True,
-                "data": updated_user.model_dump()
-            }
+            return UserResponse(**updated_user.model_dump())
+        
         except NotFoundError as e:
             logger.error(
                 msg="User not found during update",
                 extra={"error": str(e)}
             )
-            return {
-                "success": False,
-                "error": {
-                    "code": "USER_NOT_FOUND",
-                    "message": str(e)
-                }
-            }
+            raise ToolError(f"Unable to update employee notes, user not found {str(e)}") 
+
         except Exception as e:
             logger.exception(
                 msg="User update failed",
                 extra={"error": str(e)}
             )
-            return {
-                "success": False,
-                "error": {
-                    "code": "UPDATE_ERROR",
-                    "message": f"Error updating user notes: {str(e)}"
-                }
-            }
+            raise ToolError(f"User note update failed, {str(e)}") 
