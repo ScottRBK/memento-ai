@@ -160,6 +160,16 @@ class Memory(MemoryCreate):
 
     model_config = ConfigDict(from_attributes=True)
     
+class MemoryCreateResponse(BaseModel):
+    """Lightweight response information to confirm memory creation"""
+    id: int
+    title: str
+    linked_memory_ids: List[int] = Field(default_factory=list)
+    project_ids: List[int] = Field(default_factory=list)
+    code_artifact_ids: List[int] = Field(default_factory=list)
+    document_ids: List[int] = Field(default_factory=list)
+
+    
 class MemorySummary(BaseModel):
     """Lightweight memory summary for list views"""
     id: int

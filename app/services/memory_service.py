@@ -144,10 +144,6 @@ class MemoryService:
         if settings.MEMORY_NUM_AUTO_LINK > 0:
             linked_ids = await self._auto_link_new_memory(memory_id=memory.id, user_id=user_id)
             memory.linked_memory_ids = linked_ids
-            
-        # TODO: Implement Project Linking once projects implemented
-        # TODO: Implement Document Linking once documents implemented
-        # TODO: Implement Code Artifact linking once code artifacts implemented
         
         logger.info("Memory successfully created", extra={"memory_id": memory.id, "user_id": user_id})
         
@@ -367,7 +363,7 @@ class MemoryService:
             max_links=settings.MEMORY_NUM_AUTO_LINK
         )
         
-        links_created = 0
+        links_created = []
         
         if similar_memories:
             target_ids = [m.id for m in similar_memories]

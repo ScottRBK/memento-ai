@@ -9,7 +9,7 @@ from sqlalchemy import select, update, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from app.repositories.postgres.postgres_tables import MemoryTable, MemoryLinkTable, ProjectsTable
+from app.repositories.postgres.postgres_tables import MemoryTable, MemoryLinkTable, ProjectsTable, CodeArtifactsTable, DocumentsTable
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
 from app.repositories.helpers import build_embedding_text
@@ -157,9 +157,18 @@ class PostgresMemoryRepository:
         embeddings = await self._generate_embeddings(text=embeddings_text)
         
         async with self.db_adapter.session(user_id) as session:
-            new_memory = MemoryTable(**memory.model_dump(), user_id=user_id, embedding=embeddings)
+            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids"})
+            new_memory = MemoryTable(**memory_data, user_id=user_id, embedding=embeddings)
             session.add(new_memory)
             await session.flush()
+
+            if memory.project_ids:
+                await self._link_projects(session, new_memory, memory.project_ids, user_id)
+            if memory.code_artifact_ids:
+                await self._link_code_artifacts(session, new_memory, memory.code_artifact_ids, user_id)
+            if memory.document_ids:
+                await self._link_documents(session, new_memory, memory.document_ids, user_id)
+
             await session.refresh(new_memory)
             return Memory.model_validate(new_memory)
         
@@ -473,10 +482,10 @@ class PostgresMemoryRepository:
             target_ids: List of target memories IDs to link the source memory to
             
         Returns:
-            Integer for the number of links created
+           List of Memory ID's that the memory has been linked with 
         """
         if not target_ids:
-            return 0 
+            return [] 
         
         links_created = []
 
@@ -489,7 +498,7 @@ class PostgresMemoryRepository:
                     source_id=source_id, 
                     target_id=target_id
                 )
-                links_created.append(link.id)
+                links_created.append(link.target_id)
             except IntegrityError:
                 continue
 
@@ -500,6 +509,72 @@ class PostgresMemoryRepository:
         })
         
         return links_created
+
+    async def _link_projects(
+            self,
+            session,
+            memory: MemoryTable,
+            project_ids: List[int],
+            user_id: UUID
+    ) -> None:
+        """Link memory to projects"""
+        stmt = select(ProjectsTable).where(
+            ProjectsTable.id.in_(project_ids),
+            ProjectsTable.user_id == user_id
+        )
+        result = await session.execute(stmt)
+        projects = result.scalars().all()
+
+        found_ids = {p.id for p in projects}
+        missing_ids = set(project_ids) - found_ids
+        if missing_ids:
+            raise NotFoundError(f"Projects not found: {missing_ids}")
+
+        memory.projects.extend(projects)
+
+    async def _link_code_artifacts(
+            self,
+            session,
+            memory: MemoryTable,
+            code_artifact_ids: List[int],
+            user_id: UUID
+    ) -> None:
+        """Link memory to code artifacts"""
+        stmt = select(CodeArtifactsTable).where(
+            CodeArtifactsTable.id.in_(code_artifact_ids),
+            CodeArtifactsTable.user_id == user_id
+        )
+        result = await session.execute(stmt)
+        artifacts = result.scalars().all()
+
+        found_ids = {a.id for a in artifacts}
+        missing_ids = set(code_artifact_ids) - found_ids
+        if missing_ids:
+            raise NotFoundError(f"Code artifacts not found: {missing_ids}")
+
+        memory.code_artifacts.extend(artifacts)
+
+    async def _link_documents(
+            self,
+            session,
+            memory: MemoryTable,
+            document_ids: List[int],
+            user_id: UUID
+    ) -> None:
+        """Link memory to documents"""
+        stmt = select(DocumentsTable).where(
+            DocumentsTable.id.in_(document_ids),
+            DocumentsTable.user_id == user_id
+        )
+        result = await session.execute(stmt)
+        documents = result.scalars().all()
+
+        found_ids = {d.id for d in documents}
+        missing_ids = set(document_ids) - found_ids
+        if missing_ids:
+            raise NotFoundError(f"Documents not found: {missing_ids}")
+
+        memory.documents.extend(documents)
 
     async def _generate_embeddings(self, text: str) -> List[float]:
         return self.embedding_adapter.generate_embedding(text=text)
