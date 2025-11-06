@@ -32,7 +32,7 @@ class PostgresDatabaseAdapter:
       session = self._session_factory()
       try:
          await session.execute(
-            text("SET LOCAL app.current_user_id = :user_id"),
+            text("SELECT set_config('app.current_user_id', :user_id, true)"),
             {"user_id": str(user_id)}
          )
          yield session

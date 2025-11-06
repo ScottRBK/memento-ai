@@ -70,10 +70,12 @@ class MemoryService:
             query_context=memory_query.query_context,
             k=memory_query.k,
             importance_threshold=memory_query.importance_threshold,
-            project_ids=memory_query.project_ids
+            project_ids=memory_query.project_ids,
+            exclude_ids=None
          )
         logger.info("primary memory query completed", extra={"number of messages found": len(primary_memories)})
-        
+
+        linked_memories = []
         if memory_query.include_links and memory_query.max_links_per_primary > 0:
             logger.info("querying linked memories", extra={"number of primary memories": len(primary_memories)})
             
@@ -95,7 +97,7 @@ class MemoryService:
             final_linked,
             token_count,
             truncated
-        ) = self._apply_token_budget(
+        ) = await self._apply_token_budget(
             primary_memories=primary_memories,
             linked_memories=linked_memories,
             max_tokens=settings.MEMORY_TOKEN_BUDGET,
@@ -363,6 +365,7 @@ class MemoryService:
             raise KeyError(f"source memory {memory_id} not found")
         
         links_created = await self.memory_repo.create_links_batch(
+            user_id=user_id,
             source_id=source_memory.id,
             target_ids=related_ids,
         )
@@ -453,30 +456,35 @@ class MemoryService:
             Tuple of (list primary memories, list linked memories, token count and was truncated)
         """
         
-        truncated_primary, primary_tokens, primary_truncated = self.truncate_memories_by_budget(
+        truncated_primary, primary_tokens, primary_truncated = await self.truncate_memories_by_budget(
             memories=primary_memories,
             max_tokens=max_tokens,
             max_count=max_memories
         )
-        
+
         remaining_tokens = max_tokens - primary_tokens
         remaining_count = max_memories - len(truncated_primary)
-        
+
         if primary_truncated:
             return truncated_primary, [], primary_tokens, True
-        
+
         truncated_linked = []
         linked_tokens = 0
         linked_truncated = False
-        
-        truncated_linked, linked_tokens, linked_truncated = self.truncate_memories_by_budget(
-            memories=linked_memories,
-            max_tokens=remaining_tokens,
-            max_count=remaining_count
-        )
+
+        if linked_memories:
+            linked_memory_objects = [lm.memory for lm in linked_memories]
+            truncated_memory_objects, linked_tokens, linked_truncated = await self.truncate_memories_by_budget(
+                memories=linked_memory_objects,
+                max_tokens=remaining_tokens,
+                max_count=remaining_count
+            )
+
+            truncated_ids = {m.id for m in truncated_memory_objects}
+            truncated_linked = [lm for lm in linked_memories if lm.memory.id in truncated_ids]
 
         total_tokens = primary_tokens + linked_tokens
-        
+
         return truncated_primary, truncated_linked, total_tokens, linked_truncated
         
     def _count_memory_tokens(self, memory: Memory) -> int:

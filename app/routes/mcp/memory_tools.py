@@ -3,21 +3,20 @@ MCP Memory tools - FastMCP tool definitions for memory operations
 """
 from typing import Any, List
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
 from app.models.memory_models import (
-    Memory, 
+    Memory,
     MemoryCreate,
     MemoryCreateResponse,
-    MemoryUpdate, 
-    MemorySummary, 
+    MemoryUpdate,
+    MemorySummary,
     MemoryQueryRequest,
     MemoryLinkRequest,
     MemoryQueryResult,
 )
-from app.services.memory_service import MemoryService
 from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
@@ -26,8 +25,8 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-def register(mcp: FastMCP, service: MemoryService):
-    """Register the memory tools with the provided service instance"""
+def register(mcp: FastMCP):
+    """Register the memory tools - services accessed via context at call time"""
     
     @mcp.tool()
     async def create_memory(
@@ -37,6 +36,7 @@ def register(mcp: FastMCP, service: MemoryService):
         keywords: Any,
         tags: Any,
         importance: int,
+        ctx: Context,
         project_ids: List[int] = None,
         code_artifact_ids: List[int] = None,
         document_ids: List[int] = None,
@@ -112,8 +112,10 @@ def register(mcp: FastMCP, service: MemoryService):
                 code_artifact_ids=code_artifact_ids_coerced,
                 document_ids=document_ids_coerced
             )
-            
-            memory, similar_memories = await service.create_memory(
+
+            # Access memory service via FastMCP context
+            memory_service = ctx.fastmcp.memory_service
+            memory, similar_memories = await memory_service.create_memory(
                 user_id=user.id,
                 memory_data=memory_data
             )
@@ -149,14 +151,16 @@ def register(mcp: FastMCP, service: MemoryService):
             logger.error("MCP Tool - create_memory failed", exc_info=True, extra={
                 "user_id": user.id,
                 "title": title[:50],
-                "error_type": type(e).__name__
+                "error_type": type(e).__name__,
+                "error_message": str(e)
             })
-            raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}")
+            raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}: {str(e)}")
         
     @mcp.tool()
     async def query_memory(
         query: str,
         query_context: str,
+        ctx: Context,
         k: int = 3,
         include_links: bool = True,
         max_links_per_primary: int = 5,
@@ -221,8 +225,10 @@ def register(mcp: FastMCP, service: MemoryService):
             except ValueError as e:
                 raise ToolError(f"COERCION_ERROR: {str(e)}. Use array format (preferred): keywords=['key1', 'key2']"
                                 "tags=['tag1', 'tag2']. Strings also accepted: 'key1,key2' or single 'key'")
-                
-            result = await service.query_memory(
+
+            # Access memory service via FastMCP context
+            memory_service = ctx.fastmcp.memory_service
+            result = await memory_service.query_memory(
                 user_id=user.id,
                 memory_query=MemoryQueryRequest(
                     query=query,
@@ -233,7 +239,7 @@ def register(mcp: FastMCP, service: MemoryService):
                     max_links_per_primary=max_links_per_primary,
                     importance_threshold=importance_threshold,
                     project_ids=project_ids_coerced,
-                    strict_project_filter=strict_project_filter 
+                    strict_project_filter=strict_project_filter
                 )
             )
             
@@ -250,9 +256,10 @@ def register(mcp: FastMCP, service: MemoryService):
         except Exception as e:
             logger.error("MCP Tool -> query memory failed", exc_info=True, extra={
                 "query": query[:50],
-                "error_type": type(e).__name__
+                "error_type": type(e).__name__,
+                "error_message": str(e)
             })
-            raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}")
+            raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {str(e)}")
         
 
         

@@ -2,12 +2,18 @@
 Integration test fixtures with in-memory stubs (no real database required)
 """
 import pytest
+import hashlib
+import random
+from typing import List
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
 from app.models.user_models import User, UserCreate, UserUpdate
+from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
 from app.protocols.user_protocol import UserRepository
+from app.protocols.memory_protocol import MemoryRepository
 from app.services.user_service import UserService
+from app.services.memory_service import MemoryService
 
 
 class InMemoryUserRepository(UserRepository):
@@ -78,3 +84,262 @@ def mock_user_repository():
 def test_user_service(mock_user_repository):
     """Provides a UserService with in-memory repository"""
     return UserService(mock_user_repository)
+
+
+# ============ Memory Testing Fixtures ============
+
+
+class MockEmbeddingsAdapter:
+    """Mock embeddings adapter that returns deterministic 384-dim vectors"""
+
+    def __init__(self, dimensions: int = 384):
+        self.dimensions = dimensions
+
+    async def embed_text(self, text: str) -> List[float]:
+        """Generate deterministic embeddings from text using hash-based seeding"""
+        # Use MD5 hash for reproducibility (same text -> same embedding)
+        hash_value = hashlib.md5(text.encode()).hexdigest()
+        seed = int(hash_value[:8], 16)
+        random.seed(seed)
+
+        # Generate normalized vector
+        vector = [random.random() for _ in range(self.dimensions)]
+
+        # Normalize to unit length (typical for embeddings)
+        magnitude = sum(x ** 2 for x in vector) ** 0.5
+        normalized = [x / magnitude for x in vector]
+
+        return normalized
+
+
+class InMemoryMemoryRepository(MemoryRepository):
+    """In-memory implementation of MemoryRepository for testing"""
+
+    def __init__(self):
+        self._memories: dict[UUID, dict[int, Memory]] = {}  # user_id -> {memory_id -> Memory}
+        self._links: dict[int, set[int]] = {}  # memory_id -> set of linked memory_ids
+        self._next_id = 1
+
+    async def create_memory(self, user_id: UUID, memory: MemoryCreate) -> Memory:
+        """Create a new memory"""
+        memory_id = self._next_id
+        self._next_id += 1
+
+        now = datetime.now(timezone.utc)
+
+        new_memory = Memory(
+            id=memory_id,
+            title=memory.title,
+            content=memory.content,
+            context=memory.context,
+            keywords=memory.keywords,
+            tags=memory.tags,
+            importance=memory.importance,
+            project_ids=memory.project_ids or [],
+            code_artifact_ids=memory.code_artifact_ids or [],
+            document_ids=memory.document_ids or [],
+            linked_memory_ids=[],
+            created_at=now,
+            updated_at=now
+        )
+
+        if user_id not in self._memories:
+            self._memories[user_id] = {}
+
+        self._memories[user_id][memory_id] = new_memory
+        self._links[memory_id] = set()
+
+        return new_memory
+
+    async def get_memory_by_id(self, user_id: UUID, memory_id: int) -> Memory | None:
+        """Retrieve memory by ID"""
+        user_memories = self._memories.get(user_id, {})
+        return user_memories.get(memory_id)
+
+    async def search(
+        self,
+        user_id: UUID,
+        query: str,
+        query_context: str,
+        k: int,
+        importance_threshold: int | None,
+        project_ids: List[int] | None,
+        exclude_ids: List[int] | None = None
+    ) -> List[Memory]:
+        """Mock semantic search - returns memories sorted by importance"""
+        user_memories = self._memories.get(user_id, {})
+
+        memories = list(user_memories.values())
+
+        # Apply filters
+        if importance_threshold:
+            memories = [m for m in memories if m.importance >= importance_threshold]
+
+        if project_ids:
+            memories = [m for m in memories if any(pid in m.project_ids for pid in project_ids)]
+
+        if exclude_ids:
+            memories = [m for m in memories if m.id not in exclude_ids]
+
+        # Sort by importance (higher first) then by created_at (newer first)
+        memories.sort(key=lambda m: (m.importance, m.created_at), reverse=True)
+
+        return memories[:k]
+
+    async def find_similar_memories(
+        self,
+        user_id: UUID,
+        memory_id: int,
+        max_links: int
+    ) -> List[Memory]:
+        """Find similar memories - uses keyword overlap as proxy for similarity"""
+        user_memories = self._memories.get(user_id, {})
+
+        source = user_memories.get(memory_id)
+        if not source:
+            return []
+
+        # Get all memories except the source memory
+        candidates = [m for m in user_memories.values() if m.id != memory_id]
+
+        # Calculate similarity based on keyword overlap
+        similar = []
+        for candidate in candidates:
+            # Count overlapping keywords
+            overlap = len(set(source.keywords) & set(candidate.keywords))
+            # Only consider similar if there's at least 1 overlapping keyword
+            if overlap > 0:
+                similar.append(candidate)
+
+        # Sort by importance
+        similar.sort(key=lambda m: m.importance, reverse=True)
+
+        return similar[:max_links]
+
+    async def create_links_batch(
+        self,
+        user_id: UUID,
+        source_id: int,
+        target_ids: List[int]
+    ) -> List[int]:
+        """Create bidirectional links between memories"""
+        if not target_ids:
+            return []
+
+        # Verify source exists
+        source = await self.get_memory_by_id(user_id, source_id)
+        if not source:
+            return []
+
+        created_links = []
+
+        for target_id in target_ids:
+            # Skip self-links
+            if target_id == source_id:
+                continue
+
+            # Verify target exists
+            target = await self.get_memory_by_id(user_id, target_id)
+            if not target:
+                continue
+
+            # Ensure both source and target have link sets
+            if source_id not in self._links:
+                self._links[source_id] = set()
+            if target_id not in self._links:
+                self._links[target_id] = set()
+
+            # Create bidirectional links
+            if target_id not in self._links[source_id]:
+                self._links[source_id].add(target_id)
+                self._links[target_id].add(source_id)
+
+                # Update linked_memory_ids in both memories
+                source.linked_memory_ids.append(target_id)
+                target.linked_memory_ids.append(source_id)
+
+                created_links.append(target_id)
+
+        return created_links
+
+    async def get_linked_memories(
+        self,
+        user_id: UUID,
+        memory_id: int,
+        project_ids: List[int] | None,
+        max_links: int = 5
+    ) -> List[Memory]:
+        """Get linked memories (1-hop neighbors)"""
+        linked_ids = self._links.get(memory_id, set())
+
+        memories = []
+        for linked_id in linked_ids:
+            memory = await self.get_memory_by_id(user_id, linked_id)
+            if memory:
+                # Apply project filter if specified
+                if project_ids:
+                    if any(pid in memory.project_ids for pid in project_ids):
+                        memories.append(memory)
+                else:
+                    memories.append(memory)
+
+            if len(memories) >= max_links:
+                break
+
+        return memories
+
+    async def update_memory(
+        self,
+        user_id: UUID,
+        memory_id: int,
+        updated_memory: MemoryUpdate
+    ) -> Memory | None:
+        """Update an existing memory"""
+        memory = await self.get_memory_by_id(user_id, memory_id)
+        if not memory:
+            return None
+
+        # Update fields
+        update_data = updated_memory.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(memory, field, value)
+
+        memory.updated_at = datetime.now(timezone.utc)
+        return memory
+
+    async def mark_obsolete(
+        self,
+        user_id: UUID,
+        memory_id: int,
+        reason: str,
+        superseded_by: int | None = None
+    ) -> bool:
+        """Mark memory as obsolete (soft delete)"""
+        memory = await self.get_memory_by_id(user_id, memory_id)
+        if not memory:
+            return False
+
+        # Remove from active memories but keep in storage for audit
+        # In real implementation, would set is_obsolete flag
+        # For in-memory stub, we'll just remove from the dict
+        del self._memories[user_id][memory_id]
+
+        return True
+
+
+@pytest.fixture
+def mock_embeddings_adapter():
+    """Provides a mock embeddings adapter"""
+    return MockEmbeddingsAdapter(dimensions=384)
+
+
+@pytest.fixture
+def mock_memory_repository():
+    """Provides an in-memory memory repository"""
+    return InMemoryMemoryRepository()
+
+
+@pytest.fixture
+def test_memory_service(mock_memory_repository):
+    """Provides a MemoryService with in-memory repository"""
+    return MemoryService(mock_memory_repository)

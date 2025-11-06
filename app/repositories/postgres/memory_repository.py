@@ -333,8 +333,8 @@ class PostgresMemoryRepository:
             )
             .where(
                 MemoryTable.user_id==user_id,
-                MemoryTable.is_obsolete==False
-            )
+                MemoryTable.is_obsolete==False,
+                MemoryTable.id!=memory_id,
         )
         stmt = stmt.order_by(MemoryTable.embedding.cosine_distance(memory_orm.embedding))
         stmt = stmt.limit(max_links)
@@ -577,6 +577,6 @@ class PostgresMemoryRepository:
         memory.documents.extend(documents)
 
     async def _generate_embeddings(self, text: str) -> List[float]:
-        return self.embedding_adapter.generate_embedding(text=text)
+        return await self.embedding_adapter.generate_embedding(text=text)
     
 

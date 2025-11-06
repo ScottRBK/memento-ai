@@ -3,6 +3,16 @@
 
 ## Features
 
+## Feature Roadmap (in order of priority)
+[ ] Resources - Project, Document and Code Artifacts
+[ ] Search - Implement Cross-Encoder reranking
+[ ] Authentication 
+    - Implement Opaque Bearer Token authorisation support
+    - Implement Authorisation Code flow support
+[ ] Repository
+    - Add SQLLite repository support
+
+
 ---
 # Getting Started
 
@@ -22,7 +32,10 @@ Then simply run and pass in the appropriate environment variable
 ```bash
 cd docker && ENVIRONMENT=development docker compose up -d
 ```
-
+---
+## Search
+For more information on configuring the Memento-AI's search capabilities and how it works under the hood see
+[Search](docs/search.md) for details
 ---
 ## Contributing
 See [Contributors](docs/contributors.md) for details
