@@ -24,7 +24,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s 
+      start_period: 90s 
     # Uncomment for development hot reload
     # volumes:
     #   - ../app:/app/app

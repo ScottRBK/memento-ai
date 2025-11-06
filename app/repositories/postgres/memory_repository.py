@@ -335,6 +335,7 @@ class PostgresMemoryRepository:
                 MemoryTable.user_id==user_id,
                 MemoryTable.is_obsolete==False,
                 MemoryTable.id!=memory_id,
+            )
         )
         stmt = stmt.order_by(MemoryTable.embedding.cosine_distance(memory_orm.embedding))
         stmt = stmt.limit(max_links)

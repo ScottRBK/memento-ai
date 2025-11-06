@@ -21,10 +21,35 @@ def register(mcp: FastMCP):
         """
         Health check endpoint for the service
         """
+        try:
+            from main import embeddings_adapter
+            if embeddings_adapter.model is None:
+                return JSONResponse(
+                    {
+                        "status": "intialising",
+                        "message": "Embedding model loading",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "service": settings.SERVICE_NAME,
+                        "version": settings.SERVICE_VERSION
+                    }, 
+                    status_code=503
+                )
+        except Exception as e:
+            logger.warning(f"Service initialising: {str(e)}")
+            return JSONResponse(
+                    {
+                        "status": "intialising",
+                        "message": "Service starting",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "service": settings.SERVICE_NAME,
+                        "version": settings.SERVICE_VERSION
+                    }, 
+                    status_code=503
+                )
 
         health_status = HealthStatus(
             status="healthy",
-            timestamp= datetime.now(tz=timezone.utc),
+            timestamp= datetime.now(tz=timezone.utc).isoformat(),
             service = settings.SERVICE_NAME,
             version = settings.SERVICE_VERSION
         )

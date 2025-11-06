@@ -27,7 +27,7 @@ def port_in_use(port: int) -> bool:
             return True
 
 
-def wait_for_healthy(container_name: str, timeout: int = 60) -> None:
+def wait_for_healthy(container_name: str, timeout: int = 120) -> None:
     """Wait for Docker container to report healthy status"""
     start = time.time()
     while time.time() - start < timeout:
