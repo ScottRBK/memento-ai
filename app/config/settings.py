@@ -13,9 +13,9 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "example")
 
 class Settings(BaseSettings):
     # Application Info
-    SERVICE_NAME: str = "Memento"
+    SERVICE_NAME: str = "Forgetful"
     SERVICE_VERSION: str = "v0.0.1"
-    SERVICE_DESCRIPTION: str = "Memento Memory Service"
+    SERVICE_DESCRIPTION: str = "Forgetful Memory Service"
 
     # Server Configuration
     SERVER_HOST: str = "0.0.0.0"
@@ -25,11 +25,11 @@ class Settings(BaseSettings):
 
     # Database Configuration
     DATABASE: str = "Postgres"
-    POSTGRES_HOST: str = "127.0.0.1"  # 127.0.0.1 for local, memento-db for Docker
+    POSTGRES_HOST: str = "127.0.0.1"  # 127.0.0.1 for local, forgetful-db for Docker
     PGPORT: int = 5099
-    POSTGRES_DB: str = "memento"
-    POSTGRES_USER: str = "memento"
-    POSTGRES_PASSWORD: str = "memento"
+    POSTGRES_DB: str = "forgetful"
+    POSTGRES_USER: str = "forgetful"
+    POSTGRES_PASSWORD: str = "forgetful"
     DB_LOGGING: bool = False
 
     # Auth Configuration

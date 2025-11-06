@@ -1,5 +1,5 @@
 [project]
-name = "memento-ai"
+name = "forgetful"
 version = "0.1.0"
 description = "MCP Server for AI Agent Memory Service"
 readme = "README.md"

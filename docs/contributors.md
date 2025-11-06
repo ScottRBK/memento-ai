@@ -1,4 +1,4 @@
-# Contributing to Memento
+# Contributing to Forgetful
 
 This guide covers testing and deployment workflows for contributors.
 
@@ -79,7 +79,7 @@ uv tool run ruff check .
 **Steps**:
 1. Build Docker image
 2. Tag with semver, SHA, and `latest`
-3. Push to GitHub Container Registry (`ghcr.io/scottrbk/memento-ai`)
+3. Push to GitHub Container Registry (`ghcr.io/scottrbk/forgetful`)
 
 **Note**: Only runs when you manually create a release tag
 

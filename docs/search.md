@@ -1,6 +1,6 @@
-# Memmento Search Functionality
+# Forgetful Search Functionality
 
-This section details Memento AI's search functionality and associated configuration to allow you to tailor the service to
+This section details Forgetful's search functionality and associated configuration to allow you to tailor the service to
 your use case.
 
 ## Embedding Providers

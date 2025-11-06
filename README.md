@@ -1,15 +1,20 @@
-# Memento AI Memory Service
+# Forgetful - AI Memory Service
 
 
 ## Features
 
 ## Feature Roadmap (in order of priority)
-[ ] Resources - Project, Document and Code Artifacts
-[ ] Search - Implement Cross-Encoder reranking
-[ ] Authentication 
+- [ ] Dynamic Tool Discovery 
+- [ ] Resources 
+    - Project 
+    - Documents
+    - Code Artifacts
+- [ ] Search Enhancements
+    - Implement Cross-Encoder reranking
+- [ ] Authentication 
     - Implement Opaque Bearer Token authorisation support
     - Implement Authorisation Code flow support
-[ ] Repository
+- [ ] Repository Adapters
     - Add SQLLite repository support
 
 
@@ -34,10 +39,12 @@ cd docker && ENVIRONMENT=development docker compose up -d
 ```
 ---
 ## Search
-For more information on configuring the Memento-AI's search capabilities and how it works under the hood see
+
+For more information on configuring Forgetful's search capabilities and how it works under the hood see
 [Search](docs/search.md) for details
 ---
 ## Contributing
+
 See [Contributors](docs/contributors.md) for details
 --- 
 ## Licence

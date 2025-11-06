@@ -1,14 +1,14 @@
-name:  ${COMPOSE_PROJECT_NAME:-Memento}
+name:  ${COMPOSE_PROJECT_NAME:-forgetful}
 networks:
-  memento:
+  forgetful:
 
 services:
-  memento-service:
-    image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-memento-ai}:${IMAGE_TAG:-latest}
+  forgetful-service:
+    image: ${DEPLOY_IMAGE_REPO:+ghcr.io/}${DEPLOY_IMAGE_REPO:-forgetful}:${IMAGE_TAG:-latest}
     build:
       context: ${BUILD_CONTEXT:-..}
       dockerfile: docker/Dockerfile
-    container_name: memento-service 
+    container_name: forgetful-service 
     restart: unless-stopped
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
@@ -18,7 +18,7 @@ services:
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-example}
     networks:
-      - "memento"
+      - "forgetful"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8020}/health || exit 1"]
       interval: 10s
@@ -30,11 +30,11 @@ services:
     #   - ../app:/app/app
     #   - ../main.py:/app/main.py
      
-  memento-db:
+  forgetful-db:
     image: pgvector/pgvector:pg16
     networks:
-      - "memento" 
-    container_name: "memento-db"
+      - "forgetful"
+    container_name: "forgetful-db"
     restart: unless-stopped
     env_file:
       - path: .env.${ENVIRONMENT:-example}
@@ -42,16 +42,16 @@ services:
     ports:
       - "127.0.0.1:${PGPORT:-5099}:${PGPORT:-5099}"
     volumes:
-      - memento_db_data:/var/lib/postgresql/data 
+      - forgetful_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-memento} -d ${POSTGRES_DB:-memento}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forgetful} -d ${POSTGRES_DB:-forgetful}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 
 volumes:
-  memento_db_data: 
+  forgetful_db_data: 
 
     
     

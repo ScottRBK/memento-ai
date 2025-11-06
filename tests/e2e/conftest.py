@@ -1,7 +1,7 @@
 """
 E2E test fixtures with Docker Compose orchestration
 
-Spins up real PostgreSQL + memento-service containers using docker/.env.example
+Spins up real PostgreSQL + forgetful-service containers using docker/.env.example
 to validate the actual deployment configuration.
 """
 import pytest
@@ -81,13 +81,13 @@ def docker_services():
     if port_in_use(settings.PGPORT):
         pytest.fail(
             f"❌ Port {settings.PGPORT} already in use!\n"
-            "Stop the conflicting container: docker stop memento-db"
+            "Stop the conflicting container: docker stop forgetful-db"
         )
 
     if port_in_use(settings.SERVER_PORT):
         pytest.fail(
             f"❌ Port {settings.SERVER_PORT} already in use!\n"
-            "Stop the conflicting container: docker stop memento-service"
+            "Stop the conflicting container: docker stop forgetful-service"
         )
 
     print("\n✓ Port availability check passed")
@@ -97,7 +97,7 @@ def docker_services():
     compose_file = project_root / "docker" / "docker-compose.yml"
     env = os.environ.copy()
     env["ENVIRONMENT"] = "example"
-    env["COMPOSE_PROJECT_NAME"] = "memento"  # Force lowercase project name
+    env["COMPOSE_PROJECT_NAME"] = "forgetful"  # Force lowercase project name
 
     try:
         # Start containers
@@ -118,8 +118,8 @@ def docker_services():
 
         # Wait for services to be healthy
         print("Waiting for services to be healthy...")
-        wait_for_healthy("memento-db")
-        wait_for_healthy("memento-service")
+        wait_for_healthy("forgetful-db")
+        wait_for_healthy("forgetful-service")
 
         # Wait for HTTP endpoint
         wait_for_http(f"http://localhost:{settings.SERVER_PORT}/health")

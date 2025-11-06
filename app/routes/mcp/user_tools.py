@@ -1,7 +1,7 @@
 """
 MCP User Tools - FastMCP tool definitions for user operations
 
-This module provides MCP tools for interacting with the Memento AI Memory System
+This module provides MCP tools for interacting with the Forgetful Memory System
 for user operations.
 
 -   Query User Information
