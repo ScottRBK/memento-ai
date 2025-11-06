@@ -14,12 +14,13 @@ from uuid import UUID
 from app.config.logging_config import logging
 from app.protocols.memory_protocol import MemoryRepository
 from app.models.memory_models import (
-    Memory, 
-    MemoryCreate, 
+    Memory,
+    MemoryCreate,
     MemoryUpdate,
-    MemoryQueryResult, 
-    MemoryQueryRequest, 
-    LinkedMemory
+    MemoryQueryResult,
+    MemoryQueryRequest,
+    LinkedMemory,
+    MemorySummary
 )
 from app.config.settings import settings
 from app.utils.token_counter import TokenCounter
@@ -124,8 +125,8 @@ class MemoryService:
     async def create_memory(
             self,
             user_id: UUID,
-            memory_data: MemoryCreate            
-    ) -> Memory:
+            memory_data: MemoryCreate
+    ) -> tuple[Memory, List[MemorySummary]]:
         """
         Create a new memory in the system
 
@@ -137,17 +138,50 @@ class MemoryService:
             
         memory = await self.memory_repo.create_memory(
             user_id=user_id,
-            memory=memory_data            
+            memory=memory_data
         )
-        
+
+        similar_memories = []
         linked_ids = []
         if settings.MEMORY_NUM_AUTO_LINK > 0:
-            linked_ids = await self._auto_link_new_memory(memory_id=memory.id, user_id=user_id)
-            memory.linked_memory_ids = linked_ids
-        
+            similar_memories_full = await self.memory_repo.find_similar_memories(
+                memory_id=memory.id,
+                user_id=user_id,
+                max_links=settings.MEMORY_NUM_AUTO_LINK
+            )
+
+            if similar_memories_full:
+                target_ids = [m.id for m in similar_memories_full]
+                linked_ids = await self.memory_repo.create_links_batch(
+                    user_id=user_id,
+                    source_id=memory.id,
+                    target_ids=target_ids
+                )
+                memory.linked_memory_ids = linked_ids
+
+                # Convert to MemorySummary for response
+                similar_memories = [
+                    MemorySummary(
+                        id=m.id,
+                        title=m.title,
+                        keywords=m.keywords,
+                        tags=m.tags,
+                        importance=m.importance,
+                        created_at=m.created_at,
+                        updated_at=m.updated_at
+                    )
+                    for m in similar_memories_full
+                ]
+
+                logger.info("Automatically linked memories", extra={
+                    "user_id": user_id,
+                    "memory_id": memory.id,
+                    "number linked": len(target_ids)
+                })
+
         logger.info("Memory successfully created", extra={"memory_id": memory.id, "user_id": user_id})
-        
-        return memory 
+
+        return memory, similar_memories 
     
     async def update_memory(
             self,
@@ -340,51 +374,6 @@ class MemoryService:
         })
                     
         return links_created
-
-    async def _auto_link_new_memory(
-            self,
-            memory_id: int,
-            user_id: UUID
-    ) -> List[int] | None: 
-        """
-        Automatically link new memory to similar memories
-        
-        Args:
-            memory_id: memory_id to automatically memories too
-            user_id: User ID
-        
-        Return:
-            List of linked memories
-        """
-
-        similar_memories = await self.memory_repo.find_similar_memories(
-            memory_id=memory_id,
-            user_id=user_id,
-            max_links=settings.MEMORY_NUM_AUTO_LINK
-        )
-        
-        links_created = []
-        
-        if similar_memories:
-            target_ids = [m.id for m in similar_memories]
-            links_created = await self.memory_repo.create_links_batch(
-                user_id=user_id,
-                source_id=memory_id,
-                target_ids=target_ids
-            )
-            logger.info("Automatically linked memories", extra={
-                "user_id": user_id,
-                "memory_id": memory_id,
-                "number linked": len(target_ids)
-            })
-        else:
-            logger.info("autolinking failed, no similar memories found", extra={
-                "user_id": user_id,
-                "memory_id": memory_id
-            })
-
-        return links_created
-            
 
     async def _fetch_linked_memories(
             self,

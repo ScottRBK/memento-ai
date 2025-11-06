@@ -159,17 +159,7 @@ class Memory(MemoryCreate):
     document_ids: List[int] = Field(default_factory=list, description="Linked document IDs")
 
     model_config = ConfigDict(from_attributes=True)
-    
-class MemoryCreateResponse(BaseModel):
-    """Lightweight response information to confirm memory creation"""
-    id: int
-    title: str
-    linked_memory_ids: List[int] = Field(default_factory=list)
-    project_ids: List[int] = Field(default_factory=list)
-    code_artifact_ids: List[int] = Field(default_factory=list)
-    document_ids: List[int] = Field(default_factory=list)
 
-    
 class MemorySummary(BaseModel):
     """Lightweight memory summary for list views"""
     id: int
@@ -178,9 +168,22 @@ class MemorySummary(BaseModel):
     tags: List[str]
     importance: int
     created_at: datetime
-    updated_at: datetime 
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class MemoryCreateResponse(BaseModel):
+    """Lightweight response information to confirm memory creation"""
+    id: int
+    title: str
+    linked_memory_ids: List[int] = Field(default_factory=list)
+    project_ids: List[int] = Field(default_factory=list)
+    code_artifact_ids: List[int] = Field(default_factory=list)
+    document_ids: List[int] = Field(default_factory=list)
+    similar_memories: List[MemorySummary] = Field(
+        default_factory=list,
+        description="Summaries of similar memories that were auto-linked for review"
+    )
     
 class MemoryQueryRequest(BaseModel):
     """Request model for querying memories"""
