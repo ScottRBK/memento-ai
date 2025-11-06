@@ -14,7 +14,6 @@ from sqlalchemy import(
     Table,
     Boolean,
     Index,
-    JSON
 )
 from pgvector.sqlalchemy import Vector 
 from uuid import uuid4, UUID

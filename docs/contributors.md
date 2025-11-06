@@ -37,8 +37,12 @@ pytest -m e2e
 ```
 
 These tests are marked with `@pytest.mark.e2e` and skipped by default. They validate the full application stack.
-
 ---
+## Linting
+linting with ruff and uv
+```bash
+uv tool run ruff check .
+```
 
 ## CI/CD Workflows
 
