@@ -13,8 +13,8 @@ class TokenCounter():
     def __init__(self, model: str="gpt-4"):
         try:
             self.encoding = tiktoken.encoding_for_model(model)
-        except Exception as e:
-            logger.warning("Coult not intialise titoken, using fallback", extra={"model": model})
+        except Exception:
+            logger.warning("Coult not intialise titoken, using fallback", exc_info=True, extra={"model": model})
             # Fallback to cl100k_base encoding
             self.encoding = tiktoken.get_encoding("cl100k_base")
     
