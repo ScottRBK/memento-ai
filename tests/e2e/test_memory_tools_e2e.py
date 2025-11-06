@@ -67,7 +67,6 @@ async def test_create_memory_auto_linking_e2e(docker_services, mcp_server_url):
         })
 
         assert result2.data is not None
-        memory2_id = result2.data.id
 
         # Second memory should have auto-linked to first (similar keywords)
         assert len(result2.data.similar_memories) > 0
@@ -169,6 +168,8 @@ async def test_query_memory_with_linked_memories_e2e(docker_services, mcp_server
             "tags": ["database"],
             "importance": 8
         })
+        
+        assert result1.data is not None
 
         result2 = await client.call_tool("create_memory", {
             "title": "PostgreSQL Indexing",

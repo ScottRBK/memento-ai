@@ -1,6 +1,6 @@
 """Helper methods for the repository layer"""
 
-from app.models.memory_models import MemoryCreate, MemoryUpdate
+from app.models.memory_models import MemoryCreate
 
 import logging
 logger = logging.getLogger(__name__)

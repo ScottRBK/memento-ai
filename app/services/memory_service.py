@@ -420,9 +420,10 @@ class MemoryService:
                     )
                     
                     seen_ids.add(linked_memory.id)
-            except Exception as e:
+            except Exception:
                 logger.warning(
                     "failed to fetch memories",
+                    exc_info=True,
                     extra={
                         "primary_id": primary.id
                     }

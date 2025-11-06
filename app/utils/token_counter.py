@@ -1,8 +1,6 @@
 """
 Token counting utilies for context budget management
 """
-from typing import List
-
 import tiktoken
 
 import logging

@@ -33,7 +33,7 @@ class FastEmbeddingAdapter:
     async def generate_embedding(self, text: str) -> List[float]:
         try:
             embeddings = list(self.model.embed(text))
-        except Exception as e:
+        except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
                 "embedding provider": "fastembed",
                 "embedding model": settings.EMBEDDING_MODEL

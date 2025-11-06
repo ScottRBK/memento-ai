@@ -114,7 +114,7 @@ class PostgresMemoryRepository:
             )
             .where(
                 MemoryTable.user_id==user_id,
-                MemoryTable.is_obsolete==False
+                MemoryTable.is_obsolete.is_(False)
             )
         )
         
@@ -333,7 +333,7 @@ class PostgresMemoryRepository:
             )
             .where(
                 MemoryTable.user_id==user_id,
-                MemoryTable.is_obsolete==False,
+                MemoryTable.is_obsolete.is_(False),
                 MemoryTable.id!=memory_id,
             )
         )
@@ -383,7 +383,7 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.code_artifacts),
                 selectinload(MemoryTable.documents),
             )
-            .where(MemoryTable.user_id==user_id, MemoryTable.id!=memory_id, MemoryTable.is_obsolete==False)
+            .where(MemoryTable.user_id==user_id, MemoryTable.id!=memory_id, MemoryTable.is_obsolete.is_(False))
         )
         
         if project_ids:

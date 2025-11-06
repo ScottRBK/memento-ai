@@ -8,13 +8,9 @@ from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
 from app.models.memory_models import (
-    Memory,
     MemoryCreate,
     MemoryCreateResponse,
-    MemoryUpdate,
-    MemorySummary,
     MemoryQueryRequest,
-    MemoryLinkRequest,
     MemoryQueryResult,
 )
 from app.middleware.auth import get_user_from_auth
