@@ -1,7 +1,6 @@
-# Forgetful - AI Memory Service
+![Banner](/docs/images/hero_banner.png)
 
-
-## Features
+# Features
 
 ## Feature Roadmap (in order of priority)
 - [ ] Dynamic Tool Discovery 
@@ -42,10 +41,12 @@ cd docker && ENVIRONMENT=development docker compose up -d
 
 For more information on configuring Forgetful's search capabilities and how it works under the hood see
 [Search](docs/search.md) for details
+
 ---
 ## Contributing
 
 See [Contributors](docs/contributors.md) for details
+
 --- 
 ## Licence
 
