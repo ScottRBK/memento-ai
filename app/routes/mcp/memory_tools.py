@@ -18,6 +18,7 @@ from app.models.memory_models import (
 from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
+from app.utils.pydantic_helper import filter_none_values
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -248,15 +249,15 @@ def register(mcp: FastMCP):
     async def update_memory(
         memory_id: int,
         ctx: Context,
-        title: str | None,
-        content: str | None,
-        context: str | None,
-        keywords: List[str] | None,
-        tags: List[str] | None,
-        importance: int | None,
-        project_ids: List[int] | None,
-        code_artifact_ids: List[int] | None,
-        document_ids: List[int] | None,
+        title: str | None = None,
+        content: str | None = None,
+        context: str | None = None,
+        keywords: List[str] | None = None,
+        tags: List[str] | None = None,
+        importance: int | None = None,
+        project_ids: List[int] | None = None,
+        code_artifact_ids: List[int] | None = None,
+        document_ids: List[int] | None = None,
     ) -> Memory:
         """
         Update existing memory fields (PATCH semantics)
@@ -297,18 +298,20 @@ def register(mcp: FastMCP):
         
             if importance is not None:
                 importance = max(1, min(importance, 10))
-            
-            updated_memory = MemoryUpdate(
+                
+            updated_dict = filter_none_values(
                 title=title,
-                content=content, 
+                content=content,
                 context=context,
                 keywords=keywords,
                 tags=tags,
                 importance=importance,
-                project_ids=project_ids, 
+                project_ids=project_ids,
                 code_artifact_ids=code_artifact_ids,
                 document_ids=document_ids,
-            )
+            ) 
+            
+            updated_memory = MemoryUpdate(**updated_dict)
             
             memory_service = ctx.fastmcp.memory_service
             refreshed_memory = await memory_service.update_memory(

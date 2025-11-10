@@ -203,3 +203,217 @@ async def test_query_memory_with_linked_memories_e2e(docker_services, mcp_server
         # Verify total count includes both primary and linked
         total = len(query_result.data.primary_memories) + len(query_result.data.linked_memories)
         assert query_result.data.total_count == total
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_single_field_e2e(docker_services, mcp_server_url):
+    """Test updating a single field preserves other fields (PATCH semantics)"""
+    async with Client(mcp_server_url) as client:
+        # Create memory with initial values
+        create_result = await client.call_tool("create_memory", {
+            "title": "Original Title",
+            "content": "Original content about Python asyncio",
+            "context": "Original context for testing",
+            "keywords": ["python", "asyncio", "original"],
+            "tags": ["test", "original"],
+            "importance": 7
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Update only the title field
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "title": "Updated Title"
+        })
+
+        # Verify: title changed, all other fields unchanged
+        assert update_result.data is not None
+        assert update_result.data.id == memory_id
+        assert update_result.data.title == "Updated Title"
+        assert update_result.data.content == "Original content about Python asyncio"
+        assert update_result.data.context == "Original context for testing"
+        assert update_result.data.keywords == ["python", "asyncio", "original"]
+        assert update_result.data.tags == ["test", "original"]
+        assert update_result.data.importance == 7
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_multiple_fields_e2e(docker_services, mcp_server_url):
+    """Test updating multiple fields simultaneously (PATCH semantics)"""
+    async with Client(mcp_server_url) as client:
+        # Create memory
+        create_result = await client.call_tool("create_memory", {
+            "title": "Original Multi-Field Title",
+            "content": "Original content for multi-field test",
+            "context": "Original context",
+            "keywords": ["original"],
+            "tags": ["test"],
+            "importance": 6
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Update title, content, and importance simultaneously
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "title": "Updated Multi-Field Title",
+            "content": "Updated content for multi-field test",
+            "importance": 9
+        })
+
+        # Verify: updated fields changed, others unchanged
+        assert update_result.data is not None
+        assert update_result.data.title == "Updated Multi-Field Title"
+        assert update_result.data.content == "Updated content for multi-field test"
+        assert update_result.data.importance == 9
+        assert update_result.data.context == "Original context"
+        assert update_result.data.keywords == ["original"]
+        assert update_result.data.tags == ["test"]
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_content_triggers_embedding_refresh_e2e(docker_services, mcp_server_url):
+    """Test that updating content regenerates embeddings for semantic search"""
+    async with Client(mcp_server_url) as client:
+        # Create memory about Python
+        create_result = await client.call_tool("create_memory", {
+            "title": "Async Programming Patterns",
+            "content": "Python asyncio enables concurrent I/O operations with async/await syntax",
+            "context": "Testing embedding refresh on content update",
+            "keywords": ["python", "asyncio"],
+            "tags": ["programming"],
+            "importance": 8
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Update content to completely different topic (Rust)
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "content": "Rust async enables concurrent operations using futures and tokio runtime"
+        })
+
+        assert update_result.data is not None
+
+        # Query for Rust-related content - should find the updated memory
+        query_result = await client.call_tool("query_memory", {
+            "query": "Rust async programming",
+            "query_context": "testing embedding refresh after content update",
+            "k": 10,
+            "include_links": False
+        })
+
+        # Verify: updated memory is found via semantic search
+        assert query_result.data is not None
+        found_ids = [m.id for m in query_result.data.primary_memories]
+        assert memory_id in found_ids, "Updated memory should be found by semantic search for new content"
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_persistence_e2e(docker_services, mcp_server_url):
+    """Test that memory updates persist to database"""
+    async with Client(mcp_server_url) as client:
+        # Create memory
+        create_result = await client.call_tool("create_memory", {
+            "title": "Persistence Test Original",
+            "content": "Testing database persistence of updates",
+            "context": "E2E persistence validation",
+            "keywords": ["persistence", "database"],
+            "tags": ["test"],
+            "importance": 7
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Update title and importance
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "title": "Persistence Test Updated",
+            "importance": 9
+        })
+
+        assert update_result.data is not None
+
+        # Query by new title to verify persistence
+        query_result = await client.call_tool("query_memory", {
+            "query": "Persistence Test Updated",
+            "query_context": "verifying update persistence",
+            "k": 5,
+            "include_links": False
+        })
+
+        # Find the updated memory
+        found_memory = None
+        for memory in query_result.data.primary_memories:
+            if memory.id == memory_id:
+                found_memory = memory
+                break
+
+        # Verify: changes persisted
+        assert found_memory is not None, "Updated memory should be found in database"
+        assert found_memory.title == "Persistence Test Updated"
+        assert found_memory.importance == 9
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_keywords_tags_replacement_e2e(docker_services, mcp_server_url):
+    """Test that updating keywords/tags replaces (not appends) existing values"""
+    async with Client(mcp_server_url) as client:
+        # Create memory with initial keywords and tags
+        create_result = await client.call_tool("create_memory", {
+            "title": "Keywords Tags Replacement Test",
+            "content": "Testing REPLACE semantics for list fields",
+            "context": "Validating list field behavior",
+            "keywords": ["python", "testing", "original"],
+            "tags": ["test", "automation", "original"],
+            "importance": 7
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Update keywords and tags to completely different values
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "keywords": ["javascript", "unit-test", "jest"],
+            "tags": ["ci", "jest", "integration"]
+        })
+
+        # Verify: old values completely replaced, not appended
+        assert update_result.data is not None
+        assert update_result.data.keywords == ["javascript", "unit-test", "jest"]
+        assert update_result.data.tags == ["ci", "jest", "integration"]
+
+        # Verify old keywords/tags are NOT present
+        assert "python" not in update_result.data.keywords
+        assert "original" not in update_result.data.keywords
+        assert "automation" not in update_result.data.tags
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_invalid_id_e2e(docker_services, mcp_server_url):
+    """Test error handling when updating non-existent memory"""
+    async with Client(mcp_server_url) as client:
+        # Attempt to update a memory that doesn't exist
+        try:
+            await client.call_tool("update_memory", {
+                "memory_id": 999999,
+                "title": "This Should Fail"
+            })
+            # Should not reach here
+            assert False, "Expected ToolError for invalid memory_id"
+        except Exception as e:
+            # Verify error message indicates memory not found
+            error_message = str(e)
+            assert "not found" in error_message.lower() or "validation_error" in error_message.lower()

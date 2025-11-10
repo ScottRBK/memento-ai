@@ -19,17 +19,20 @@ def build_embedding_text(memory_data: MemoryCreate) -> str:
     Returns:
         Combined text string for embedding
     """
-    parts = [
-        memory_data.title,
-        memory_data.content,
-    ]
+    parts = []
+
+    if memory_data.title:
+        parts.append(memory_data.title)
+
+    if memory_data.content:
+        parts.append(memory_data.content)
 
     if memory_data.context:
         parts.append(memory_data.context)
 
     if memory_data.keywords:
         parts.append(" ".join(memory_data.keywords))
-        
+
     if memory_data.tags:
         parts.append(" ".join(memory_data.tags))
 
