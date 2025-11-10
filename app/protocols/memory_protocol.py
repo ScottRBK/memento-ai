@@ -41,7 +41,9 @@ class MemoryRepository(Protocol):
             self,
             user_id: UUID,
             memory_id: int,
-            updated_memory: MemoryUpdate
+            updated_memory: MemoryUpdate,
+            existing_memory: Memory,
+            search_fields_changed: bool,
     ) -> Memory | None:
         ...
     async def mark_obsolete(

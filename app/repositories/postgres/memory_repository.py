@@ -176,7 +176,9 @@ class PostgresMemoryRepository:
             self,
             user_id: UUID,
             memory_id: int,
-            updated_memory: MemoryUpdate
+            updated_memory: MemoryUpdate,
+            existing_memory: Memory,
+            search_fields_changed: bool
     ) -> Memory:
         """
         Update a memory
@@ -193,9 +195,20 @@ class PostgresMemoryRepository:
             NotFoundError: If memory not found
         """
         async with self.db_adapter.session(user_id) as session:
-            update_data = updated_memory.model_dump(exclude_unset=True)
-            update_data['updated_at'] = datetime.now(timezone.utc)
+               
+            update_data = updated_memory.model_dump(
+                exclude_unset=True,
+                exclude={"project_ids", "code_artifact_ids", "document_ids"}
+                )
             
+            update_data['updated_at'] = datetime.now(timezone.utc)
+
+            if search_fields_changed:
+                merged_memory = existing_memory.model_copy(update=update_data)
+                embedding_text = build_embedding_text(memory_data=merged_memory)
+                embeddings = await self._generate_embeddings(embedding_text)
+                update_data["embedding"] = embeddings         
+
             stmt = (
                 update(MemoryTable)
                 .where(MemoryTable.user_id==user_id, MemoryTable.id==memory_id)
@@ -205,8 +218,26 @@ class PostgresMemoryRepository:
             
             try:
                 result = await session.execute(stmt)
-                memory_update = result.scalar_one()
-                return Memory.model_validate(memory_update)
+                memory_orm = result.scalar_one()
+                
+                if updated_memory.project_ids is not None:
+                    memory_orm.projects.clear()
+                    if updated_memory.project_ids:
+                        await self._link_projects(session, memory_orm, updated_memory.project_ids, user_id)
+                
+                if updated_memory.code_artifact_ids is not None:
+                    memory_orm.code_artifacts.clear()
+                    if updated_memory.code_artifact_ids:
+                        await self._link_code_artifacts(session, memory_orm, updated_memory.code_artifact_ids, user_id)
+                
+                if updated_memory.document_ids is not None:
+                    memory_orm.documents.clear()
+                    if updated_memory.document_ids:
+                        await self._link_documents(session, memory_orm, updated_memory.document_ids, user_id)
+                        
+                await session.refresh(memory_orm)
+                return Memory.model_validate(memory_orm)
+
             except NoResultFound:
                 raise NotFoundError(f"Memory with id {memory_id} not found")
         

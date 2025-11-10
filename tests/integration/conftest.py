@@ -292,7 +292,9 @@ class InMemoryMemoryRepository(MemoryRepository):
         self,
         user_id: UUID,
         memory_id: int,
-        updated_memory: MemoryUpdate
+        updated_memory: MemoryUpdate,
+        existing_memory: Memory,
+        search_fields_changed: bool,
     ) -> Memory | None:
         """Update an existing memory"""
         memory = await self.get_memory_by_id(user_id, memory_id)

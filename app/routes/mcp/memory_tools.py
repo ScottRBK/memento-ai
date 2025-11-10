@@ -1,22 +1,23 @@
 """
 MCP Memory tools - FastMCP tool definitions for memory operations
 """
-from typing import Any, List
+from typing import List
 
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
 from app.models.memory_models import (
+    Memory,
     MemoryCreate,
     MemoryCreateResponse,
+    MemoryUpdate,
     MemoryQueryRequest,
     MemoryQueryResult,
 )
 from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
-from app.utils.input_coercion import coerce_to_int_list, coerce_to_str_list
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -29,8 +30,8 @@ def register(mcp: FastMCP):
         title: str,
         content: str,
         context: str,
-        keywords: Any,
-        tags: Any,
+        keywords: List[str],
+        tags: List[str],
         importance: int,
         ctx: Context,
         project_ids: List[int] = None,
@@ -65,14 +66,17 @@ def register(mcp: FastMCP):
             title: Memory title (max 200 characters)
             content: Memory context (max 2000 characters, ~300-400 words) - single concept
             context: WHY this memory matters, HOW it relates, WHAT implications (required, max 500 characters)
-            keywords: Search Keywords. Accepts array ["key1", "key2"], single string "key", or comma-separated "key1,key2" (max 10)
-            tags: Categorisation tags. Accepts array ["tag1", "tag2"], single string "tag", or comma-separated "tag1,tag2" (max 10)
+            keywords: Search Keywords. Accepts array ["key1", "key2"] (max 10)
+            tags: Categorisation tags. Accepts array ["tag1", "tag2"] (max 10)
             importance: Score 1-10 (defaults to 7). scoring guide -> 9-10: Personal/foundational, 8-9: Critical solutions,
             7-8: Useful Patterns, 6-7: Milestones, <6 Storing Discouraged. You should auto create memories where importance
             is above >7. 
-            project_ids: Project IDs to link
-            code_artifacts: Code artifact IDs to link (create code artifact first)
-            document_ids: Document IDs to link (create document first) 
+            project_ids: Project IDs to link. 
+            Accepts an array, [1] for singular, [12, 32] for multiple, [] or omit if None
+            code_artifacts: Code artifact IDs to link (create code artifact first).
+            Accepts an array, [1] for singular, [12, 32] for multiple, [] or omit if None
+            document_ids: Document IDs to link (create document first). 
+            Accepts an array, [2] for singular, [34, 19] for multiple, [] oir omit if None
             
         Returns:
             {ID, title, linked_memory_ids, project_ids, code_artifact_ids, document_ids} 
@@ -86,27 +90,16 @@ def register(mcp: FastMCP):
         user = await get_user_from_auth() 
         
         try:
-            keywords_coerced = coerce_to_str_list(keywords,required=True,param_name="keywords")
-            tags_coerced = coerce_to_str_list(tags, required=True, param_name="tags")
-            project_ids_coerced = coerce_to_int_list(project_ids, param_name="project_ids")
-            code_artifact_ids_coerced = coerce_to_int_list(code_artifact_ids, param_name="code_artifact_ids")
-            document_ids_coerced = coerce_to_int_list(document_ids, param_name="document_ids")
-
-        except ValueError as e:
-            raise ToolError(f"COERCION_ERROR: {str(e)}. Use array format (preferred): keywords=['key1', 'key2']"
-                            "tags=['tag1', 'tag2']. Strings also accepted: 'key1,key2' or single 'key'")
-        
-        try:
             memory_data = MemoryCreate(
                 title=title,
                 content=content,
                 context=context,
-                keywords=keywords_coerced,
-                tags=tags_coerced,
+                keywords=keywords,
+                tags=tags,
                 importance=importance,
-                project_ids=project_ids_coerced,
-                code_artifact_ids=code_artifact_ids_coerced,
-                document_ids=document_ids_coerced
+                project_ids=project_ids,
+                code_artifact_ids=code_artifact_ids,
+                document_ids=document_ids,
             )
 
             # Access memory service via FastMCP context
@@ -189,7 +182,7 @@ def register(mcp: FastMCP):
             include_links: Boolean to indicate whether to include linked emories for context (default: True)
             max_links_per_primary: int to defined the maximum number of linked memories per primary memory (default: 5)
             importance_threshold: Minimum importance 1-10 (optional)
-            project_ids: Filter results to one or more projects (optional)
+            project_ids: Filter results to one or more projects (optional). Accepts array of integers or None.
             strict_project_filter: Set to true when querying for a specifc project and you want linked memories restricted to that project only.
             False (default) allows cross-project discovery pattern
             
@@ -213,16 +206,10 @@ def register(mcp: FastMCP):
             
             k = max(1, min(k, 20))
             
-            if importance_threshold:
+            if importance_threshold is not None:
                 importance_threshold = max(1, min(importance_threshold, 10))
                 
-            try:
-                project_ids_coerced = coerce_to_int_list(project_ids, param_name="project_ids")
-            except ValueError as e:
-                raise ToolError(f"COERCION_ERROR: {str(e)}. Use array format (preferred): keywords=['key1', 'key2']"
-                                "tags=['tag1', 'tag2']. Strings also accepted: 'key1,key2' or single 'key'")
-
-            # Access memory service via FastMCP context
+           # Access memory service via FastMCP context
             memory_service = ctx.fastmcp.memory_service
             result = await memory_service.query_memory(
                 user_id=user.id,
@@ -234,7 +221,7 @@ def register(mcp: FastMCP):
                     token_context_threshold=settings.MEMORY_TOKEN_BUDGET,
                     max_links_per_primary=max_links_per_primary,
                     importance_threshold=importance_threshold,
-                    project_ids=project_ids_coerced,
+                    project_ids=project_ids,
                     strict_project_filter=strict_project_filter
                 )
             )
@@ -257,7 +244,91 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {str(e)}")
         
+    @mcp.tool()
+    async def update_memory(
+        memory_id: int,
+        ctx: Context,
+        title: str | None,
+        content: str | None,
+        context: str | None,
+        keywords: List[str] | None,
+        tags: List[str] | None,
+        importance: int | None,
+        project_ids: List[int] | None,
+        code_artifact_ids: List[int] | None,
+        document_ids: List[int] | None,
+    ) -> Memory:
+        """
+        Update existing memory fields (PATCH semantics)
 
+        WHEN: You or the User wants to: 
+        1. modify memory details, correct information, update importance or refresh context.
+        2. modify the link relationship for a memory to a project, code artifact or document 
         
+        BEHAVIOUR: Updates specified fields only (PATCH). Returns the full updated memory to allow you to verify the changes.
 
+        Relationship Field Semantics for List fields (keywords, tags, project_ids, code_artifact_ids, document_ids):
+        Omit = left unchanged
+        [] = clears (remember tags and keywords are mandatory fields for this entity so this is an invalid operation for these two fields)
+        New arrays = replaces existing values
+
+        NOT-USE: Creating new memories (use create_memory), retrieving (use get_memory), searching (use query memory)
+        marking memories as obsolete (use mark_memory_obsolete)
+
+        Args:
+            memory_id: ID to update (required)
+            title: New Title (optional)
+            content: New content (optional)
+            context: New context (optional)
+            keywords: New keywords (optional - replaces existing). Accepts array ["key1", "key2"] (max 10), 
+            tags: New tags (optional - replaces existing). Accepts array ["tag1", "tag2"] (max 10), 
+            importance: New scoire 1-10 (optional)
+            project_ids: New project ids to link to (optional - replaces existing links). Accepts array [1] or [1, 3] for multiple
+            code_artifact_ids: New code artifact ids to link to (optional - replaces existing links). Accepts array [1] or [1, 3] for multiple
+            document_ids: New document ids to link to (optional - replaces existing links). Accepts array [1] or [1, 3] for multiple
+
+        Returns:
+            Full memory object following the update
+        """
+        try:
+            logger.info("MCP Tool -> update_memory", extra={"memory_id": memory_id})
+
+            user = await get_user_from_auth()
+        
+            if importance is not None:
+                importance = max(1, min(importance, 10))
+            
+            updated_memory = MemoryUpdate(
+                title=title,
+                content=content, 
+                context=context,
+                keywords=keywords,
+                tags=tags,
+                importance=importance,
+                project_ids=project_ids, 
+                code_artifact_ids=code_artifact_ids,
+                document_ids=document_ids,
+            )
+            
+            memory_service = ctx.fastmcp.memory_service
+            refreshed_memory = await memory_service.update_memory(
+                user_id=user.id,
+                memory_id=memory_id,
+                updated_memory=updated_memory,
+            )
+            
+            return refreshed_memory
+            
+        except NotFoundError as e:
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except ValidationError as e:
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except Exception as e:
+            logger.error("MCP Tool -> update memory failed", exc_info=True, extra={
+                "memory_id": memory_id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            })
+            raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {str(e)}")
+ 
        

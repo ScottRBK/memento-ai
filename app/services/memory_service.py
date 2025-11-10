@@ -199,8 +199,6 @@ class MemoryService:
             memory_id: memory_id of the memory being updated
             updated_memory: Memory Update object containg the data to be updated
         """
-        # TODO: Remember to update embeddings once repo implemented if the following
-        # fields are part of the update: title, content, context, tags, keyword
         
         existing_memory = await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
@@ -228,10 +226,15 @@ class MemoryService:
                         })
             return existing_memory
         
+        search_fields = {"title", "content", "context", "keywords", "tags"}
+        search_fields_changed = bool(search_fields & changed_fields.keys())
+        
         modified_memory = await self.memory_repo.update_memory(
             memory_id=memory_id,
             user_id=user_id,
-            updated_memory=updated_memory
+            updated_memory=updated_memory,
+            existing_memory=existing_memory,
+            search_fields_changed=search_fields_changed 
         )
         
         if not modified_memory:
