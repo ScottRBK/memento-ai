@@ -158,6 +158,12 @@ class Memory(MemoryCreate):
     code_artifact_ids: List[int] = Field(default_factory=list, description="Linked code artifact IDs")
     document_ids: List[int] = Field(default_factory=list, description="Linked document IDs")
 
+    # Lifecycle management fields
+    is_obsolete: bool = Field(default=False, description="Whether this memory has been marked obsolete")
+    obsolete_reason: str | None = Field(default=None, description="Reason why this memory was marked obsolete")
+    superseded_by: int | None = Field(default=None, description="ID of memory that supersedes this one")
+    obsoleted_at: datetime | None = Field(default=None, description="When this memory was marked obsolete")
+
     model_config = ConfigDict(from_attributes=True)
 
 class MemorySummary(BaseModel):

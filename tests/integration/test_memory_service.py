@@ -269,15 +269,21 @@ async def test_mark_memory_obsolete(test_memory_service):
         user_id=user_id,
         memory_id=old_memory.id,
         reason="Superseded by updated information",
-        superseeded_by=new_memory.id
+        superseded_by=new_memory.id
     )
 
     assert success is True
 
-    # Old memory should not be retrievable
-    with pytest.raises(KeyError):
-        await test_memory_service.get_memory(user_id, old_memory.id)
+    # Old memory should still be retrievable for audit purposes
+    obsolete_memory = await test_memory_service.get_memory(user_id, old_memory.id)
+    assert obsolete_memory is not None
+    assert obsolete_memory.id == old_memory.id
+    assert obsolete_memory.is_obsolete is True
+    assert obsolete_memory.obsolete_reason == "Superseded by updated information"
+    assert obsolete_memory.superseded_by == new_memory.id
+    assert obsolete_memory.obsoleted_at is not None
 
     # New memory should still be accessible
     retrieved = await test_memory_service.get_memory(user_id, new_memory.id)
     assert retrieved.id == new_memory.id
+    assert retrieved.is_obsolete is False

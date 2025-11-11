@@ -174,6 +174,9 @@ class InMemoryMemoryRepository(MemoryRepository):
 
         memories = list(user_memories.values())
 
+        # Filter out obsolete memories (soft delete)
+        memories = [m for m in memories if not m.is_obsolete]
+
         # Apply filters
         if importance_threshold:
             memories = [m for m in memories if m.importance >= importance_threshold]
@@ -202,8 +205,8 @@ class InMemoryMemoryRepository(MemoryRepository):
         if not source:
             return []
 
-        # Get all memories except the source memory
-        candidates = [m for m in user_memories.values() if m.id != memory_id]
+        # Get all memories except the source memory, filtering out obsolete memories
+        candidates = [m for m in user_memories.values() if m.id != memory_id and not m.is_obsolete]
 
         # Calculate similarity based on keyword overlap
         similar = []
@@ -279,6 +282,10 @@ class InMemoryMemoryRepository(MemoryRepository):
         for linked_id in linked_ids:
             memory = await self.get_memory_by_id(user_id, linked_id)
             if memory:
+                # Filter out obsolete memories (soft delete)
+                if memory.is_obsolete:
+                    continue
+
                 # Apply project filter if specified
                 if project_ids:
                     if any(pid in memory.project_ids for pid in project_ids):
@@ -324,10 +331,12 @@ class InMemoryMemoryRepository(MemoryRepository):
         if not memory:
             return False
 
-        # Remove from active memories but keep in storage for audit
-        # In real implementation, would set is_obsolete flag
-        # For in-memory stub, we'll just remove from the dict
-        del self._memories[user_id][memory_id]
+        # Mark as obsolete but keep in storage for audit trail
+        from datetime import datetime, timezone
+        memory.is_obsolete = True
+        memory.obsolete_reason = reason
+        memory.superseded_by = superseded_by
+        memory.obsoleted_at = datetime.now(timezone.utc)
 
         return True
 
