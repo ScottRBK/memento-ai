@@ -20,7 +20,6 @@ from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 from app.config.settings import settings
-from app.utils.error_formatter import format_validation_error
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +137,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - create_memory validation error", extra={
                 "user_id": user.id,
                 "title": title[:50],
@@ -250,7 +249,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - query_memory validation error", extra={
                 "query": query[:50],
                 "error_type": "ValidationError",
@@ -350,7 +349,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - update_memory validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "ValidationError",
@@ -431,7 +430,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - link_memories validation error", extra={
                 "memory_id": memory_id,
                 "related_ids": related_ids,
@@ -495,7 +494,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - get_memory validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "ValidationError",
@@ -564,7 +563,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - mark_memory_obsolete validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "ValidationError",

@@ -18,7 +18,6 @@ from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
-from app.utils.error_formatter import format_validation_error
 
 
 logger = logging.getLogger(__name__)
@@ -118,7 +117,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - create_project validation error", extra={
                 "user_id": str(user.id),
                 "project_name": name[:50],
@@ -237,7 +236,7 @@ def register(mcp: FastMCP):
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - update_project validation error", extra={
                 "user_id": str(user.id),
                 "project_id": project_id,
@@ -409,7 +408,7 @@ def register(mcp: FastMCP):
             }
 
         except ValidationError as e:
-            error_details = format_validation_error(e)
+            error_details = str(e)
             logger.debug("MCP Tool - list_projects validation error", extra={
                 "user_id": str(user.id),
                 "error_type": "ValidationError",
