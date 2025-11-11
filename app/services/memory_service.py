@@ -25,7 +25,6 @@ from app.models.memory_models import (
 from app.config.settings import settings
 from app.utils.token_counter import TokenCounter
 from app.utils.pydantic_helper import get_changed_fields
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +136,7 @@ class MemoryService:
             user_id: User ID
             memory_data: Memory Create object with data to be created
         """
-        logger.info("Creating memory", extra={"user_id": user_id, "memory_title": memory_data.title})
-            
+
         memory = await self.memory_repo.create_memory(
             user_id=user_id,
             memory=memory_data
@@ -182,8 +180,6 @@ class MemoryService:
                     "number linked": len(target_ids)
                 })
 
-        logger.info("Memory successfully created", extra={"memory_id": memory.id, "user_id": user_id})
-
         return memory, similar_memories 
     
     async def update_memory(
@@ -205,13 +201,6 @@ class MemoryService:
             memory_id=memory_id,
             user_id=user_id
         )
-        
-        if not existing_memory:
-            logger.warning("Memory not found", extra={
-                "memory_id": memory_id,
-                "user_id": user_id
-            })
-            raise KeyError(f"Memory not found {memory_id}")
         
         
         changed_fields = get_changed_fields(
@@ -238,25 +227,14 @@ class MemoryService:
             search_fields_changed=search_fields_changed 
         )
         
-        if not modified_memory:
-            logger.warning("Failed to update memory", extra={
-                "memory_id": memory_id,
-                "user_id": user_id
-            })
-            
-        logger.info("Successfully updated memory", extra={
-            "memory_id": modified_memory.id,
-            "user_id": user_id
-        })
-
         return modified_memory
-    
+
     async def mark_memory_obsolete(
             self,
             user_id: UUID,
             memory_id: int,
             reason: str,
-            superseeded_by: int | None = None,
+            superseded_by: int | None = None,
     ) -> bool:
         """
         Mark a memory as obsolete (soft delete)
@@ -265,7 +243,7 @@ class MemoryService:
             user_id: User ID
             memory_id: Memory ID to mark obsolete
             reason: Why this memory is obsolete
-            superseeded by: Optional ID of memories that have superseded this one
+            superseded_by: Optional ID of memories that have superseded this one
 
         Returns:
             True if marked obsolete, False if not found
@@ -280,20 +258,9 @@ class MemoryService:
             memory_id=memory_id,
             user_id=user_id,
             reason=reason,
-            superseded_by=superseeded_by
+            superseded_by=superseded_by
         ) 
         
-        if success:
-            logger.info("Successfully marked memory as obsolete", extra={
-                "memory_id": memory_id,
-                "user_id": user_id
-            })
-        else:
-            logger.warning("Failed to mark memory obsolete", extra={
-                "memory_id": memory_id,
-                "user_id": user_id
-            })
-            
         return success
 
     async def get_memory(
@@ -311,24 +278,12 @@ class MemoryService:
         Returns:
             Memory object or None if not found
         """
-        logger.info("Retrieving memory", extra={
-            "user_id": user_id,
-            "memory_id": memory_id
-        })
-        
-        memory = await self.memory_repo.get_memory_by_id(
+
+        return await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
             user_id=user_id
         )
 
-        if not memory:
-            logger.info("Memory not found", extra={
-                "user_id": user_id,
-                "memory_id": memory_id
-            }) 
-            raise KeyError(f"Memory {memory_id} not found")
-            
-        return memory
     
     async def link_memories(
             self,
@@ -350,35 +305,16 @@ class MemoryService:
             List of target memory IDs that were successfully linked
         """
 
-        logger.info("Linking memories", extra={
-            "user_id": user_id,
-            "source_memory_id": memory_id,
-            "number_of_links_to_add": len(related_ids)
-        })
-
         source_memory = await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
             user_id=user_id
         )
-
-        if not source_memory:
-            logger.warning("Source memory not found", extra={
-                "user_id": user_id,
-                "memory_id": memory_id
-            })
-            raise NotFoundError(f"Source memory {memory_id} not found")
 
         links_created = await self.memory_repo.create_links_batch(
             user_id=user_id,
             source_id=source_memory.id,
             target_ids=related_ids,
         )
-
-        logger.info("Memory links successfully created", extra={
-            "user_id": user_id,
-            "source_memory_id": source_memory.id,
-            "number_of_links_added": len(links_created),
-        })
 
         return links_created
 

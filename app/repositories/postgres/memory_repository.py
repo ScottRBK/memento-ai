@@ -119,7 +119,6 @@ class PostgresMemoryRepository:
         )
         
         # Apply filters first to reduce expensive vector call on all memories unless neccesary
-
         if importance_threshold:
             stmt = stmt.where(MemoryTable.importance >= importance_threshold)
 
@@ -298,26 +297,39 @@ class PostgresMemoryRepository:
             memory_id: int,
             reason: str,
             superseded_by: int | None = None
-    ) -> Memory:
+    ) -> bool:
         """
         Mark a memory as obsolete (soft delete)
 
         Args:
-            user_id: User ID,
-            memory_id: Memory ID of the memory to be made obsolete
+            user_id: User ID
+            memory_id: Memory ID to mark as obsolete
             reason: Why the memory is being made obsolete
             superseded_by: ID of the new memory that supersedes this one (optional)
             
         Returns:
-            Updated Memory object
+            True if successfully marked obsolete
             
         Raises:
-            NotFoundError: If memory not found
+            NotFoundError: If memory not found or doesn't belong to user
+            NotFoundError: If superseded_by memory not found or doesn't belong to user
         """
         async with self.db_adapter.session(user_id) as session:
+            if superseded_by:
+                superseding_stmt = select(MemoryTable).where(
+                    MemoryTable.user_id == user_id,
+                    MemoryTable.id == superseded_by
+                )
+                superseding_result = await session.execute(superseding_stmt)
+                if not superseding_result.scalar_one_or_none():
+                    raise NotFoundError(f"Superseding memory {superseded_by} not found")
+            
             stmt = (
                 update(MemoryTable)
-                .where(MemoryTable.user_id==user_id, MemoryTable.id==memory_id)
+                .where(
+                    MemoryTable.user_id == user_id,
+                    MemoryTable.id == memory_id
+                )
                 .values(
                     is_obsolete=True,
                     obsolete_reason=reason,
@@ -327,12 +339,13 @@ class PostgresMemoryRepository:
                 .returning(MemoryTable)
             )
             
-            try:
-                result = await session.execute(stmt)
-                obsoleted_memory = result.scalar_one()
-                return Memory.model_validate(obsoleted_memory)
-            except NoResultFound:
-                raise NotFoundError(f"Memory with id {memory_id} not found")
+            result = await session.execute(stmt)
+            obsoleted_memory = result.scalar_one_or_none()
+            
+            if not obsoleted_memory:
+                raise NotFoundError(f"Memory {memory_id} not found")
+            
+            return True
             
     
     

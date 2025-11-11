@@ -129,12 +129,19 @@ def register(mcp: FastMCP):
             )
 
         except NotFoundError as e:
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
-        except ValidationError as e:
-            logger.error("MCP Tool - create_memory validation failed", exc_info=True, extra={
+            logger.debug("MCP Tool - create_memory validation error", extra={
                 "user_id": user.id,
                 "title": title[:50],
-                "validation_errors": str(e)
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except ValidationError as e:
+            logger.debug("MCP Tool - create_memory validation error", extra={
+                "user_id": user.id,
+                "title": title[:50],
+                "error_type": "ValidationError",
+                "error_message": str(e)
             })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except Exception as e:
@@ -232,10 +239,20 @@ def register(mcp: FastMCP):
                 "token_count": result.token_count
             })
             
-            return result 
+            return result
         except NotFoundError as e:
+            logger.debug("MCP Tool - query_memory validation error", extra={
+                "query": query[:50],
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
+            logger.debug("MCP Tool - query_memory validation error", extra={
+                "query": query[:50],
+                "error_type": "ValidationError",
+                "error_message": str(e)
+            })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except Exception as e:
             logger.error("MCP Tool -> query memory failed", exc_info=True, extra={
@@ -321,10 +338,20 @@ def register(mcp: FastMCP):
             )
             
             return refreshed_memory
-            
+
         except NotFoundError as e:
+            logger.debug("MCP Tool - update_memory validation error", extra={
+                "memory_id": memory_id,
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
+            logger.debug("MCP Tool - update_memory validation error", extra={
+                "memory_id": memory_id,
+                "error_type": "ValidationError",
+                "error_message": str(e)
+            })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except Exception as e:
             logger.error("MCP Tool -> update memory failed", exc_info=True, extra={
@@ -390,10 +417,22 @@ def register(mcp: FastMCP):
             })
             
             return links_created
-            
+
         except NotFoundError as e:
+            logger.debug("MCP Tool - link_memories validation error", extra={
+                "memory_id": memory_id,
+                "related_ids": related_ids,
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
+            logger.debug("MCP Tool - link_memories validation error", extra={
+                "memory_id": memory_id,
+                "related_ids": related_ids,
+                "error_type": "ValidationError",
+                "error_message": str(e)
+            })
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except Exception as e:
             logger.error("MCP Tool -> link memories failed", exc_info=True, extra={
@@ -402,4 +441,133 @@ def register(mcp: FastMCP):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {str(e)}")
-       
+        
+    @mcp.tool()
+    async def get_memory(
+        memory_id: int,
+        ctx: Context,
+    ) -> Memory:
+        """
+        Retreive complete memory details by ID
+
+        WHEN: You require the full details of a specific memory and you already have an ID, for example from receiving a list of linked memories
+        from a project, document or code artifact.
+
+        BEHAVIOUR: Returns the complete memory object or an error if the memory is not found or does not belong to the user
+
+        NOT-USE: Searching for memories using natural language (use query_memory), listing all memories, updating (use update_memory)
+        or creating (use create_memory)
+
+        Args:
+            memory_id: ID of the memory to retrieve
+
+        Returns:
+            Complete memory object, or error if not found or does not belong to the user
+        """
+        try:
+            logger.info("MCP Tool -> get_memory", extra={
+                "memory_id": memory_id
+            })   
+            
+            user = await get_user_from_auth()
+            
+            memory_service = ctx.fastmcp.memory_service
+
+            memory = await memory_service.get_memory(user_id=user.id, memory_id=memory_id)
+            
+            logger.info("MCP Tool - succesfully retrieved memory", extra={
+                "memory_id": memory.id, 
+                "user_id": user.id
+            })
+
+            return memory
+
+        except NotFoundError as e:
+            logger.debug("MCP Tool - get_memory validation error", extra={
+                "memory_id": memory_id,
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except ValidationError as e:
+            logger.debug("MCP Tool - get_memory validation error", extra={
+                "memory_id": memory_id,
+                "error_type": "ValidationError",
+                "error_message": str(e)
+            })
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except Exception as e:
+            logger.error("MCP Tool -> get memory failed", exc_info=True, extra={
+                "memory_id": memory_id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            })
+            raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {str(e)}")
+        
+    
+    @mcp.tool()
+    async def mark_memory_obsolete(
+        memory_id: int,
+        reason: str,
+        ctx: Context,
+        superseded_by: int | None = None,
+    ) -> bool:
+        """
+        Mark a memory as obsolete (soft delete for audit trail)
+
+        WHEN: Memory is outdated, contradicted by newer information, or replaced by better memory. This is a key
+        tool for memory management, outdated memories polluting the memory system will hamper your ability to complete your goals.
+
+        BEHAVIOUR: Soft deletes the memory so that they no longer appear in your query memory results. Optional superseeded by will
+        link to the superseeding memory, this preserve data integrity while hiding obsolete information.
+
+        NOT-USE: temporary hiding (no undo - mark as obsolete is permanent soft delete), updating information (use update_memory), or
+        hard deleting (not supported for audit compliance).
+
+        Args:
+            memory_id: ID of the memory to mark as obsolete
+            reason: Why this memory is obsolete
+            superseded_by: Optional ID of the replacement memory
+
+        Returns:
+            boolean value indicating whether or not the memory was successfully deleted
+        """
+        try:
+            logger.info("MCP Tool -> mark_memory_obsolete", extra={
+                "memory_id": memory_id,
+            })
+            
+            user = await get_user_from_auth()
+
+            memory_service = ctx.fastmcp.memory_service
+            
+            success = await memory_service.mark_memory_obsolete(
+                user_id=user.id,
+                memory_id=memory_id,
+                reason=reason,
+                superseded_by=superseded_by
+            )
+            
+            return success
+
+        except NotFoundError as e:
+            logger.debug("MCP Tool - mark_memory_obsolete validation error", extra={
+                "memory_id": memory_id,
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except ValidationError as e:
+            logger.debug("MCP Tool - mark_memory_obsolete validation error", extra={
+                "memory_id": memory_id,
+                "error_type": "ValidationError",
+                "error_message": str(e)
+            })
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except Exception as e:
+            logger.error("MCP Tool -> mark_memory_obsolete failed", exc_info=True, extra={
+                "memory_id": memory_id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            })
+            raise ToolError(f"INTERNAL_ERROR: Marking memory obsolete failed - {type(e).__name__}: {str(e)}")

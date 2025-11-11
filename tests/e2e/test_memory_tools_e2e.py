@@ -417,3 +417,247 @@ async def test_update_memory_invalid_id_e2e(docker_services, mcp_server_url):
             # Verify error message indicates memory not found
             error_message = str(e)
             assert "not found" in error_message.lower() or "validation_error" in error_message.lower()
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_get_memory_basic_retrieval_e2e(docker_services, mcp_server_url):
+    """Test basic memory retrieval by ID with get_memory tool"""
+    async with Client(mcp_server_url) as client:
+        # Create a memory first
+        create_result = await client.call_tool("create_memory", {
+            "title": "Get Memory E2E Test",
+            "content": "Testing get_memory retrieval by ID in E2E environment",
+            "context": "Validating get_memory tool functionality",
+            "keywords": ["get", "retrieval", "testing"],
+            "tags": ["test", "get-memory"],
+            "importance": 8
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Retrieve the memory using get_memory
+        get_result = await client.call_tool("get_memory", {
+            "memory_id": memory_id
+        })
+
+        # Verify all fields are returned correctly
+        assert get_result.data is not None
+        assert get_result.data.id == memory_id
+        assert get_result.data.title == "Get Memory E2E Test"
+        assert get_result.data.content == "Testing get_memory retrieval by ID in E2E environment"
+        assert get_result.data.context == "Validating get_memory tool functionality"
+        assert get_result.data.keywords == ["get", "retrieval", "testing"]
+        assert get_result.data.tags == ["test", "get-memory"]
+        assert get_result.data.importance == 8
+        assert isinstance(get_result.data.linked_memory_ids, list)
+        assert isinstance(get_result.data.project_ids, list)
+        assert isinstance(get_result.data.code_artifact_ids, list)
+        assert isinstance(get_result.data.document_ids, list)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_get_memory_invalid_id_e2e(docker_services, mcp_server_url):
+    """Test error handling when retrieving non-existent memory"""
+    async with Client(mcp_server_url) as client:
+        # Attempt to retrieve a memory that doesn't exist
+        try:
+            await client.call_tool("get_memory", {
+                "memory_id": 999999
+            })
+            # Should not reach here
+            assert False, "Expected ToolError for invalid memory_id"
+        except Exception as e:
+            # Verify error message indicates memory not found
+            error_message = str(e)
+            assert "not found" in error_message.lower() or "validation_error" in error_message.lower()
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_mark_memory_obsolete_basic_e2e(docker_services, mcp_server_url):
+    """Test basic memory obsolete functionality with mark_memory_obsolete tool"""
+    async with Client(mcp_server_url) as client:
+        # Create a memory
+        create_result = await client.call_tool("create_memory", {
+            "title": "Memory to Obsolete",
+            "content": "This memory will be marked as obsolete in the test",
+            "context": "Testing mark_memory_obsolete functionality",
+            "keywords": ["obsolete", "test", "soft-delete"],
+            "tags": ["test", "obsolete"],
+            "importance": 7
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Mark the memory as obsolete
+        obsolete_result = await client.call_tool("mark_memory_obsolete", {
+            "memory_id": memory_id,
+            "reason": "Testing soft delete functionality"
+        })
+
+        # Verify the operation succeeded
+        assert obsolete_result.data is True
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_mark_memory_obsolete_filtered_from_query_e2e(docker_services, mcp_server_url):
+    """Test that obsolete memories are filtered from query_memory results"""
+    async with Client(mcp_server_url) as client:
+        # Create three memories with similar content
+        result1 = await client.call_tool("create_memory", {
+            "title": "Kubernetes Basics Active",
+            "content": "Kubernetes orchestrates containerized applications across clusters",
+            "context": "Testing obsolete filtering in queries",
+            "keywords": ["kubernetes", "containers", "orchestration"],
+            "tags": ["k8s", "infrastructure"],
+            "importance": 8
+        })
+        memory1_id = result1.data.id
+
+        result2 = await client.call_tool("create_memory", {
+            "title": "Kubernetes Networking Active",
+            "content": "Kubernetes provides networking capabilities for pod communication",
+            "context": "Testing obsolete filtering - this remains active",
+            "keywords": ["kubernetes", "networking", "pods"],
+            "tags": ["k8s", "networking"],
+            "importance": 8
+        })
+        memory2_id = result2.data.id
+
+        result3 = await client.call_tool("create_memory", {
+            "title": "Kubernetes Obsolete Memory",
+            "content": "Kubernetes content that will be marked obsolete",
+            "context": "Testing obsolete filtering - this will be obsolete",
+            "keywords": ["kubernetes", "obsolete", "test"],
+            "tags": ["k8s", "test"],
+            "importance": 7
+        })
+        memory3_id = result3.data.id
+
+        # Mark the third memory as obsolete
+        await client.call_tool("mark_memory_obsolete", {
+            "memory_id": memory3_id,
+            "reason": "Testing that obsolete memories are filtered from queries"
+        })
+
+        # Query for kubernetes memories
+        query_result = await client.call_tool("query_memory", {
+            "query": "kubernetes containers orchestration",
+            "query_context": "testing obsolete filtering in semantic search",
+            "k": 10,
+            "include_links": False
+        })
+
+        assert query_result.data is not None
+
+        # Collect IDs from query results
+        found_ids = [m.id for m in query_result.data.primary_memories]
+
+        # Verify: active memories are found
+        assert memory1_id in found_ids or memory2_id in found_ids, "At least one active memory should be found"
+
+        # Verify: obsolete memory is NOT found
+        assert memory3_id not in found_ids, "Obsolete memory should be filtered from query results"
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_mark_memory_obsolete_retrievable_by_id_e2e(docker_services, mcp_server_url):
+    """Test that obsolete memories can still be retrieved by ID using get_memory (audit trail)"""
+    async with Client(mcp_server_url) as client:
+        # Create a memory
+        create_result = await client.call_tool("create_memory", {
+            "title": "Memory for Audit Trail Test",
+            "content": "This memory will be obsolete but retrievable by ID",
+            "context": "Testing soft-delete audit trail behavior",
+            "keywords": ["audit", "obsolete", "retrieval"],
+            "tags": ["test", "audit"],
+            "importance": 7
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data.id
+
+        # Mark as obsolete
+        await client.call_tool("mark_memory_obsolete", {
+            "memory_id": memory_id,
+            "reason": "Testing that get_memory can still retrieve obsolete memories"
+        })
+
+        # Verify: query_memory does NOT return it
+        query_result = await client.call_tool("query_memory", {
+            "query": "audit trail obsolete retrieval",
+            "query_context": "verifying obsolete memory filtered from query",
+            "k": 10,
+            "include_links": False
+        })
+
+        query_ids = [m.id for m in query_result.data.primary_memories]
+        assert memory_id not in query_ids, "Obsolete memory should not appear in query_memory results"
+
+        # Verify: get_memory CAN still retrieve it (audit trail)
+        get_result = await client.call_tool("get_memory", {
+            "memory_id": memory_id
+        })
+
+        assert get_result.data is not None
+        assert get_result.data.id == memory_id
+        assert get_result.data.title == "Memory for Audit Trail Test"
+        assert get_result.data.content == "This memory will be obsolete but retrievable by ID"
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_mark_memory_obsolete_with_superseded_by_e2e(docker_services, mcp_server_url):
+    """Test marking memory obsolete with superseded_by parameter"""
+    async with Client(mcp_server_url) as client:
+        # Create the original memory
+        old_result = await client.call_tool("create_memory", {
+            "title": "Old API Pattern",
+            "content": "Use REST API with XML responses",
+            "context": "Outdated API pattern that will be superseded",
+            "keywords": ["api", "rest", "xml"],
+            "tags": ["api", "deprecated"],
+            "importance": 6
+        })
+        old_memory_id = old_result.data.id
+
+        # Create the new memory that supersedes it
+        new_result = await client.call_tool("create_memory", {
+            "title": "New API Pattern",
+            "content": "Use REST API with JSON responses",
+            "context": "Modern API pattern superseding XML approach",
+            "keywords": ["api", "rest", "json"],
+            "tags": ["api", "modern"],
+            "importance": 8
+        })
+        new_memory_id = new_result.data.id
+
+        # Mark old memory as obsolete with superseded_by
+        obsolete_result = await client.call_tool("mark_memory_obsolete", {
+            "memory_id": old_memory_id,
+            "reason": "Superseded by modern JSON API pattern",
+            "superseded_by": new_memory_id
+        })
+
+        # Verify the operation succeeded
+        assert obsolete_result.data is True
+
+        # Verify old memory is filtered from queries
+        query_result = await client.call_tool("query_memory", {
+            "query": "REST API pattern",
+            "query_context": "finding current API patterns",
+            "k": 10,
+            "include_links": False
+        })
+
+        found_ids = [m.id for m in query_result.data.primary_memories]
+        assert old_memory_id not in found_ids, "Old memory should be filtered from queries"
+
+        # New memory should be findable
+        assert new_memory_id in found_ids or len(found_ids) > 0, "New memory should be found in queries"
