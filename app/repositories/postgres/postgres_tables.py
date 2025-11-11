@@ -3,6 +3,7 @@ SQLAlchmey ORM Models for Postgres database
 """
 from typing import List
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 from sqlalchemy import(
     Column,
@@ -199,6 +200,54 @@ class MemoryTable(Base):
 
         return result
 
+    @property
+    def project_ids(self) -> List[int]:
+        """
+        Compute project IDs from projects relationship.
+
+        Returns:
+            List of project IDs, or empty list if relationship not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.projects.loaded_value is not NO_VALUE:
+            return [p.id for p in self.projects]
+        return []
+
+    @property
+    def code_artifact_ids(self) -> List[int]:
+        """
+        Compute code artifact IDs from code_artifacts relationship.
+
+        Returns:
+            List of code artifact IDs, or empty list if relationship not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.code_artifacts.loaded_value is not NO_VALUE:
+            return [a.id for a in self.code_artifacts]
+        return []
+
+    @property
+    def document_ids(self) -> List[int]:
+        """
+        Compute document IDs from documents relationship.
+
+        Returns:
+            List of document IDs, or empty list if relationship not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.documents.loaded_value is not NO_VALUE:
+            return [d.id for d in self.documents]
+        return []
+
     __table_args__ = (
         Index("ix_memories_user_id", "user_id"),
         Index("ix_memories_importance", "importance"),
@@ -277,6 +326,12 @@ class ProjectsTable(Base):
         "DocumentsTable",
         back_populates="project",
     )
+
+    # Computed properties for Pydantic conversion
+    @hybrid_property
+    def memory_count(self) -> int:
+        """Return the count of memories linked to this project"""
+        return len(self.memories)
 
     __table_args__ = (
         Index("ix_projects_user_id", "user_id"),

@@ -10,10 +10,13 @@ from datetime import datetime, timezone
 
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
+from app.models.project_models import Project, ProjectCreate, ProjectUpdate, ProjectSummary, ProjectStatus
 from app.protocols.user_protocol import UserRepository
 from app.protocols.memory_protocol import MemoryRepository
+from app.protocols.project_protocol import ProjectRepository
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
+from app.services.project_service import ProjectService
 
 
 class InMemoryUserRepository(UserRepository):
@@ -345,3 +348,142 @@ def mock_memory_repository():
 def test_memory_service(mock_memory_repository):
     """Provides a MemoryService with in-memory repository"""
     return MemoryService(mock_memory_repository)
+
+
+# ============ Project Testing Fixtures ============
+
+
+class InMemoryProjectRepository(ProjectRepository):
+    """In-memory implementation of ProjectRepository for testing"""
+
+    def __init__(self):
+        self._projects: dict[UUID, dict[int, Project]] = {}  # user_id -> {project_id -> Project}
+        self._next_id = 1
+        # Track memories per project for memory_count calculation
+        self._project_memories: dict[int, set[int]] = {}  # project_id -> set of memory_ids
+
+    async def list_projects(
+        self,
+        user_id: UUID,
+        status: ProjectStatus | None = None,
+        repo_name: str | None = None
+    ) -> List[ProjectSummary]:
+        """List projects with optional filtering"""
+        user_projects = self._projects.get(user_id, {})
+
+        projects = list(user_projects.values())
+
+        # Apply filters
+        if status:
+            projects = [p for p in projects if p.status == status]
+
+        if repo_name:
+            projects = [p for p in projects if p.repo_name == repo_name]
+
+        # Sort by creation date (newest first)
+        projects.sort(key=lambda p: p.created_at, reverse=True)
+
+        # Convert to ProjectSummary
+        summaries = [
+            ProjectSummary(
+                id=p.id,
+                name=p.name,
+                project_type=p.project_type,
+                status=p.status,
+                repo_name=p.repo_name,
+                memory_count=p.memory_count,
+                created_at=p.created_at,
+                updated_at=p.updated_at
+            )
+            for p in projects
+        ]
+
+        return summaries
+
+    async def get_project_by_id(
+        self,
+        user_id: UUID,
+        project_id: int
+    ) -> Project | None:
+        """Get single project by ID"""
+        user_projects = self._projects.get(user_id, {})
+        return user_projects.get(project_id)
+
+    async def create_project(
+        self,
+        user_id: UUID,
+        project_data: ProjectCreate
+    ) -> Project:
+        """Create new project"""
+        project_id = self._next_id
+        self._next_id += 1
+
+        now = datetime.now(timezone.utc)
+
+        new_project = Project(
+            id=project_id,
+            name=project_data.name,
+            description=project_data.description,
+            project_type=project_data.project_type,
+            status=project_data.status,
+            repo_name=project_data.repo_name,
+            notes=project_data.notes,
+            memory_count=0,
+            created_at=now,
+            updated_at=now
+        )
+
+        if user_id not in self._projects:
+            self._projects[user_id] = {}
+
+        self._projects[user_id][project_id] = new_project
+        self._project_memories[project_id] = set()
+
+        return new_project
+
+    async def update_project(
+        self,
+        user_id: UUID,
+        project_id: int,
+        project_data: ProjectUpdate
+    ) -> Project:
+        """Update existing project"""
+        project = await self.get_project_by_id(user_id, project_id)
+        if not project:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Project with id {project_id} not found")
+
+        # Update fields using PATCH semantics
+        update_data = project_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(project, field, value)
+
+        project.updated_at = datetime.now(timezone.utc)
+        return project
+
+    async def delete_project(
+        self,
+        user_id: UUID,
+        project_id: int
+    ) -> bool:
+        """Delete project"""
+        user_projects = self._projects.get(user_id, {})
+        if project_id in user_projects:
+            del user_projects[project_id]
+            # Clean up memory tracking
+            if project_id in self._project_memories:
+                del self._project_memories[project_id]
+            return True
+        return False
+
+
+@pytest.fixture
+def mock_project_repository():
+    """Provides an in-memory project repository"""
+    return InMemoryProjectRepository()
+
+
+@pytest.fixture
+def test_project_service(mock_project_repository):
+    """Provides a ProjectService with in-memory repository"""
+    return ProjectService(mock_project_repository)

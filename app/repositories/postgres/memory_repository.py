@@ -9,7 +9,14 @@ from sqlalchemy import select, update, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from app.repositories.postgres.postgres_tables import MemoryTable, MemoryLinkTable, ProjectsTable, CodeArtifactsTable, DocumentsTable
+from app.repositories.postgres.postgres_tables import (
+    MemoryTable,
+    MemoryLinkTable,
+    ProjectsTable,
+    CodeArtifactsTable,
+    DocumentsTable,
+    memory_project_association
+)
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
 from app.repositories.helpers import build_embedding_text
@@ -123,9 +130,12 @@ class PostgresMemoryRepository:
             stmt = stmt.where(MemoryTable.importance >= importance_threshold)
 
         if project_ids:
-            stmt = stmt.join(MemoryTable.projects).where(
-                ProjectsTable.id.in_(project_ids)
-            ).distinct() 
+            # Use exists() with subquery to avoid DISTINCT+ORDER BY PostgreSQL error
+            project_filter = select(memory_project_association.c.memory_id).where(
+                memory_project_association.c.memory_id == MemoryTable.id,
+                memory_project_association.c.project_id.in_(project_ids)
+            ).exists()
+            stmt = stmt.where(project_filter)
 
         if exclude_ids:
             stmt = stmt.where(MemoryTable.id.not_in(exclude_ids))
@@ -168,7 +178,22 @@ class PostgresMemoryRepository:
             if memory.document_ids:
                 await self._link_documents(session, new_memory, memory.document_ids, user_id)
 
-            await session.refresh(new_memory)
+            # Re-query with selectinload to ensure all relationships are properly loaded
+            # This is the recommended async pattern per SQLAlchemy docs
+            stmt = (
+                select(MemoryTable)
+                .where(MemoryTable.id == new_memory.id)
+                .options(
+                    selectinload(MemoryTable.projects),
+                    selectinload(MemoryTable.code_artifacts),
+                    selectinload(MemoryTable.documents),
+                    selectinload(MemoryTable.linked_memories),
+                    selectinload(MemoryTable.linking_memories)
+                )
+            )
+            result = await session.execute(stmt)
+            new_memory = result.scalar_one()
+
             return Memory.model_validate(new_memory)
         
     async def update_memory(
@@ -218,23 +243,45 @@ class PostgresMemoryRepository:
             try:
                 result = await session.execute(stmt)
                 memory_orm = result.scalar_one()
-                
+
+                # Handle relationship updates if provided
                 if updated_memory.project_ids is not None:
+                    # Load projects relationship for manipulation (must include 'id' for refresh to work)
+                    await session.refresh(memory_orm, attribute_names=['id', 'projects'])
                     memory_orm.projects.clear()
                     if updated_memory.project_ids:
                         await self._link_projects(session, memory_orm, updated_memory.project_ids, user_id)
-                
+
                 if updated_memory.code_artifact_ids is not None:
+                    # Load code_artifacts relationship for manipulation (must include 'id' for refresh to work)
+                    await session.refresh(memory_orm, attribute_names=['id', 'code_artifacts'])
                     memory_orm.code_artifacts.clear()
                     if updated_memory.code_artifact_ids:
                         await self._link_code_artifacts(session, memory_orm, updated_memory.code_artifact_ids, user_id)
-                
+
                 if updated_memory.document_ids is not None:
+                    # Load documents relationship for manipulation (must include 'id' for refresh to work)
+                    await session.refresh(memory_orm, attribute_names=['id', 'documents'])
                     memory_orm.documents.clear()
                     if updated_memory.document_ids:
                         await self._link_documents(session, memory_orm, updated_memory.document_ids, user_id)
-                        
-                await session.refresh(memory_orm)
+
+                # Re-query with selectinload to ensure all relationships are properly loaded
+                # This is the recommended async pattern per SQLAlchemy docs
+                stmt = (
+                    select(MemoryTable)
+                    .where(MemoryTable.id == memory_id)
+                    .options(
+                        selectinload(MemoryTable.projects),
+                        selectinload(MemoryTable.code_artifacts),
+                        selectinload(MemoryTable.documents),
+                        selectinload(MemoryTable.linked_memories),
+                        selectinload(MemoryTable.linking_memories)
+                    )
+                )
+                result = await session.execute(stmt)
+                memory_orm = result.scalar_one()
+
                 return Memory.model_validate(memory_orm)
 
             except NoResultFound:
@@ -582,7 +629,7 @@ class PostgresMemoryRepository:
         if missing_ids:
             raise NotFoundError(f"Projects not found: {missing_ids}")
 
-        memory.projects.extend(projects)
+        await session.run_sync(lambda sync_session: memory.projects.extend(projects))
 
     async def _link_code_artifacts(
             self,
@@ -604,7 +651,7 @@ class PostgresMemoryRepository:
         if missing_ids:
             raise NotFoundError(f"Code artifacts not found: {missing_ids}")
 
-        memory.code_artifacts.extend(artifacts)
+        await session.run_sync(lambda sync_session: memory.code_artifacts.extend(artifacts))
 
     async def _link_documents(
             self,
@@ -626,7 +673,7 @@ class PostgresMemoryRepository:
         if missing_ids:
             raise NotFoundError(f"Documents not found: {missing_ids}")
 
-        memory.documents.extend(documents)
+        await session.run_sync(lambda sync_session: memory.documents.extend(documents))
 
     async def _generate_embeddings(self, text: str) -> List[float]:
         return await self.embedding_adapter.generate_embedding(text=text)

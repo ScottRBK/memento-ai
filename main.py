@@ -13,10 +13,12 @@ from app.middleware.auth import init_auth
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.user_repository import PostgresUserRepository
 from app.repositories.postgres.memory_repository import PostgresMemoryRepository
+from app.repositories.postgres.project_repository import PostgresProjectRepository
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
-from app.routes.mcp import user_tools, memory_tools
+from app.services.project_service import ProjectService
+from app.routes.mcp import user_tools, memory_tools, project_tools
 from app.config.logging_config import configure_logging, shutdown_logging
 
 import logging 
@@ -36,6 +38,7 @@ if settings.DATABASE == "Postgres":
         db_adapter=db_adapter,
         embedding_adapter=embeddings_adapter
     )
+    project_repository = PostgresProjectRepository(db_adapter=db_adapter)
 
 @asynccontextmanager
 async def lifespan(app):
@@ -50,9 +53,11 @@ async def lifespan(app):
     # Create services after DB is initialized
     user_service = UserService(user_repository)
     memory_service = MemoryService(memory_repository)
+    project_service = ProjectService(project_repository)
 
-    # Store memory service on FastMCP instance for tool access
+    # Store services on FastMCP instance for tool access
     mcp.memory_service = memory_service
+    mcp.project_service = project_service
 
     # Initialize auth with user service
     init_auth(user_service=user_service)
@@ -90,6 +95,7 @@ health.register(mcp)
 # MCP Routes
 user_tools.register(mcp)
 memory_tools.register(mcp)
+project_tools.register(mcp)
 
 if __name__ == "__main__":
     mcp.run(transport="http", host=settings.SERVER_HOST, port=settings.SERVER_PORT)

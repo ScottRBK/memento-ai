@@ -661,3 +661,141 @@ async def test_mark_memory_obsolete_with_superseded_by_e2e(docker_services, mcp_
 
         # New memory should be findable
         assert new_memory_id in found_ids or len(found_ids) > 0, "New memory should be found in queries"
+
+
+# ============ Memory-Project Integration Tests ============
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_add_project_ids_e2e(docker_services, mcp_server_url):
+    """Test adding project_ids to a memory using update_memory tool"""
+    async with Client(mcp_server_url) as client:
+        # Create a project
+        project_result = await client.call_tool("create_project", {
+            "name": "update-memory-project-test",
+            "description": "Project for testing memory updates with project_ids",
+            "project_type": "development"
+        })
+        project_id = project_result.data.id
+
+        # Create a memory without project
+        memory_result = await client.call_tool("create_memory", {
+            "title": "Memory without project",
+            "content": "This memory will be updated to add a project",
+            "context": "Testing project_ids updates",
+            "keywords": ["test", "project", "update"],
+            "tags": ["test"],
+            "importance": 7
+        })
+        memory_id = memory_result.data.id
+
+        # Verify memory has no project_ids initially
+        assert memory_result.data.project_ids == []
+
+        # Update memory to add project_ids
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "project_ids": [project_id]
+        })
+
+        # Verify project_ids were added
+        assert update_result.data is not None
+        assert project_id in update_result.data.project_ids
+
+        # Get memory to double-check persistence
+        get_result = await client.call_tool("get_memory", {
+            "memory_id": memory_id
+        })
+
+        assert project_id in get_result.data.project_ids
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_add_multiple_projects_e2e(docker_services, mcp_server_url):
+    """Test adding multiple project_ids to a memory"""
+    async with Client(mcp_server_url) as client:
+        # Create two projects
+        project1_result = await client.call_tool("create_project", {
+            "name": "multi-project-1",
+            "description": "First project for multi-project test",
+            "project_type": "development"
+        })
+        project1_id = project1_result.data.id
+
+        project2_result = await client.call_tool("create_project", {
+            "name": "multi-project-2",
+            "description": "Second project for multi-project test",
+            "project_type": "work"
+        })
+        project2_id = project2_result.data.id
+
+        # Create a memory
+        memory_result = await client.call_tool("create_memory", {
+            "title": "Memory for multiple projects",
+            "content": "This memory belongs to multiple projects",
+            "context": "Testing multiple project_ids",
+            "keywords": ["test", "multi-project"],
+            "tags": ["test"],
+            "importance": 7
+        })
+        memory_id = memory_result.data.id
+
+        # Update memory with both project_ids
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "project_ids": [project1_id, project2_id]
+        })
+
+        # Verify both project_ids were added
+        assert update_result.data is not None
+        assert project1_id in update_result.data.project_ids
+        assert project2_id in update_result.data.project_ids
+        assert len(update_result.data.project_ids) == 2
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_remove_project_ids_e2e(docker_services, mcp_server_url):
+    """Test removing project_ids from a memory"""
+    async with Client(mcp_server_url) as client:
+        # Create a project
+        project_result = await client.call_tool("create_project", {
+            "name": "remove-project-test",
+            "description": "Project to be removed from memory",
+            "project_type": "development"
+        })
+        project_id = project_result.data.id
+
+        # Create a memory WITH project
+        memory_result = await client.call_tool("create_memory", {
+            "title": "Memory with project to remove",
+            "content": "This memory will have its project removed",
+            "context": "Testing project_ids removal",
+            "keywords": ["test", "remove", "project"],
+            "tags": ["test"],
+            "importance": 7,
+            "project_ids": [project_id]
+        })
+        memory_id = memory_result.data.id
+
+        # Verify memory has project initially
+        assert project_id in memory_result.data.project_ids
+
+        # Update memory to remove project_ids (empty list)
+        update_result = await client.call_tool("update_memory", {
+            "memory_id": memory_id,
+            "project_ids": []
+        })
+
+        # Verify project_ids were removed
+        assert update_result.data is not None
+        assert update_result.data.project_ids == []
+
+        # Get memory to double-check
+        get_result = await client.call_tool("get_memory", {
+            "memory_id": memory_id
+        })
+
+        assert get_result.data.project_ids == []
