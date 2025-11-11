@@ -81,7 +81,7 @@ def register(mcp: FastMCP):
             "project_type": project_type.value
         })
 
-        user = await get_user_from_auth()
+        user = await get_user_from_auth(ctx)
 
         try:
             # Build project creation data
@@ -190,7 +190,7 @@ def register(mcp: FastMCP):
             "project_id": project_id
         })
 
-        user = await get_user_from_auth()
+        user = await get_user_from_auth(ctx)
 
         try:
             # Build update dict, filtering out None values
@@ -290,7 +290,7 @@ def register(mcp: FastMCP):
             "project_id": project_id
         })
 
-        user = await get_user_from_auth()
+        user = await get_user_from_auth(ctx)
 
         try:
             # Access project service via FastMCP context
@@ -385,7 +385,7 @@ def register(mcp: FastMCP):
             "repo_name": repo_name
         })
 
-        user = await get_user_from_auth()
+        user = await get_user_from_auth(ctx)
 
         try:
             # Access project service via FastMCP context
@@ -460,7 +460,7 @@ def register(mcp: FastMCP):
             "project_id": project_id
         })
 
-        user = await get_user_from_auth()
+        user = await get_user_from_auth(ctx)
 
         try:
             # Access project service via FastMCP context

@@ -88,8 +88,8 @@ def register(mcp: FastMCP):
         logger.info("MCP Tool Called -> create memory", extra={
             "title": title
         })
-        
-        user = await get_user_from_auth() 
+
+        user = await get_user_from_auth(ctx) 
         
         try:
             memory_data = MemoryCreate(
@@ -212,7 +212,7 @@ def register(mcp: FastMCP):
                 "include_links": include_links
             })
 
-            user = await get_user_from_auth()
+            user = await get_user_from_auth(ctx)
             
             k = max(1, min(k, 20))
             
@@ -314,7 +314,7 @@ def register(mcp: FastMCP):
         try:
             logger.info("MCP Tool -> update_memory", extra={"memory_id": memory_id})
 
-            user = await get_user_from_auth()
+            user = await get_user_from_auth(ctx)
         
             if importance is not None:
                 importance = max(1, min(importance, 10))
@@ -397,7 +397,7 @@ def register(mcp: FastMCP):
                 "related_ids": related_ids
             })
 
-            user = await get_user_from_auth()
+            user = await get_user_from_auth(ctx)
             
             if not related_ids:
                 raise ToolError("related_ids cannot be empty")
@@ -474,7 +474,7 @@ def register(mcp: FastMCP):
                 "memory_id": memory_id
             })   
             
-            user = await get_user_from_auth()
+            user = await get_user_from_auth(ctx)
             
             memory_service = ctx.fastmcp.memory_service
 
@@ -543,7 +543,7 @@ def register(mcp: FastMCP):
                 "memory_id": memory_id,
             })
             
-            user = await get_user_from_auth()
+            user = await get_user_from_auth(ctx)
 
             memory_service = ctx.fastmcp.memory_service
             

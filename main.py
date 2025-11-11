@@ -8,8 +8,7 @@ from starlette.responses import JSONResponse
 
 
 from app.config.settings import settings
-from app.routes.api import health 
-from app.middleware.auth import init_auth
+from app.routes.api import health
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.user_repository import PostgresUserRepository
 from app.repositories.postgres.memory_repository import PostgresMemoryRepository
@@ -55,13 +54,11 @@ async def lifespan(app):
     memory_service = MemoryService(memory_repository)
     project_service = ProjectService(project_repository)
 
-    # Store services on FastMCP instance for tool access
+    # Store services on FastMCP instance for tool access (context pattern)
+    mcp.user_service = user_service
     mcp.memory_service = memory_service
     mcp.project_service = project_service
-
-    # Initialize auth with user service
-    init_auth(user_service=user_service)
-    logger.info("MCP Authentication Enabled")
+    logger.info("Services initialized and attached to FastMCP instance")
 
     yield
 

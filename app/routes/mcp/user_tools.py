@@ -8,11 +8,11 @@ for user operations.
 -   Update User Information
 """
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
 
 from app.models.user_models import UserUpdate, UserResponse
-from app.middleware.auth import get_user_from_auth, get_user_service
+from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 
@@ -23,7 +23,7 @@ def register(mcp: FastMCP):
     """Register the user tools with the provided service instance"""
 
     @mcp.tool()
-    async def get_current_user() -> UserResponse:
+    async def get_current_user(ctx: Context) -> UserResponse:
         """
         Returns information about the current user
 
@@ -45,7 +45,7 @@ def register(mcp: FastMCP):
         - During repeated operations where user data hasn't changed
         """
         try:
-            user = await get_user_from_auth()
+            user = await get_user_from_auth(ctx)
             logger.info("successfully retrieved current user", extra={"user": user.name, "user_id": user.id, "external_id": user.external_id})
             return UserResponse(**user.model_dump())
         except Exception as e:
@@ -57,7 +57,7 @@ def register(mcp: FastMCP):
             
 
     @mcp.tool()
-    async def update_user_notes(user_notes: str) -> UserResponse:
+    async def update_user_notes(user_notes: str, ctx: Context) -> UserResponse:
         """
         Update the notes field for the current user
 
@@ -82,10 +82,12 @@ def register(mcp: FastMCP):
 
         Args:
             user_notes: The new notes content to store for the user
+            ctx: FastMCP Context (automatically injected)
         """
         try:
-            user = await get_user_from_auth()
-            service = get_user_service()
+            user = await get_user_from_auth(ctx)
+            # Access user service via context pattern
+            service = ctx.fastmcp.user_service
             # Create update with only the notes field
             user_update = UserUpdate(
                 external_id=user.external_id,  # Needed for lookup

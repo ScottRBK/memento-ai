@@ -397,6 +397,8 @@ async def test_list_returns_summary_e2e(docker_services, mcp_server_url):
             "notes": "These are notes that should not appear in list"
         })
 
+        assert create_result 
+
         # List projects
         list_result = await client.call_tool("list_projects", {})
 

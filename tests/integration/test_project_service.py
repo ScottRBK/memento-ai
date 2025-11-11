@@ -5,8 +5,6 @@ import pytest
 from uuid import uuid4
 
 from app.models.project_models import ProjectCreate, ProjectUpdate, ProjectType, ProjectStatus
-from app.exceptions import NotFoundError
-
 
 @pytest.mark.asyncio
 async def test_create_project_basic(test_project_service):
