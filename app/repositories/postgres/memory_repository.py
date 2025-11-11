@@ -450,51 +450,55 @@ class PostgresMemoryRepository:
 
         Returns:
             Memory Link ORM
-            
+
         Raises:
             NotFoundError: If source or target memory not found
             IntegrityError: If link already exists
         """
-        source_memory = await self.get_memory_by_id(user_id=user_id, memory_id=source_id)
-        if not source_memory:
-            raise NotFoundError(f"Source memory with id {source_id} not found")
-        
-        target_memory = await self.get_memory_by_id(user_id=user_id, memory_id=target_id)
-        if not target_memory:
-            raise NotFoundError(f"Target memory with id {target_id} not found")
-        
-        if source_id > target_id:
-            # inverse as to ensure no duplicates
-            source_id, target_id = target_id, source_id
-
-        logger.info("Creating memory link", extra={
-            "user_id": user_id,
-            "source_id": source_id,
-            "target_id": target_id,
-        })
-
-        link = MemoryLinkTable(
-            source_id=source_id,
-            target_id=target_id,
-            user_id=user_id
-        ) 
-        
+        # Use a single session for the entire operation to avoid detached object issues
         async with self.db_adapter.session(user_id) as session:
+            # Query both memories within the same session
+            source_memory = await session.get(MemoryTable, source_id)
+            if not source_memory:
+                raise NotFoundError(f"Source memory with id {source_id} not found")
+
+            target_memory = await session.get(MemoryTable, target_id)
+            if not target_memory:
+                raise NotFoundError(f"Target memory with id {target_id} not found")
+
+            # Swap IDs if needed to ensure no duplicates
+            link_source_id = source_id
+            link_target_id = target_id
+            if source_id > target_id:
+                link_source_id, link_target_id = target_id, source_id
+
+            logger.info("Creating memory link", extra={
+                "user_id": user_id,
+                "source_id": link_source_id,
+                "target_id": link_target_id,
+            })
+
+            link = MemoryLinkTable(
+                source_id=link_source_id,
+                target_id=link_target_id,
+                user_id=user_id
+            )
+
             session.add(link)
             try:
                 await session.flush()
                 await session.refresh(link)
                 logger.info("Created link between memories", extra={
                     "user_id": user_id,
-                    "source_id": source_id,
-                    "target_id": target_id}
+                    "source_id": link_source_id,
+                    "target_id": link_target_id}
                 )
                 return link
             except IntegrityError:
                 logger.warning("Memory link already existed", extra={
                     "user_id": user_id,
-                    "source_id": source_id,
-                    "target_id": target_id,
+                    "source_id": link_source_id,
+                    "target_id": link_target_id,
                 })
                 await session.rollback()
                 raise
@@ -523,15 +527,18 @@ class PostgresMemoryRepository:
 
         for target_id in target_ids:
             if source_id == target_id:
-                continue 
+                continue
             try:
-                link = await self.create_link(
-                    user_id=user_id, 
-                    source_id=source_id, 
+                await self.create_link(
+                    user_id=user_id,
+                    source_id=source_id,
                     target_id=target_id
                 )
-                links_created.append(link.target_id)
-            except IntegrityError:
+                # Append the original target_id, not link.target_id
+                # (link.target_id may be swapped if source_id > target_id)
+                links_created.append(target_id)
+            except (IntegrityError, NotFoundError):
+                # Skip duplicates and invalid target IDs
                 continue
 
         logger.info("Memory links created", extra={

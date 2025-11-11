@@ -154,7 +154,6 @@ class MemoryTable(Base):
         back_populates="memories",
     )
     
-    # Self-referential relationship for memory links (many-to-many)
     linked_memories: Mapped[List["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary="memory_links",
@@ -171,7 +170,35 @@ class MemoryTable(Base):
         back_populates="linked_memories",
         viewonly=True
     )
-    
+
+    @property
+    def linked_memory_ids(self) -> List[int]:
+        """
+        Compute linked memory IDs from bidirectional relationships.
+
+        Combines IDs from both directions since links are bidirectional:
+        - linked_memories: where this memory is the source
+        - linking_memories: where this memory is the target
+
+        Returns:
+            List of linked memory IDs, or empty list if relationships not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        # Check if relationships are loaded to avoid lazy-loading in async context
+        insp = inspect(self)
+        result = []
+
+        # Only access if already loaded (not NO_VALUE)
+        if insp.attrs.linked_memories.loaded_value is not NO_VALUE:
+            result.extend([m.id for m in self.linked_memories])
+
+        if insp.attrs.linking_memories.loaded_value is not NO_VALUE:
+            result.extend([m.id for m in self.linking_memories])
+
+        return result
+
     __table_args__ = (
         Index("ix_memories_user_id", "user_id"),
         Index("ix_memories_importance", "importance"),

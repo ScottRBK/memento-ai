@@ -10,6 +10,8 @@ import time
 import socket
 import httpx
 import os
+import tempfile
+import yaml
 from pathlib import Path
 
 # Ensure settings loads docker/.env.example
@@ -70,12 +72,14 @@ def wait_for_http(url: str, timeout: int = 60) -> None:
 
 
 @pytest.fixture(scope="module")
-def docker_services():
+def docker_services(request):
     """
     Start Docker Compose services for E2E tests using docker/.env.example
 
     Validates the actual deployment configuration that ships to production.
     Fails fast with clear errors if ports are already in use.
+
+    Supports environment variable overrides via docker_services_env_override fixture.
     """
     # Check for port conflicts
     if port_in_use(settings.PGPORT):
@@ -99,11 +103,42 @@ def docker_services():
     env["ENVIRONMENT"] = "example"
     env["COMPOSE_PROJECT_NAME"] = "forgetful"  # Force lowercase project name
 
+    # Check for environment variable overrides from test module
+    override_file = None
+    if hasattr(request, 'module') and hasattr(request.module, 'DOCKER_ENV_OVERRIDE'):
+        env_override = request.module.DOCKER_ENV_OVERRIDE
+        print(f"📝 Applying environment overrides: {env_override}")
+
+        # Create a temporary docker-compose override file
+        override_config = {
+            'services': {
+                'forgetful-service': {
+                    'environment': [f"{key}={value}" for key, value in env_override.items()]
+                }
+            }
+        }
+
+        # Write override file
+        fd, override_file = tempfile.mkstemp(suffix='.yml', prefix='docker-compose-override-')
+        try:
+            with os.fdopen(fd, 'w') as f:
+                yaml.dump(override_config, f)
+            print(f"📝 Created override file: {override_file}")
+        except:
+            os.close(fd)
+            raise
+
     try:
+        # Build docker compose command
+        compose_cmd = ["docker", "compose", "-f", str(compose_file)]
+        if override_file:
+            compose_cmd.extend(["-f", override_file])
+        compose_cmd.extend(["up", "-d"])
+
         # Start containers
         print("Starting Docker Compose services...")
         result = subprocess.run(
-            ["docker", "compose", "-f", str(compose_file), "up", "-d"],
+            compose_cmd,
             env=env,
             capture_output=True,
             text=True,
@@ -131,12 +166,26 @@ def docker_services():
     finally:
         # Teardown - ALWAYS cleanup, even if tests or setup failed
         print("\nTearing down Docker Compose services...")
+        compose_down_cmd = ["docker", "compose", "-f", str(compose_file)]
+        if override_file:
+            compose_down_cmd.extend(["-f", override_file])
+        compose_down_cmd.extend(["down", "-v"])
+
         subprocess.run(
-            ["docker", "compose", "-f", str(compose_file), "down", "-v"],
+            compose_down_cmd,
             env=env,
             check=False,  # Don't fail if cleanup has issues
             cwd=str(project_root)
         )
+
+        # Clean up temporary override file
+        if override_file and os.path.exists(override_file):
+            try:
+                os.unlink(override_file)
+                print(f"✓ Removed override file: {override_file}")
+            except Exception as e:
+                print(f"⚠ Failed to remove override file: {e}")
+
         print("✓ Cleanup complete")
 
 

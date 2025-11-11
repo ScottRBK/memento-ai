@@ -333,5 +333,73 @@ def register(mcp: FastMCP):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {str(e)}")
- 
+        
+    @mcp.tool()
+    async def link_memories(
+        memory_id: int,
+        related_ids: List[int],
+        ctx: Context,
+    ) -> List[int]:
+        """
+        Manually create bidirectional links between memories
+
+        WHEN: You or the user decide that a memory wants to connect a related concept not caught by auto-linking,
+        establish a relationship between memories, or build a knowledge graph structure.
+
+        BEHAVIOUR: Creates a symmetric (bidirectional) links - if A links to B, B automatically links to A
+        Prevents duplicate and self linking.
+
+        NOT-USE: Auto-linking during creation (happens automatically in create_memory), retrieving linked memories (use query_memory
+        with include_links), unlinking (not supported - use mark obsolete instead)
+
+        Args:
+            memory_id: Source memory ID
+            related_ids: List of target memory IDs
+
+        Returns:
+            List of target memory IDs that were successfully linked
+        """
+        
+        try:
+            logger.info("MCP Tool -> link_memories", extra={
+                "memory_id": memory_id,
+                "related_ids": related_ids
+            })
+
+            user = await get_user_from_auth()
+            
+            if not related_ids:
+                raise ToolError("related_ids cannot be empty")
+            
+            related_ids = [rid for rid in related_ids if rid !=memory_id]
+
+            if not related_ids:
+                raise ToolError("Cannot link memory to itself")
+            
+            memory_service = ctx.fastmcp.memory_service
+            
+            links_created = await memory_service.link_memories(
+                user_id=user.id,
+                memory_id=memory_id,
+                related_ids=related_ids,
+            )
+            
+            logger.info("MCP Tool - memories linked", extra={
+                "memory_id": memory_id,
+                "memories_linked": links_created
+            })
+            
+            return links_created
+            
+        except NotFoundError as e:
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except ValidationError as e:
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except Exception as e:
+            logger.error("MCP Tool -> link memories failed", exc_info=True, extra={
+                "memory_id": memory_id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            })
+            raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {str(e)}")
        

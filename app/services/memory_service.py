@@ -25,6 +25,7 @@ from app.models.memory_models import (
 from app.config.settings import settings
 from app.utils.token_counter import TokenCounter
 from app.utils.pydantic_helper import get_changed_fields
+from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -334,51 +335,51 @@ class MemoryService:
             user_id: UUID,
             memory_id: int,
             related_ids: List[int]
-    ) -> int:
-        """"
+    ) -> List[int]:
+        """
         Creates a bidirectional links between memories
 
-        Duplicate links and self-lnks are automatically removed
-        
+        Duplicate links and self-links are automatically removed
+
         Args:
             user_id: User ID for isolation
             memory_id: Source memory id
-            related_ids: List of target memmory IDs to link
+            related_ids: List of target memory IDs to link
 
         Returns:
-            Number of links successfully created 
+            List of target memory IDs that were successfully linked
         """
-        
+
         logger.info("Linking memories", extra={
             "user_id": user_id,
             "source_memory_id": memory_id,
-            "number of links to add": len(related_ids)
+            "number_of_links_to_add": len(related_ids)
         })
-        
+
         source_memory = await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
             user_id=user_id
         )
-        
+
         if not source_memory:
             logger.warning("Source memory not found", extra={
                 "user_id": user_id,
                 "memory_id": memory_id
             })
-            raise KeyError(f"source memory {memory_id} not found")
-        
+            raise NotFoundError(f"Source memory {memory_id} not found")
+
         links_created = await self.memory_repo.create_links_batch(
             user_id=user_id,
             source_id=source_memory.id,
             target_ids=related_ids,
         )
-        
+
         logger.info("Memory links successfully created", extra={
             "user_id": user_id,
             "source_memory_id": source_memory.id,
-            "number of links added": links_created,
+            "number_of_links_added": len(links_created),
         })
-                    
+
         return links_created
 
     async def _fetch_linked_memories(
