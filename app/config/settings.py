@@ -8,8 +8,6 @@ from pydantic import ConfigDict
 
 load_dotenv()
 
-ENVIRONMENT = os.getenv("ENVIRONMENT", "example")
-
 
 class Settings(BaseSettings):
     # Application Info
@@ -74,7 +72,8 @@ class Settings(BaseSettings):
     """Pydantic Configuration"""
 
     model_config = ConfigDict(
-        env_file=f"docker/.env.{ENVIRONMENT}",
+        env_file="docker/.env",
+        env_file_encoding="utf-8",
         extra="ignore"
     )
 

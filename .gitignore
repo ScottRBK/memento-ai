@@ -10,5 +10,10 @@ debug/
 # Virtual environments
 .venv
 
+# Environment files
+.env
+.env.*
+!.env.example
+
 # VS Code
 .vscode

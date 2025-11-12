@@ -13,10 +13,8 @@ services:
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
     env_file:
-      - path: .env.${ENVIRONMENT:-example}
-        required: true
-    environment:
-      - ENVIRONMENT=${ENVIRONMENT:-example}
+      - path: .env
+        required: false
     networks:
       - "forgetful"
     healthcheck:
@@ -37,8 +35,8 @@ services:
     container_name: "forgetful-db"
     restart: unless-stopped
     env_file:
-      - path: .env.${ENVIRONMENT:-example}
-        required: true
+      - path: .env
+        required: false
     ports:
       - "127.0.0.1:${PGPORT:-5099}:${PGPORT:-5099}"
     volumes:

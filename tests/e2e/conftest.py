@@ -13,9 +13,6 @@ import os
 import tempfile
 import yaml
 from pathlib import Path
-
-# Ensure settings loads docker/.env.example
-os.environ["ENVIRONMENT"] = "example"
 from app.config.settings import settings
 
 
@@ -74,9 +71,9 @@ def wait_for_http(url: str, timeout: int = 60) -> None:
 @pytest.fixture(scope="module")
 def docker_services(request):
     """
-    Start Docker Compose services for E2E tests using docker/.env.example
+    Start Docker Compose services for E2E tests using docker/.env
 
-    Validates the actual deployment configuration that ships to production.
+    If .env doesn't exist, copies from .env.example for testing.
     Fails fast with clear errors if ports are already in use.
 
     Supports environment variable overrides via docker_services_env_override fixture.
@@ -99,9 +96,17 @@ def docker_services(request):
     # Setup variables for cleanup
     project_root = Path(__file__).parent.parent.parent
     compose_file = project_root / "docker" / "docker-compose.yml"
+    docker_dir = project_root / "docker"
     env = os.environ.copy()
-    env["ENVIRONMENT"] = "example"
     env["COMPOSE_PROJECT_NAME"] = "forgetful"  # Force lowercase project name
+
+    # Ensure .env exists for tests (copy from .env.example in docker/)
+    env_file = docker_dir / ".env"
+    env_example = docker_dir / ".env.example"
+    if not env_file.exists():
+        import shutil
+        shutil.copy(env_example, env_file)
+        print(f"✓ Copied {env_example} to {env_file} for testing")
 
     # Check for environment variable overrides from test module
     override_file = None
