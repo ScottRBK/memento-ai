@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     PROJECT_DESCRIPTION_MAX_LENGTH: int = 5000  # Text field, no DB limit - reasonable cap
     PROJECT_NOTES_MAX_LENGTH: int = 4000        # Text field, no DB limit - reasonable cap
 
+    # Code Artifact Configuration
+    CODE_ARTIFACT_TITLE_MAX_LENGTH: int = 500         # DB limit: String(500)
+    CODE_ARTIFACT_DESCRIPTION_MAX_LENGTH: int = 5000  # Reasonable cap for text field
+    CODE_ARTIFACT_CODE_MAX_LENGTH: int = 50000        # ~50KB for large code snippets
+    CODE_ARTIFACT_TAGS_MAX_COUNT: int = 10            # For categorization
+
+    # Document Configuration
+    DOCUMENT_TITLE_MAX_LENGTH: int = 500         # DB limit: String(500)
+    DOCUMENT_DESCRIPTION_MAX_LENGTH: int = 5000  # Reasonable cap for text field
+    DOCUMENT_CONTENT_MAX_LENGTH: int = 100000    # ~100KB for large documents
+    DOCUMENT_TAGS_MAX_COUNT: int = 10            # For categorization
+
     # Search Configuration
     EMBEDDING_PROVIDER: str = "FastEmbed"
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"

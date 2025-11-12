@@ -11,12 +11,18 @@ from datetime import datetime, timezone
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
 from app.models.project_models import Project, ProjectCreate, ProjectUpdate, ProjectSummary, ProjectStatus
+from app.models.code_artifact_models import CodeArtifact, CodeArtifactCreate, CodeArtifactUpdate, CodeArtifactSummary
+from app.models.document_models import Document, DocumentCreate, DocumentUpdate, DocumentSummary
 from app.protocols.user_protocol import UserRepository
 from app.protocols.memory_protocol import MemoryRepository
 from app.protocols.project_protocol import ProjectRepository
+from app.protocols.code_artifact_protocol import CodeArtifactRepository
+from app.protocols.document_protocol import DocumentRepository
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
+from app.services.code_artifact_service import CodeArtifactService
+from app.services.document_service import DocumentService
 
 
 class InMemoryUserRepository(UserRepository):
@@ -496,3 +502,177 @@ def mock_project_repository():
 def test_project_service(mock_project_repository):
     """Provides a ProjectService with in-memory repository"""
     return ProjectService(mock_project_repository)
+
+
+# ============ Code Artifact Testing Fixtures ============
+
+
+class InMemoryCodeArtifactRepository(CodeArtifactRepository):
+    """In-memory implementation of CodeArtifactRepository for testing"""
+
+    def __init__(self):
+        self._artifacts: dict[UUID, dict[int, CodeArtifact]] = {}
+        self._next_id = 1
+
+    async def create_code_artifact(self, user_id: UUID, artifact_data: CodeArtifactCreate) -> CodeArtifact:
+        artifact_id = self._next_id
+        self._next_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_artifact = CodeArtifact(
+            id=artifact_id,
+            title=artifact_data.title,
+            description=artifact_data.description,
+            code=artifact_data.code,
+            language=artifact_data.language.lower(),
+            tags=artifact_data.tags,
+            project_id=None,
+            created_at=now,
+            updated_at=now
+        )
+
+        if user_id not in self._artifacts:
+            self._artifacts[user_id] = {}
+        self._artifacts[user_id][artifact_id] = new_artifact
+        return new_artifact
+
+    async def get_code_artifact_by_id(self, user_id: UUID, artifact_id: int) -> CodeArtifact | None:
+        user_artifacts = self._artifacts.get(user_id, {})
+        return user_artifacts.get(artifact_id)
+
+    async def list_code_artifacts(
+        self, user_id: UUID, project_id: int | None = None, language: str | None = None, tags: List[str] | None = None
+    ) -> List[CodeArtifactSummary]:
+        user_artifacts = self._artifacts.get(user_id, {})
+        artifacts = list(user_artifacts.values())
+
+        if project_id is not None:
+            artifacts = [a for a in artifacts if a.project_id == project_id]
+        if language:
+            artifacts = [a for a in artifacts if a.language == language.lower()]
+        if tags:
+            artifacts = [a for a in artifacts if any(t in a.tags for t in tags)]
+
+        artifacts.sort(key=lambda a: a.created_at, reverse=True)
+        return [CodeArtifactSummary.model_validate(a) for a in artifacts]
+
+    async def update_code_artifact(self, user_id: UUID, artifact_id: int, artifact_data: CodeArtifactUpdate) -> CodeArtifact:
+        artifact = await self.get_code_artifact_by_id(user_id, artifact_id)
+        if not artifact:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Code artifact {artifact_id} not found")
+
+        update_data = artifact_data.model_dump(exclude_unset=True)
+        if "language" in update_data and update_data["language"]:
+            update_data["language"] = update_data["language"].lower()
+
+        for field, value in update_data.items():
+            setattr(artifact, field, value)
+        artifact.updated_at = datetime.now(timezone.utc)
+        return artifact
+
+    async def delete_code_artifact(self, user_id: UUID, artifact_id: int) -> bool:
+        user_artifacts = self._artifacts.get(user_id, {})
+        if artifact_id in user_artifacts:
+            del user_artifacts[artifact_id]
+            return True
+        return False
+
+
+@pytest.fixture
+def mock_code_artifact_repository():
+    return InMemoryCodeArtifactRepository()
+
+
+@pytest.fixture
+def test_code_artifact_service(mock_code_artifact_repository):
+    return CodeArtifactService(mock_code_artifact_repository)
+
+
+# ============ Document Testing Fixtures ============
+
+
+class InMemoryDocumentRepository(DocumentRepository):
+    """In-memory implementation of DocumentRepository for testing"""
+
+    def __init__(self):
+        self._documents: dict[UUID, dict[int, Document]] = {}
+        self._next_id = 1
+
+    async def create_document(self, user_id: UUID, document_data: DocumentCreate) -> Document:
+        document_id = self._next_id
+        self._next_id += 1
+        now = datetime.now(timezone.utc)
+
+        size_bytes = document_data.size_bytes or len(document_data.content.encode('utf-8'))
+
+        new_document = Document(
+            id=document_id,
+            title=document_data.title,
+            description=document_data.description,
+            content=document_data.content,
+            document_type=document_data.document_type,
+            filename=document_data.filename,
+            size_bytes=size_bytes,
+            tags=document_data.tags,
+            project_id=None,
+            created_at=now,
+            updated_at=now
+        )
+
+        if user_id not in self._documents:
+            self._documents[user_id] = {}
+        self._documents[user_id][document_id] = new_document
+        return new_document
+
+    async def get_document_by_id(self, user_id: UUID, document_id: int) -> Document | None:
+        user_documents = self._documents.get(user_id, {})
+        return user_documents.get(document_id)
+
+    async def list_documents(
+        self, user_id: UUID, project_id: int | None = None, document_type: str | None = None, tags: List[str] | None = None
+    ) -> List[DocumentSummary]:
+        user_documents = self._documents.get(user_id, {})
+        documents = list(user_documents.values())
+
+        if project_id is not None:
+            documents = [d for d in documents if d.project_id == project_id]
+        if document_type:
+            documents = [d for d in documents if d.document_type == document_type]
+        if tags:
+            documents = [d for d in documents if any(t in d.tags for t in tags)]
+
+        documents.sort(key=lambda d: d.created_at, reverse=True)
+        return [DocumentSummary.model_validate(d) for d in documents]
+
+    async def update_document(self, user_id: UUID, document_id: int, document_data: DocumentUpdate) -> Document:
+        document = await self.get_document_by_id(user_id, document_id)
+        if not document:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Document {document_id} not found")
+
+        update_data = document_data.model_dump(exclude_unset=True)
+        if "content" in update_data and update_data["content"]:
+            update_data["size_bytes"] = len(update_data["content"].encode('utf-8'))
+
+        for field, value in update_data.items():
+            setattr(document, field, value)
+        document.updated_at = datetime.now(timezone.utc)
+        return document
+
+    async def delete_document(self, user_id: UUID, document_id: int) -> bool:
+        user_documents = self._documents.get(user_id, {})
+        if document_id in user_documents:
+            del user_documents[document_id]
+            return True
+        return False
+
+
+@pytest.fixture
+def mock_document_repository():
+    return InMemoryDocumentRepository()
+
+
+@pytest.fixture
+def test_document_service(mock_document_repository):
+    return DocumentService(mock_document_repository)
