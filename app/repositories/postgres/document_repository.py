@@ -63,7 +63,8 @@ class PostgresDocumentRepository:
                     document_type=document_data.document_type,
                     filename=document_data.filename,
                     size_bytes=size_bytes,
-                    tags=document_data.tags
+                    tags=document_data.tags,
+                    project_id=document_data.project_id
                 )
 
                 session.add(document_table)

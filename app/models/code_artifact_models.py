@@ -52,6 +52,10 @@ class CodeArtifactCreate(BaseModel):
         max_length=settings.CODE_ARTIFACT_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['auth', 'fastapi', 'middleware'])"
     )
+    project_id: int | None = Field(
+        default=None,
+        description="Optional project ID for immediate association with a project"
+    )
 
     @field_validator("title", "description", "code", "language")
     @classmethod

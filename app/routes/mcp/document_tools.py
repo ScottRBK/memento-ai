@@ -105,7 +105,8 @@ def register(mcp: FastMCP):
                 content=content,
                 document_type=document_type,
                 filename=filename,
-                tags=tags or []
+                tags=tags or [],
+                project_id=project_id
             )
         except ValidationError as e:
             raise ToolError(f"Invalid document data: {e}")

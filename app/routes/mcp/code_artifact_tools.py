@@ -97,7 +97,8 @@ def register(mcp: FastMCP):
                 description=description,
                 code=code,
                 language=language,
-                tags=tags or []
+                tags=tags or [],
+                project_id=project_id
             )
         except ValidationError as e:
             raise ToolError(f"Invalid code artifact data: {e}")

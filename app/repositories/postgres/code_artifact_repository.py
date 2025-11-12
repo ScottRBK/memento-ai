@@ -56,7 +56,8 @@ class PostgresCodeArtifactRepository:
                     description=artifact_data.description,
                     code=artifact_data.code,
                     language=artifact_data.language.lower(),  # Ensure lowercase
-                    tags=artifact_data.tags
+                    tags=artifact_data.tags,
+                    project_id=artifact_data.project_id
                 )
 
                 session.add(artifact_table)

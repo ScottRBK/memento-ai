@@ -60,6 +60,10 @@ class DocumentCreate(BaseModel):
         max_length=settings.DOCUMENT_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['architecture', 'design', 'api'])"
     )
+    project_id: int | None = Field(
+        default=None,
+        description="Optional project ID for immediate association with a project"
+    )
 
     @field_validator("title", "description", "content", "document_type", "filename")
     @classmethod
