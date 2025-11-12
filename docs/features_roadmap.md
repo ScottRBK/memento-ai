@@ -1,0 +1,27 @@
+## Feature Roadmap (in order of priority)
+- [ ] Resources 
+    - [x] Project 
+    - [x] Documents
+    - [x] Code Artifacts
+    - [ ] Entites (Organisations, individuals etc)
+    - [ ] Devices
+    - [ ] Audio
+    - [ ] Images
+    - [ ] Video 
+- [ ] Search Enhancements
+    - Implement Cross-Encoder reranking
+- [ ] Dynamic Tool Discovery 
+- [ ] Authentication 
+    - [ ] Implement Opaque Bearer Token authorisation support [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662)
+    - [ ] Implement Authorisation Code flow support [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
+    - [ ] Dynamic Client Registration Authorisation Code Flow [RFC 7591](https://datatracker.ietf.org/doc/html/rfc7591)
+- [ ] Repository Adapters
+    - Add SQLLite repository support
+- [ ] Embedding Adapters
+    - [x] Fastembed
+    - [ ] Google
+    - [ ] Open AI
+    - [ ] Ollama
+    - [ ] Open Router
+- [ ] PyPI package
+
