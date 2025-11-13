@@ -21,7 +21,12 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "console"
 
     # Database Configuration
-    DATABASE: str = "Postgres"
+    DATABASE: str = "SQLite"  # "SQLite" or "Postgres"
+
+    # SQLite Configuration
+    SQLITE_PATH: str = "forgetful.db"  # Path to SQLite database file, or ":memory:" for in-memory
+
+    # Postgres Configuration
     POSTGRES_HOST: str = "127.0.0.1"  # 127.0.0.1 for local, forgetful-db for Docker
     PGPORT: int = 5099
     POSTGRES_DB: str = "forgetful"

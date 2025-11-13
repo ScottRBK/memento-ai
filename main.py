@@ -16,6 +16,13 @@ from app.repositories.postgres.project_repository import PostgresProjectReposito
 from app.repositories.postgres.code_artifact_repository import PostgresCodeArtifactRepository
 from app.repositories.postgres.document_repository import PostgresDocumentRepository
 from app.repositories.postgres.entity_repository import PostgresEntityRepository
+from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
+from app.repositories.sqlite.user_repository import SqliteUserRepository
+from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
+from app.repositories.sqlite.project_repository import SqliteProjectRepository
+from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
+from app.repositories.sqlite.document_repository import SqliteDocumentRepository
+from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
@@ -47,6 +54,20 @@ if settings.DATABASE == "Postgres":
     code_artifact_repository = PostgresCodeArtifactRepository(db_adapter=db_adapter)
     document_repository = PostgresDocumentRepository(db_adapter=db_adapter)
     entity_repository = PostgresEntityRepository(db_adapter=db_adapter)
+elif settings.DATABASE == "SQLite":
+    db_adapter = SqliteDatabaseAdapter()
+    user_repository = SqliteUserRepository(db_adapter=db_adapter)
+    embeddings_adapter = FastEmbeddingAdapter()
+    memory_repository = SqliteMemoryRepository(
+        db_adapter=db_adapter,
+        embedding_adapter=embeddings_adapter
+    )
+    project_repository = SqliteProjectRepository(db_adapter=db_adapter)
+    code_artifact_repository = SqliteCodeArtifactRepository(db_adapter=db_adapter)
+    document_repository = SqliteDocumentRepository(db_adapter=db_adapter)
+    entity_repository = SqliteEntityRepository(db_adapter=db_adapter)
+else:
+    raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
 
 @asynccontextmanager
 async def lifespan(app):
