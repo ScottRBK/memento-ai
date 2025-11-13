@@ -183,6 +183,16 @@ When you create a memory:
 3. **Auto-linking** – Creates bidirectional links to top 3-5 matches (configurable)
 4. **Graph traversal** – Queries return primary results + 1-hop linked memories
 
+### Entities and Knowledge Graphs
+
+Entities represent concrete, real-world things (people, organizations, teams, devices) that can be linked to memories:
+  - **Typed entities** – Organizations, Individuals, Teams, Devices, or custom types
+  - **Relationships** – Directional connections (e.g., "Person works_at Organization") with strength and metadata
+  - **Memory linking** – Associate entities with relevant memories for context
+  - **Knowledge graph** – Build networks showing how entities relate to each other and your knowledge base
+
+Use entities for concrete things (Sarah Chen, TechFlow Systems, Cache Server 01) and memories for abstract concepts (architectural patterns, decisions, learnings).
+
 ### Token Budget Management
 
 Prevents context window overflow:

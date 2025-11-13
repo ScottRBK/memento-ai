@@ -3,8 +3,7 @@
     - [x] Project 
     - [x] Documents
     - [x] Code Artifacts
-    - [ ] Entites (Organisations, individuals etc)
-    - [ ] Devices
+    - [x] Entites (Organisations, individuals, team, devices etc)
     - [ ] Audio
     - [ ] Images
     - [ ] Video 

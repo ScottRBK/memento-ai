@@ -13,16 +13,19 @@ from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
 from app.models.project_models import Project, ProjectCreate, ProjectUpdate, ProjectSummary, ProjectStatus
 from app.models.code_artifact_models import CodeArtifact, CodeArtifactCreate, CodeArtifactUpdate, CodeArtifactSummary
 from app.models.document_models import Document, DocumentCreate, DocumentUpdate, DocumentSummary
+from app.models.entity_models import Entity, EntityCreate, EntityUpdate, EntitySummary, EntityType, EntityRelationship, EntityRelationshipCreate, EntityRelationshipUpdate
 from app.protocols.user_protocol import UserRepository
 from app.protocols.memory_protocol import MemoryRepository
 from app.protocols.project_protocol import ProjectRepository
 from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.protocols.document_protocol import DocumentRepository
+from app.protocols.entity_protocol import EntityRepository
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
+from app.services.entity_service import EntityService
 
 
 class InMemoryUserRepository(UserRepository):
@@ -676,3 +679,190 @@ def mock_document_repository():
 @pytest.fixture
 def test_document_service(mock_document_repository):
     return DocumentService(mock_document_repository)
+
+
+# ============ Entity Testing Fixtures ============
+
+
+class InMemoryEntityRepository(EntityRepository):
+    """In-memory implementation of EntityRepository for testing"""
+
+    def __init__(self):
+        self._entities: dict[UUID, dict[int, Entity]] = {}
+        self._relationships: dict[UUID, dict[int, EntityRelationship]] = {}
+        self._entity_memory_links: dict[int, set[int]] = {}  # entity_id -> set of memory_ids
+        self._next_entity_id = 1
+        self._next_relationship_id = 1
+
+    async def create_entity(self, user_id: UUID, entity_data: EntityCreate) -> Entity:
+        entity_id = self._next_entity_id
+        self._next_entity_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_entity = Entity(
+            id=entity_id,
+            name=entity_data.name,
+            entity_type=entity_data.entity_type,
+            custom_type=entity_data.custom_type,
+            notes=entity_data.notes,
+            tags=entity_data.tags,
+            project_id=entity_data.project_id,
+            created_at=now,
+            updated_at=now
+        )
+
+        if user_id not in self._entities:
+            self._entities[user_id] = {}
+        self._entities[user_id][entity_id] = new_entity
+        self._entity_memory_links[entity_id] = set()
+        return new_entity
+
+    async def get_entity_by_id(self, user_id: UUID, entity_id: int) -> Entity | None:
+        user_entities = self._entities.get(user_id, {})
+        return user_entities.get(entity_id)
+
+    async def list_entities(
+        self, user_id: UUID, project_id: int | None = None, entity_type: EntityType | None = None, tags: List[str] | None = None
+    ) -> List[EntitySummary]:
+        user_entities = self._entities.get(user_id, {})
+        entities = list(user_entities.values())
+
+        if project_id is not None:
+            entities = [e for e in entities if e.project_id == project_id]
+        if entity_type:
+            entities = [e for e in entities if e.entity_type == entity_type]
+        if tags:
+            entities = [e for e in entities if any(t in e.tags for t in tags)]
+
+        entities.sort(key=lambda e: e.created_at, reverse=True)
+        return [EntitySummary.model_validate(e) for e in entities]
+
+    async def update_entity(self, user_id: UUID, entity_id: int, entity_data: EntityUpdate) -> Entity:
+        entity = await self.get_entity_by_id(user_id, entity_id)
+        if not entity:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Entity {entity_id} not found")
+
+        update_data = entity_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(entity, field, value)
+        entity.updated_at = datetime.now(timezone.utc)
+        return entity
+
+    async def delete_entity(self, user_id: UUID, entity_id: int) -> bool:
+        user_entities = self._entities.get(user_id, {})
+        if entity_id in user_entities:
+            del user_entities[entity_id]
+            # Clean up memory links
+            if entity_id in self._entity_memory_links:
+                del self._entity_memory_links[entity_id]
+            # Clean up relationships where this entity is involved
+            user_relationships = self._relationships.get(user_id, {})
+            to_delete = [rid for rid, rel in user_relationships.items()
+                        if rel.source_entity_id == entity_id or rel.target_entity_id == entity_id]
+            for rid in to_delete:
+                del user_relationships[rid]
+            return True
+        return False
+
+    async def link_entity_to_memory(self, user_id: UUID, entity_id: int, memory_id: int) -> bool:
+        # Verify entity exists
+        entity = await self.get_entity_by_id(user_id, entity_id)
+        if not entity:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Entity {entity_id} not found")
+
+        # Add link
+        if entity_id not in self._entity_memory_links:
+            self._entity_memory_links[entity_id] = set()
+        self._entity_memory_links[entity_id].add(memory_id)
+        return True
+
+    async def unlink_entity_from_memory(self, user_id: UUID, entity_id: int, memory_id: int) -> bool:
+        if entity_id in self._entity_memory_links:
+            if memory_id in self._entity_memory_links[entity_id]:
+                self._entity_memory_links[entity_id].discard(memory_id)
+                return True
+        return False
+
+    async def create_entity_relationship(self, user_id: UUID, relationship_data: EntityRelationshipCreate) -> EntityRelationship:
+        # Verify both entities exist
+        source = await self.get_entity_by_id(user_id, relationship_data.source_entity_id)
+        target = await self.get_entity_by_id(user_id, relationship_data.target_entity_id)
+        if not source or not target:
+            from app.exceptions import NotFoundError
+            raise NotFoundError("Source or target entity not found")
+
+        relationship_id = self._next_relationship_id
+        self._next_relationship_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_relationship = EntityRelationship(
+            id=relationship_id,
+            source_entity_id=relationship_data.source_entity_id,
+            target_entity_id=relationship_data.target_entity_id,
+            relationship_type=relationship_data.relationship_type,
+            strength=relationship_data.strength,
+            confidence=relationship_data.confidence,
+            metadata=relationship_data.metadata or {},
+            created_at=now,
+            updated_at=now
+        )
+
+        if user_id not in self._relationships:
+            self._relationships[user_id] = {}
+        self._relationships[user_id][relationship_id] = new_relationship
+        return new_relationship
+
+    async def get_entity_relationships(
+        self, user_id: UUID, entity_id: int, direction: str | None = None, relationship_type: str | None = None
+    ) -> List[EntityRelationship]:
+        user_relationships = self._relationships.get(user_id, {})
+        relationships = list(user_relationships.values())
+
+        # Filter by direction
+        if direction == "outgoing":
+            relationships = [r for r in relationships if r.source_entity_id == entity_id]
+        elif direction == "incoming":
+            relationships = [r for r in relationships if r.target_entity_id == entity_id]
+        else:  # both directions
+            relationships = [r for r in relationships if r.source_entity_id == entity_id or r.target_entity_id == entity_id]
+
+        # Filter by relationship type
+        if relationship_type:
+            relationships = [r for r in relationships if r.relationship_type == relationship_type]
+
+        relationships.sort(key=lambda r: r.created_at, reverse=True)
+        return relationships
+
+    async def update_entity_relationship(
+        self, user_id: UUID, relationship_id: int, relationship_data: EntityRelationshipUpdate
+    ) -> EntityRelationship:
+        user_relationships = self._relationships.get(user_id, {})
+        relationship = user_relationships.get(relationship_id)
+        if not relationship:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Relationship {relationship_id} not found")
+
+        update_data = relationship_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(relationship, field, value)
+        relationship.updated_at = datetime.now(timezone.utc)
+        return relationship
+
+    async def delete_entity_relationship(self, user_id: UUID, relationship_id: int) -> bool:
+        user_relationships = self._relationships.get(user_id, {})
+        if relationship_id in user_relationships:
+            del user_relationships[relationship_id]
+            return True
+        return False
+
+
+@pytest.fixture
+def mock_entity_repository():
+    return InMemoryEntityRepository()
+
+
+@pytest.fixture
+def test_entity_service(mock_entity_repository):
+    return EntityService(mock_entity_repository)

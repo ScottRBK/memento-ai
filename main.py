@@ -15,13 +15,15 @@ from app.repositories.postgres.memory_repository import PostgresMemoryRepository
 from app.repositories.postgres.project_repository import PostgresProjectRepository
 from app.repositories.postgres.code_artifact_repository import PostgresCodeArtifactRepository
 from app.repositories.postgres.document_repository import PostgresDocumentRepository
+from app.repositories.postgres.entity_repository import PostgresEntityRepository
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
-from app.routes.mcp import user_tools, memory_tools, project_tools, code_artifact_tools, document_tools
+from app.services.entity_service import EntityService
+from app.routes.mcp import user_tools, memory_tools, project_tools, code_artifact_tools, document_tools, entity_tools
 from app.config.logging_config import configure_logging, shutdown_logging
 
 import logging 
@@ -44,6 +46,7 @@ if settings.DATABASE == "Postgres":
     project_repository = PostgresProjectRepository(db_adapter=db_adapter)
     code_artifact_repository = PostgresCodeArtifactRepository(db_adapter=db_adapter)
     document_repository = PostgresDocumentRepository(db_adapter=db_adapter)
+    entity_repository = PostgresEntityRepository(db_adapter=db_adapter)
 
 @asynccontextmanager
 async def lifespan(app):
@@ -61,6 +64,7 @@ async def lifespan(app):
     project_service = ProjectService(project_repository)
     code_artifact_service = CodeArtifactService(code_artifact_repository)
     document_service = DocumentService(document_repository)
+    entity_service = EntityService(entity_repository)
 
     # Store services on FastMCP instance for tool access (context pattern)
     mcp.user_service = user_service
@@ -68,6 +72,7 @@ async def lifespan(app):
     mcp.project_service = project_service
     mcp.code_artifact_service = code_artifact_service
     mcp.document_service = document_service
+    mcp.entity_service = entity_service
     logger.info("Services initialized and attached to FastMCP instance")
 
     yield
@@ -105,6 +110,7 @@ memory_tools.register(mcp)
 project_tools.register(mcp)
 code_artifact_tools.register(mcp)
 document_tools.register(mcp)
+entity_tools.register(mcp)
 
 if __name__ == "__main__":
     mcp.run(transport="http", host=settings.SERVER_HOST, port=settings.SERVER_PORT)

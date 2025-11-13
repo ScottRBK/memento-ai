@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     DOCUMENT_CONTENT_MAX_LENGTH: int = 100000    # ~100KB for large documents
     DOCUMENT_TAGS_MAX_COUNT: int = 10            # For categorization
 
+    # Entity Configuration
+    ENTITY_NAME_MAX_LENGTH: int = 200            # DB limit: String(200)
+    ENTITY_TYPE_MAX_LENGTH: int = 100            # For custom entity types
+    ENTITY_NOTES_MAX_LENGTH: int = 4000          # Reasonable cap for text field
+    ENTITY_TAGS_MAX_COUNT: int = 10              # For categorization
+    ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH: int = 100  # e.g., "works_at", "owns", "manages"
+
     # Search Configuration
     EMBEDDING_PROVIDER: str = "FastEmbed"
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"

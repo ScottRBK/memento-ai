@@ -50,6 +50,14 @@ memory_document_association = Table(
     Column("document_id", Integer, ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True),
 )
 
+# Association table for many-to-many relationship between memories and entities
+memory_entity_association = Table(
+    "memory_entity_association",
+    Base.metadata,
+    Column("memory_id", Integer, ForeignKey("memories.id", ondelete="CASCADE"), primary_key=True),
+    Column("entity_id", Integer, ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True),
+)
+
 class UsersTable(Base):
     """
     User Table Model 
@@ -95,7 +103,12 @@ class UsersTable(Base):
         "DocumentsTable",
         back_populates="user",
         cascade="all, delete-orphan"
-    )      
+    )
+    entities: Mapped[List["EntitiesTable"]] = relationship(
+        "EntitiesTable",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 class MemoryTable(Base):
     """
@@ -154,7 +167,12 @@ class MemoryTable(Base):
         secondary=memory_document_association,
         back_populates="memories",
     )
-    
+    entities: Mapped[List["EntitiesTable"]] = relationship(
+        "EntitiesTable",
+        secondary=memory_entity_association,
+        back_populates="memories",
+    )
+
     linked_memories: Mapped[List["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary="memory_links",
@@ -248,6 +266,22 @@ class MemoryTable(Base):
             return [d.id for d in self.documents]
         return []
 
+    @property
+    def entity_ids(self) -> List[int]:
+        """
+        Compute entity IDs from entities relationship.
+
+        Returns:
+            List of entity IDs, or empty list if relationship not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.entities.loaded_value is not NO_VALUE:
+            return [e.id for e in self.entities]
+        return []
+
     __table_args__ = (
         Index("ix_memories_user_id", "user_id"),
         Index("ix_memories_importance", "importance"),
@@ -324,6 +358,10 @@ class ProjectsTable(Base):
     )
     documents: Mapped[List["DocumentsTable"]] = relationship(
         "DocumentsTable",
+        back_populates="project",
+    )
+    entities: Mapped[List["EntitiesTable"]] = relationship(
+        "EntitiesTable",
         back_populates="project",
     )
 
@@ -438,5 +476,129 @@ class DocumentsTable(Base):
        Index("ix_documents_document_type", "document_type"),
        Index("ix_documents_tags", "tags", postgresql_using="gin"),
     )
-    
-    
+
+class EntitiesTable(Base):
+    """
+    Table for storing entities (organizations, individuals, teams, devices, etc.)
+    that can be referenced by memories and related to each other through relationships
+
+    Supports dual relationships:
+    - Direct project link (project_id) for project-specific entities
+    - Memory references (many-to-many) for cross-project reuse
+    """
+    __tablename__ = "entities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+
+    # Entity information
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(100), nullable=False)  # Organization, Individual, Team, Device, Other
+    custom_type: Mapped[str] = mapped_column(String(100), nullable=True)  # Used when entity_type is "Other"
+    notes: Mapped[str] = mapped_column(Text, nullable=True)
+    tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="entities")
+    project: Mapped["ProjectsTable"] = relationship("ProjectsTable")
+    memories: Mapped[List["MemoryTable"]] = relationship(
+        "MemoryTable",
+        secondary=memory_entity_association,
+        back_populates="entities",
+    )
+
+    # Entity relationships (as source)
+    outgoing_relationships: Mapped[List["EntityRelationshipsTable"]] = relationship(
+        "EntityRelationshipsTable",
+        foreign_keys="EntityRelationshipsTable.source_entity_id",
+        back_populates="source_entity",
+        cascade="all, delete-orphan"
+    )
+
+    # Entity relationships (as target)
+    incoming_relationships: Mapped[List["EntityRelationshipsTable"]] = relationship(
+        "EntityRelationshipsTable",
+        foreign_keys="EntityRelationshipsTable.target_entity_id",
+        back_populates="target_entity",
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index("ix_entities_user_id", "user_id"),
+        Index("ix_entities_project_id", "project_id"),
+        Index("ix_entities_entity_type", "entity_type"),
+        Index("ix_entities_tags", "tags", postgresql_using="gin"),
+        Index("ix_entities_name", "name"),
+    )
+
+
+class EntityRelationshipsTable(Base):
+    """
+    Table for storing relationships between entities (knowledge graph edges)
+
+    Supports weighted, typed relationships with confidence scores and metadata
+    for building a rich knowledge graph of entity connections.
+    """
+    __tablename__ = "entity_relationships"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Relationship endpoints
+    source_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
+    target_entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id", ondelete="CASCADE"), nullable=False)
+
+    # Relationship information
+    relationship_type: Mapped[str] = mapped_column(String(100), nullable=False)  # e.g., "works_at", "owns", "manages"
+    strength: Mapped[float] = mapped_column(nullable=True)  # 0.0-1.0 relationship strength
+    confidence: Mapped[float] = mapped_column(nullable=True)  # 0.0-1.0 confidence score
+    relationship_metadata: Mapped[dict] = mapped_column(JSONB, nullable=True, default=dict)  # Flexible metadata (source, verification date, etc.)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    source_entity: Mapped["EntitiesTable"] = relationship(
+        "EntitiesTable",
+        foreign_keys=[source_entity_id],
+        back_populates="outgoing_relationships"
+    )
+    target_entity: Mapped["EntitiesTable"] = relationship(
+        "EntitiesTable",
+        foreign_keys=[target_entity_id],
+        back_populates="incoming_relationships"
+    )
+
+    __table_args__ = (
+        Index("ix_entity_relationships_user_id", "user_id"),
+        Index("ix_entity_relationships_source_entity_id", "source_entity_id"),
+        Index("ix_entity_relationships_target_entity_id", "target_entity_id"),
+        Index("ix_entity_relationships_relationship_type", "relationship_type"),
+        # Unique constraint to prevent duplicate relationships
+        Index("ix_entity_relationships_unique", "source_entity_id", "target_entity_id", "relationship_type", unique=True),
+    )
+
