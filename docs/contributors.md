@@ -2,6 +2,29 @@
 
 This guide covers testing and deployment workflows for contributors.
 
+## Running with Docker with source 
+This will approach will fall back to using the build and as such allow you to check any changes you have made inside of a container. 
+
+```bash
+git clone https://github.com/ScottRBK/forgetful.git
+cd forgetful
+```
+
+```bash
+cd docker
+docker compose up -d --build
+```
+
+**Optional**: Customize configuration by copying the example environment file:
+
+```bash
+cd docker
+cp .env.example .env
+# Edit .env with your custom values
+docker compose up -d
+```
+
+
 ## Testing Philosophy
 
 We focus on **integration and E2E tests** over unit tests. Tests should cover critical workflows without exhaustive edge case coverage.

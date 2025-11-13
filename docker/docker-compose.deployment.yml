@@ -1,0 +1,48 @@
+name: forgetful
+
+networks:
+  forgetful:
+
+services:
+  forgetful-service:
+    image: ghcr.io/scottrbk/forgetful:${IMAGE_TAG:-latest}
+    container_name: forgetful-service
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
+    env_file:
+      - path: .env
+        required: false
+    networks:
+      - forgetful
+    depends_on:
+      forgetful-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8020}/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  forgetful-db:
+    image: pgvector/pgvector:pg16
+    container_name: forgetful-db
+    restart: unless-stopped
+    networks:
+      - forgetful
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "127.0.0.1:${PGPORT:-5099}:${PGPORT:-5099}"
+    volumes:
+      - forgetful_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forgetful} -d ${POSTGRES_DB:-forgetful}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  forgetful_db_data:

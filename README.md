@@ -38,8 +38,7 @@ Forgetful provides cross platform **memory** for AI agents:
 - Build knowledge graphs that connect related memories automatically
 - Recall context the way humans do—through atomic concepts and associations
 - Share context between Claude Code and Codex, have Claude Plan and Codex code (or vice-versa) 
-- Have your agents avoid repeating the same mistakes or over come complex problems
-
+- Have your agents avoid repeating the same mistakes or spending tokens overcoming the same complex problems
 
 ---
 
@@ -73,13 +72,21 @@ For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 
 ## Quick Start
 
-### Running with Docker
 
-The easiest way to get started without authentication:
+### Deploy with Docker
+
+See [deployment docker file](/docker/docker-compose.deployment.yml) and [.env.example](/docker/.env.example)
+
+### Cloned Repo and Docker
+
+```bash
+git clone https://github.com/ScottRBK/forgetful.git
+cd forgetful
+```
 
 ```bash
 cd docker
-docker compose up -d
+docker compose up -d --build
 ```
 
 **Optional**: Customize configuration by copying the example environment file:
@@ -111,7 +118,9 @@ Add Forgetful to your MCP client configuration:
 
 **Note**: This assumes the default server port `8020`. Adjust if you've customized `SERVER_PORT` in your `.env`.
 
-For detailed connection guides (Claude Desktop, other MCP clients), see [Connectivity Guide](docs/connectivity_guide.md).
+For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
+
+**WARNING:** Forgetful currently does not support authentication, so it is only advised to run this locally or on a secure local network, but don't worry though, authentication is coming :)
 
 ---
 
