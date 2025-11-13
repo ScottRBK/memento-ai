@@ -1,7 +1,7 @@
 """
 MCP Memory tools - FastMCP tool definitions for memory operations
 """
-from typing import List
+from typing import List, Optional
 
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
@@ -20,10 +20,13 @@ from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 from app.config.settings import settings
+from app.routes.mcp.tool_registry import ToolRegistry
+from app.models.tool_registry_models import ToolCategory
+from app.utils.tool_metadata_builder import ToolMetadataBuilder
 
 logger = logging.getLogger(__name__)
 
-def register(mcp: FastMCP):
+def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
     """Register the memory tools - services accessed via context at call time"""
     
     @mcp.tool()
@@ -153,7 +156,23 @@ def register(mcp: FastMCP):
                 "error_message": str(e)
             })
             raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}: {str(e)}")
-        
+
+    # Register metadata for create_memory
+    if registry:
+        metadata = ToolMetadataBuilder.from_function(
+            create_memory,
+            category=ToolCategory.MEMORY,
+            examples=[
+                'create_memory(title="TTS preference: XTTS-v2", content="Selected for voice cloning...", context="Implementing voice integration", importance=9, tags=["decision"], keywords=["tts", "voice-cloning"])',
+                'create_memory(title="FastAPI JWT auth pattern", content="Prefer JWT with httponly cookies...", context="Security decision", importance=8, tags=["pattern", "security"], keywords=["fastapi", "auth", "jwt"])',
+            ],
+            further_examples=[
+                'create_memory(title="DB migration approach", content="Alembic for versioned migrations...", context="Database strategy", importance=7, tags=["pattern"], keywords=["database", "migration"], project_ids=[1])',
+            ],
+            tags=["persistence", "auto-linking", "knowledge-graph"],
+        )
+        registry.register_tool(metadata)
+
     @mcp.tool()
     async def query_memory(
         query: str,

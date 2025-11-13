@@ -8,6 +8,8 @@ for user operations.
 -   Update User Information
 """
 
+from typing import Optional
+
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
 
@@ -15,11 +17,12 @@ from app.models.user_models import UserUpdate, UserResponse
 from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
+from app.routes.mcp.tool_registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP):
+def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
     """Register the user tools with the provided service instance"""
 
     @mcp.tool()

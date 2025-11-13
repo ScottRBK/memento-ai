@@ -23,7 +23,8 @@ from app.services.project_service import ProjectService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
-from app.routes.mcp import user_tools, memory_tools, project_tools, code_artifact_tools, document_tools, entity_tools
+from app.routes.mcp import user_tools, memory_tools, project_tools, code_artifact_tools, document_tools, entity_tools, meta_tools
+from app.routes.mcp.tool_registry import ToolRegistry
 from app.config.logging_config import configure_logging, shutdown_logging
 
 import logging 
@@ -104,13 +105,21 @@ async def root(request: Request) -> JSONResponse:
 # API Routes
 health.register(mcp)
 
-# MCP Routes
-user_tools.register(mcp)
-memory_tools.register(mcp)
-project_tools.register(mcp)
-code_artifact_tools.register(mcp)
-document_tools.register(mcp)
-entity_tools.register(mcp)
+# MCP Routes - Create registry and pass to tool modules
+tool_registry = ToolRegistry()
+
+# Register tools with metadata
+user_tools.register(mcp, tool_registry)
+memory_tools.register(mcp, tool_registry)
+project_tools.register(mcp, tool_registry)
+code_artifact_tools.register(mcp, tool_registry)
+document_tools.register(mcp, tool_registry)
+entity_tools.register(mcp, tool_registry)
+
+# Register meta-tools for tool discovery
+meta_tools.register(mcp, tool_registry)
+
+logger.info(f"Registered {tool_registry.total_count()} tools across {len([c for c in tool_registry._by_category])} categories")
 
 if __name__ == "__main__":
     mcp.run(transport="http", host=settings.SERVER_HOST, port=settings.SERVER_PORT)
