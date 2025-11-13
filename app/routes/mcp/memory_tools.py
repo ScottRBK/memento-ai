@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
     """Register the memory tools - services accessed via context at call time"""
-    
-    @mcp.tool()
+
+    # Define create_memory function first (before decoration)
     async def create_memory(
         title: str,
         content: str,
@@ -157,7 +157,7 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             })
             raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}: {str(e)}")
 
-    # Register metadata for create_memory
+    # Register metadata for create_memory BEFORE decoration
     if registry:
         metadata = ToolMetadataBuilder.from_function(
             create_memory,
@@ -173,7 +173,10 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
         )
         registry.register_tool(metadata)
 
-    @mcp.tool()
+    # Now apply MCP tool decorator
+    create_memory = mcp.tool()(create_memory)
+
+    # Define query_memory function
     async def query_memory(
         query: str,
         query_context: str,
@@ -283,7 +286,7 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             })
             raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {str(e)}")
 
-    # Register metadata for query_memory
+    # Register metadata for query_memory BEFORE decoration
     if registry:
         metadata = ToolMetadataBuilder.from_function(
             query_memory,
@@ -299,7 +302,10 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
         )
         registry.register_tool(metadata)
 
-    @mcp.tool()
+    # Apply MCP tool decorator
+    query_memory = mcp.tool()(query_memory)
+
+    # Define update_memory function
     async def update_memory(
         memory_id: int,
         ctx: Context,
@@ -399,7 +405,7 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             })
             raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {str(e)}")
 
-    # Register metadata for update_memory
+    # Register metadata for update_memory BEFORE decoration
     if registry:
         metadata = ToolMetadataBuilder.from_function(
             update_memory,
@@ -415,7 +421,10 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
         )
         registry.register_tool(metadata)
 
-    @mcp.tool()
+    # Apply MCP tool decorator
+    update_memory = mcp.tool()(update_memory)
+
+    # Define link_memories function
     async def link_memories(
         memory_id: int,
         related_ids: List[int],
@@ -497,7 +506,7 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             })
             raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {str(e)}")
 
-    # Register metadata for link_memories
+    # Register metadata for link_memories BEFORE decoration
     if registry:
         metadata = ToolMetadataBuilder.from_function(
             link_memories,
@@ -513,7 +522,10 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
         )
         registry.register_tool(metadata)
 
-    @mcp.tool()
+    # Apply MCP tool decorator
+    link_memories = mcp.tool()(link_memories)
+
+    # Define get_memory function
     async def get_memory(
         memory_id: int,
         ctx: Context,
@@ -576,7 +588,7 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             })
             raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {str(e)}")
 
-    # Register metadata for get_memory
+    # Register metadata for get_memory BEFORE decoration
     if registry:
         metadata = ToolMetadataBuilder.from_function(
             get_memory,
@@ -592,7 +604,10 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
         )
         registry.register_tool(metadata)
 
-    @mcp.tool()
+    # Apply MCP tool decorator
+    get_memory = mcp.tool()(get_memory)
+
+    # Define mark_memory_obsolete function
     async def mark_memory_obsolete(
         memory_id: int,
         reason: str,
@@ -660,7 +675,7 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             })
             raise ToolError(f"INTERNAL_ERROR: Marking memory obsolete failed - {type(e).__name__}: {str(e)}")
 
-    # Register metadata for mark_memory_obsolete
+    # Register metadata for mark_memory_obsolete BEFORE decoration
     if registry:
         metadata = ToolMetadataBuilder.from_function(
             mark_memory_obsolete,
@@ -675,3 +690,6 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
             tags=["lifecycle", "obsolete", "archive"],
         )
         registry.register_tool(metadata)
+
+    # Apply MCP tool decorator
+    mark_memory_obsolete = mcp.tool()(mark_memory_obsolete)
