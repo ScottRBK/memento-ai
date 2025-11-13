@@ -282,7 +282,23 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e)
             })
             raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {str(e)}")
-        
+
+    # Register metadata for query_memory
+    if registry:
+        metadata = ToolMetadataBuilder.from_function(
+            query_memory,
+            category=ToolCategory.MEMORY,
+            examples=[
+                'query_memory(query="FastAPI authentication patterns", query_context="Looking for previous auth implementations", k=5)',
+                'query_memory(query="CI/CD preferences", query_context="Setting up deployment pipeline", project_ids=[1])',
+            ],
+            further_examples=[
+                'query_memory(query="Docker configuration", query_context="Troubleshooting container setup", importance_threshold=7, include_links=True)',
+            ],
+            tags=["search", "retrieval", "semantic"],
+        )
+        registry.register_tool(metadata)
+
     @mcp.tool()
     async def update_memory(
         memory_id: int,
@@ -382,7 +398,23 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {str(e)}")
-        
+
+    # Register metadata for update_memory
+    if registry:
+        metadata = ToolMetadataBuilder.from_function(
+            update_memory,
+            category=ToolCategory.MEMORY,
+            examples=[
+                'update_memory(memory_id=123, title="Updated title", importance=9)',
+                'update_memory(memory_id=456, content="New content...", context="Updated context")',
+            ],
+            further_examples=[
+                'update_memory(memory_id=789, tags=["updated", "reviewed"], project_ids=[1, 2])',
+            ],
+            tags=["update", "modify"],
+        )
+        registry.register_tool(metadata)
+
     @mcp.tool()
     async def link_memories(
         memory_id: int,
@@ -464,7 +496,23 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {str(e)}")
-        
+
+    # Register metadata for link_memories
+    if registry:
+        metadata = ToolMetadataBuilder.from_function(
+            link_memories,
+            category=ToolCategory.MEMORY,
+            examples=[
+                'link_memories(memory_id=123, related_ids=[456, 789])',
+                'link_memories(memory_id=100, related_ids=[200])',
+            ],
+            further_examples=[
+                'link_memories(memory_id=50, related_ids=[51, 52, 53])',
+            ],
+            tags=["linking", "relationships", "connections"],
+        )
+        registry.register_tool(metadata)
+
     @mcp.tool()
     async def get_memory(
         memory_id: int,
@@ -527,8 +575,23 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {str(e)}")
-        
-    
+
+    # Register metadata for get_memory
+    if registry:
+        metadata = ToolMetadataBuilder.from_function(
+            get_memory,
+            category=ToolCategory.MEMORY,
+            examples=[
+                'get_memory(memory_id=123)',
+                'get_memory(memory_id=456)',
+            ],
+            further_examples=[
+                'get_memory(memory_id=789)',
+            ],
+            tags=["retrieve", "read"],
+        )
+        registry.register_tool(metadata)
+
     @mcp.tool()
     async def mark_memory_obsolete(
         memory_id: int,
@@ -596,3 +659,19 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Marking memory obsolete failed - {type(e).__name__}: {str(e)}")
+
+    # Register metadata for mark_memory_obsolete
+    if registry:
+        metadata = ToolMetadataBuilder.from_function(
+            mark_memory_obsolete,
+            category=ToolCategory.MEMORY,
+            examples=[
+                'mark_memory_obsolete(memory_id=123, reason="Information no longer accurate")',
+                'mark_memory_obsolete(memory_id=456, reason="Replaced with updated approach", superseded_by=789)',
+            ],
+            further_examples=[
+                'mark_memory_obsolete(memory_id=100, reason="Deprecated pattern")',
+            ],
+            tags=["lifecycle", "obsolete", "archive"],
+        )
+        registry.register_tool(metadata)
