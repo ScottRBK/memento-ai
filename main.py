@@ -23,8 +23,9 @@ from app.services.project_service import ProjectService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
-from app.routes.mcp import user_tools, memory_tools, project_tools, code_artifact_tools, document_tools, entity_tools, meta_tools
+from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
+from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.config.logging_config import configure_logging, shutdown_logging
 
 import logging 
@@ -76,6 +77,28 @@ async def lifespan(app):
     mcp.entity_service = entity_service
     logger.info("Services initialized and attached to FastMCP instance")
 
+    # Create and attach registry
+    registry = ToolRegistry()
+    mcp.registry = registry
+    logger.info("Registry created and attached to FastMCP instance")
+
+    # Register all tools to registry (not exposed to MCP directly)
+    register_all_tools_metadata(
+        registry=registry,
+        user_service=user_service,
+        memory_service=memory_service,
+        project_service=project_service,
+        code_artifact_service=code_artifact_service,
+        document_service=document_service,
+        entity_service=entity_service,
+    )
+
+    # Log registration summary
+    categories = registry.list_categories()
+    total_tools = sum(categories.values())
+    logger.info(f"Tool registration complete: {total_tools} tools across {len(categories)} categories")
+    logger.info(f"Categories: {categories}")
+
     yield
 
     logger.info("Shutting down session", extra={"service": settings.SERVICE_NAME})
@@ -105,21 +128,10 @@ async def root(request: Request) -> JSONResponse:
 # API Routes
 health.register(mcp)
 
-# MCP Routes - Create registry and pass to tool modules
-tool_registry = ToolRegistry()
-
-# Register tools with metadata
-user_tools.register(mcp, tool_registry)
-memory_tools.register(mcp, tool_registry)
-project_tools.register(mcp, tool_registry)
-code_artifact_tools.register(mcp, tool_registry)
-document_tools.register(mcp, tool_registry)
-entity_tools.register(mcp, tool_registry)
-
-# Register meta-tools for tool discovery
-meta_tools.register(mcp, tool_registry)
-
-logger.info(f"Registered {tool_registry.total_count()} tools across {len([c for c in tool_registry._by_category])} categories")
+# MCP Routes - Only register meta-tools (3 tools total)
+# All other tools are accessible via execute_forgetful_tool
+meta_tools.register(mcp)
+logger.info("Meta-tools registered (discover_forgetful_tools, how_to_use_forgetful_tool, execute_forgetful_tool)")
 
 if __name__ == "__main__":
     mcp.run(transport="http", host=settings.SERVER_HOST, port=settings.SERVER_PORT)

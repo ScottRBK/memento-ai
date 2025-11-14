@@ -1,7 +1,7 @@
 """
 MCP Entity tools - FastMCP tool definitions for entity and entity relationship operations
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
@@ -20,12 +20,11 @@ from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
-from app.routes.mcp.tool_registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
+def register(mcp: FastMCP):
     """Register entity tools - services accessed via context at call time"""
 
     # Entity CRUD tools

@@ -1,7 +1,7 @@
 """
 MCP Code Artifact tools - FastMCP tool definitions for code artifact operations
 """
-from typing import List, Optional
+from typing import List
 
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
@@ -16,12 +16,11 @@ from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
-from app.routes.mcp.tool_registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
+def register(mcp: FastMCP):
     """Register code artifact tools - services accessed via context at call time"""
 
     @mcp.tool()

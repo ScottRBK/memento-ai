@@ -1,7 +1,7 @@
 """
 MCP Memory tools - FastMCP tool definitions for memory operations
 """
-from typing import List, Optional
+from typing import List
 
 from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
@@ -20,16 +20,13 @@ from app.config.logging_config import logging
 from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 from app.config.settings import settings
-from app.routes.mcp.tool_registry import ToolRegistry
-from app.models.tool_registry_models import ToolCategory
-from app.utils.tool_metadata_builder import ToolMetadataBuilder
 
 logger = logging.getLogger(__name__)
 
-def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
+def register(mcp: FastMCP):
     """Register the memory tools - services accessed via context at call time"""
-
-    # Define create_memory function first (before decoration)
+    
+    @mcp.tool()
     async def create_memory(
         title: str,
         content: str,
@@ -156,27 +153,8 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e)
             })
             raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}: {str(e)}")
-
-    # Register metadata for create_memory BEFORE decoration
-    if registry:
-        metadata = ToolMetadataBuilder.from_function(
-            create_memory,
-            category=ToolCategory.MEMORY,
-            examples=[
-                'create_memory(title="TTS preference: XTTS-v2", content="Selected for voice cloning...", context="Implementing voice integration", importance=9, tags=["decision"], keywords=["tts", "voice-cloning"])',
-                'create_memory(title="FastAPI JWT auth pattern", content="Prefer JWT with httponly cookies...", context="Security decision", importance=8, tags=["pattern", "security"], keywords=["fastapi", "auth", "jwt"])',
-            ],
-            further_examples=[
-                'create_memory(title="DB migration approach", content="Alembic for versioned migrations...", context="Database strategy", importance=7, tags=["pattern"], keywords=["database", "migration"], project_ids=[1])',
-            ],
-            tags=["persistence", "auto-linking", "knowledge-graph"],
-        )
-        registry.register_tool(metadata)
-
-    # Now apply MCP tool decorator
-    create_memory = mcp.tool()(create_memory)
-
-    # Define query_memory function
+        
+    @mcp.tool()
     async def query_memory(
         query: str,
         query_context: str,
@@ -285,27 +263,8 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e)
             })
             raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {str(e)}")
-
-    # Register metadata for query_memory BEFORE decoration
-    if registry:
-        metadata = ToolMetadataBuilder.from_function(
-            query_memory,
-            category=ToolCategory.MEMORY,
-            examples=[
-                'query_memory(query="FastAPI authentication patterns", query_context="Looking for previous auth implementations", k=5)',
-                'query_memory(query="CI/CD preferences", query_context="Setting up deployment pipeline", project_ids=[1])',
-            ],
-            further_examples=[
-                'query_memory(query="Docker configuration", query_context="Troubleshooting container setup", importance_threshold=7, include_links=True)',
-            ],
-            tags=["search", "retrieval", "semantic"],
-        )
-        registry.register_tool(metadata)
-
-    # Apply MCP tool decorator
-    query_memory = mcp.tool()(query_memory)
-
-    # Define update_memory function
+        
+    @mcp.tool()
     async def update_memory(
         memory_id: int,
         ctx: Context,
@@ -404,27 +363,8 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {str(e)}")
-
-    # Register metadata for update_memory BEFORE decoration
-    if registry:
-        metadata = ToolMetadataBuilder.from_function(
-            update_memory,
-            category=ToolCategory.MEMORY,
-            examples=[
-                'update_memory(memory_id=123, title="Updated title", importance=9)',
-                'update_memory(memory_id=456, content="New content...", context="Updated context")',
-            ],
-            further_examples=[
-                'update_memory(memory_id=789, tags=["updated", "reviewed"], project_ids=[1, 2])',
-            ],
-            tags=["update", "modify"],
-        )
-        registry.register_tool(metadata)
-
-    # Apply MCP tool decorator
-    update_memory = mcp.tool()(update_memory)
-
-    # Define link_memories function
+        
+    @mcp.tool()
     async def link_memories(
         memory_id: int,
         related_ids: List[int],
@@ -505,27 +445,8 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {str(e)}")
-
-    # Register metadata for link_memories BEFORE decoration
-    if registry:
-        metadata = ToolMetadataBuilder.from_function(
-            link_memories,
-            category=ToolCategory.MEMORY,
-            examples=[
-                'link_memories(memory_id=123, related_ids=[456, 789])',
-                'link_memories(memory_id=100, related_ids=[200])',
-            ],
-            further_examples=[
-                'link_memories(memory_id=50, related_ids=[51, 52, 53])',
-            ],
-            tags=["linking", "relationships", "connections"],
-        )
-        registry.register_tool(metadata)
-
-    # Apply MCP tool decorator
-    link_memories = mcp.tool()(link_memories)
-
-    # Define get_memory function
+        
+    @mcp.tool()
     async def get_memory(
         memory_id: int,
         ctx: Context,
@@ -587,27 +508,9 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {str(e)}")
-
-    # Register metadata for get_memory BEFORE decoration
-    if registry:
-        metadata = ToolMetadataBuilder.from_function(
-            get_memory,
-            category=ToolCategory.MEMORY,
-            examples=[
-                'get_memory(memory_id=123)',
-                'get_memory(memory_id=456)',
-            ],
-            further_examples=[
-                'get_memory(memory_id=789)',
-            ],
-            tags=["retrieve", "read"],
-        )
-        registry.register_tool(metadata)
-
-    # Apply MCP tool decorator
-    get_memory = mcp.tool()(get_memory)
-
-    # Define mark_memory_obsolete function
+        
+    
+    @mcp.tool()
     async def mark_memory_obsolete(
         memory_id: int,
         reason: str,
@@ -674,22 +577,3 @@ def register(mcp: FastMCP, registry: Optional[ToolRegistry] = None):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Marking memory obsolete failed - {type(e).__name__}: {str(e)}")
-
-    # Register metadata for mark_memory_obsolete BEFORE decoration
-    if registry:
-        metadata = ToolMetadataBuilder.from_function(
-            mark_memory_obsolete,
-            category=ToolCategory.MEMORY,
-            examples=[
-                'mark_memory_obsolete(memory_id=123, reason="Information no longer accurate")',
-                'mark_memory_obsolete(memory_id=456, reason="Replaced with updated approach", superseded_by=789)',
-            ],
-            further_examples=[
-                'mark_memory_obsolete(memory_id=100, reason="Deprecated pattern")',
-            ],
-            tags=["lifecycle", "obsolete", "archive"],
-        )
-        registry.register_tool(metadata)
-
-    # Apply MCP tool decorator
-    mark_memory_obsolete = mcp.tool()(mark_memory_obsolete)

@@ -1,180 +1,178 @@
 """
 MCP - Meta-Tools
 This module implements the meta-tools pattern as an alternative to bloating the context window of an LLM with all the tools available
-within the MCP service. Instead of loading all tool definitions upfront, we only expose 2 meta-tools.
+within the MCP service. Instead of loading all tool definitions upfront, we only expose 3 meta-tools.
 
-The two meta-tools:
+The three meta-tools:
 1. discover_forgetful_tools: List available tools by category, with enough info to allow most LLMs one-shot usage
 2. how_to_use_forgetful_tool: Get detailed documentation for a specific tool
-
-Note: execute_forgetful_tool is NOT implemented. FastMCP's native tools/call handles execution with proper schema validation.
+3. execute_forgetful_tool: Dynamically invoke any tool with arguments
 """
 
-from typing import Dict, List, Optional
-
-from fastmcp import FastMCP
+from typing import Dict, Any, Optional
+from fastmcp import FastMCP, Context
 from fastmcp.exceptions import ToolError
 
 from app.config.logging_config import logging
-from app.routes.mcp.tool_registry import ToolRegistry
-from app.models.tool_registry_models import ToolCategory, ToolMetadata, ToolDataDetailed
+from app.models.tool_registry_models import ToolCategory
 
 logger = logging.getLogger(__name__)
 
 
-def register(mcp: FastMCP, registry: ToolRegistry):
-    """Register meta-tools with the provided FastMCP instance"""
+def register(mcp: FastMCP):
+    """Register meta-tools with the provided FastMCP instance - registry accessed via ctx pattern"""
 
     @mcp.tool()
     async def discover_forgetful_tools(
-        category: Optional[str] = None
-    ) -> Dict[str, any]:
+        category: Optional[str] = None,
+        ctx: Context = None
+    ) -> Dict[str, Any]:
         """
-        Discover available Forgetful tools by category
+        Discover available tools, optionally filtered by category
 
-        WHAT: Lists all available tools with summaries for easy understanding and discovery.
-        Progressive disclosure pattern - see summaries here, get details with how_to_use_forgetful_tool.
-
-        WHEN: You need to know what tools are available, especially at the start of using Forgetful
-        or when looking for tools in a specific area (memory, project, code_artifact, document, linking).
-
-        BEHAVIOR: Returns tool list organized by category. If category specified, filters to just
-        that category. Each tool includes name, description, parameters summary, and simple examples.
-        Categories: memory (store/query memories), project (organize by context), code_artifact
-        (store code snippets), document (long-form docs), linking (connect memories/projects/artifacts).
-
-        NOT-USE: When you already know the exact tool you need and want detailed docs (use how_to_use_forgetful_tool).
-
-        EXAMPLES:
-            discover_forgetful_tools() - List all tools across all categories
-            discover_forgetful_tools(category="memory") - List only memory tools
-            discover_forgetful_tools(category="project") - List only project tools
+        Returns enough information for LLMs to call tools directly without needing how_to_use.
 
         Args:
-            category: Optional category filter. Options: "memory", "project", "code_artifact",
-                     "document", "linking". Omit to get all tools across all categories.
+            category: Optional category filter (user, memory, project, code_artifact, document, entity, linking)
+            ctx: FastMCP Context (automatically injected)
 
         Returns:
-            {
-                "tools": List[ToolMetadata] - Tool summaries with name, description, parameters, examples,
-                "category": str | None - The category filter applied (if any),
-                "total_count": int - Number of tools returned,
-                "categories_available": List[str] - All valid category names
-            }
+            Dictionary with:
+            - tools_by_category: Tools grouped by category
+            - total_count: Total number of tools
+            - categories_available: List of available categories
+            - filtered_by: Category filter applied (if any)
         """
         try:
-            logger.info("MCP Tool Called -> discover_forgetful_tools", extra={"category": category})
+            registry = ctx.fastmcp.registry
+            logger.info(f"discover_forgetful_tools: category={category}")
 
-            # Parse and validate category
-            filter_category = None
             if category:
                 try:
-                    filter_category = ToolCategory(category.lower())
+                    cat_enum = ToolCategory(category.lower())
+                    tools_metadata = registry.list_by_category(cat_enum)
+                    filtered_by = category
                 except ValueError:
                     valid_categories = [c.value for c in ToolCategory]
                     raise ToolError(
                         f"Invalid category '{category}'. "
-                        f"Valid categories: {', '.join(valid_categories)}"
+                        f"Available categories: {', '.join(valid_categories)}"
                     )
-
-            # Get tools from registry
-            if filter_category:
-                tools = registry.get_by_category(filter_category)
             else:
-                # Return all tools across all categories
-                all_tools = []
-                for cat in ToolCategory:
-                    all_tools.extend(registry.get_by_category(cat))
-                tools = all_tools
+                tools_metadata = registry.list_all_tools()
+                filtered_by = None
 
-            # Convert to dict for JSON serialization
-            tools_dict = [tool.model_dump() for tool in tools]
+            # Convert to discovery format (minimal metadata)
+            tools = [meta.to_discovery_dict() for meta in tools_metadata]
 
-            logger.info(
-                "Tool discovery completed",
-                extra={"category": category, "tools_found": len(tools)},
-            )
+            # Group by category
+            tools_by_category = {}
+            for tool in tools:
+                cat = tool["category"]
+                if cat not in tools_by_category:
+                    tools_by_category[cat] = []
+                tools_by_category[cat].append(tool)
 
-            return {
-                "tools": tools_dict,
-                "category": category,
+            result = {
+                "tools_by_category": tools_by_category,
                 "total_count": len(tools),
-                "categories_available": [c.value for c in ToolCategory],
+                "categories_available": list(registry.list_categories().keys()),
+                "filtered_by": filtered_by,
             }
+
+            logger.info(f"discover_forgetful_tools: returned {len(tools)} tools")
+            return result
 
         except ToolError:
             raise
         except Exception as e:
-            logger.error("Tool discovery failed", exc_info=True)
+            logger.error(f"discover_forgetful_tools failed: {e}", exc_info=True)
             raise ToolError(f"Failed to discover tools: {str(e)}")
 
     @mcp.tool()
-    async def how_to_use_forgetful_tool(tool_name: str) -> Dict[str, any]:
+    async def how_to_use_forgetful_tool(
+        tool_name: str,
+        ctx: Context = None
+    ) -> Dict[str, Any]:
         """
-        Get detailed documentation and schema for a specific tool
+        Get detailed documentation for a specific tool
 
-        WHAT: Returns complete documentation including detailed parameter descriptions, JSON schema
-        for validation, multiple examples (basic and advanced), and full docstring.
-
-        WHEN: You've identified a tool from discover_forgetful_tools and need to understand exactly
-        how to call it, what parameters it takes, what each parameter does, and what it returns.
-        Use this before invoking a tool you're unfamiliar with.
-
-        BEHAVIOR: Returns full ToolDataDetailed including:
-        - Complete docstring with WHAT/WHEN/BEHAVIOR/NOT-USE sections
-        - Parameter descriptions with types and constraints
-        - JSON Schema for validation (compatible with MCP protocol)
-        - Multiple examples (basic usage + advanced scenarios)
-        - Tags for categorization and discovery
-
-        NOT-USE: When you just want to browse available tools (use discover_forgetful_tools).
-        When you already know how to use the tool and are ready to invoke it.
-
-        EXAMPLES:
-            how_to_use_forgetful_tool(tool_name="create_memory") - Get docs for create_memory tool
-            how_to_use_forgetful_tool(tool_name="query_memory") - Get docs for query_memory tool
+        Returns complete documentation including JSON schema, multiple examples, and full parameter details.
 
         Args:
-            tool_name: Name of the tool to document (e.g., "create_memory", "query_memory").
-                      Use discover_forgetful_tools to see available tool names.
+            tool_name: Name of the tool to get documentation for
+            ctx: FastMCP Context (automatically injected)
 
         Returns:
-            {
-                "name": str - Tool name,
-                "category": str - Tool category,
-                "description": str - What the tool does,
-                "parameters": List[ToolParameter] - Parameter details (name, type, description),
-                "returns": str - What the tool returns,
-                "examples": List[str] - Basic usage examples,
-                "tags": List[str] - Tags for categorization,
-                "json_schema": Dict - JSON Schema for parameter validation,
-                "further_examples": List[str] - Advanced usage examples
-            }
+            Detailed tool documentation with JSON schema
         """
         try:
-            logger.info(
-                "MCP Tool Called -> how_to_use_forgetful_tool",
-                extra={"tool_name": tool_name},
-            )
+            registry = ctx.fastmcp.registry
+            logger.info(f"how_to_use_forgetful_tool: tool_name={tool_name}")
 
-            tool_details = registry.get_detailed(tool_name)
-
-            if not tool_details:
-                available = registry.list_all()
+            tool = registry.get_tool(tool_name)
+            if not tool:
+                available_tools = [m.name for m in registry.list_all_tools()[:10]]
                 raise ToolError(
-                    f"Tool '{tool_name}' not found. "
-                    f"Available tools: {', '.join(sorted(available))}"
+                    f"Tool '{tool_name}' not found in registry. "
+                    f"Available tools (first 10): {', '.join(available_tools)}"
                 )
 
-            logger.info(
-                "Tool documentation retrieved",
-                extra={"tool_name": tool_name},
-            )
-
-            return tool_details.model_dump()
+            detailed_info = tool.metadata.to_detailed_dict()
+            logger.info(f"how_to_use_forgetful_tool: returned docs for {tool_name}")
+            return detailed_info
 
         except ToolError:
             raise
         except Exception as e:
-            logger.error("Tool documentation fetch failed", exc_info=True)
-            raise ToolError(f"Failed to get tool documentation: {str(e)}")
+            logger.error(f"how_to_use_forgetful_tool failed for {tool_name}: {e}", exc_info=True)
+            raise ToolError(f"Failed to get documentation for '{tool_name}': {str(e)}")
+
+    @mcp.tool()
+    async def execute_forgetful_tool(
+        tool_name: str,
+        arguments: Dict[str, Any],
+        ctx: Context
+    ) -> Any:
+        """
+        Execute any registered tool dynamically
+
+        This is the primary execution mechanism - works identically to calling tools directly.
+        User context is automatically preserved through the ctx parameter.
+
+        Args:
+            tool_name: Name of the tool to execute
+            arguments: Dictionary of arguments to pass to the tool
+            ctx: FastMCP Context (automatically injected)
+
+        Returns:
+            Tool execution result (format depends on the specific tool)
+        """
+        try:
+            registry = ctx.fastmcp.registry
+            logger.info(f"execute_forgetful_tool: {tool_name}, args={list(arguments.keys())}")
+
+            if not registry.tool_exists(tool_name):
+                available_tools = [m.name for m in registry.list_all_tools()[:10]]
+                raise ToolError(
+                    f"Tool '{tool_name}' not found in registry. "
+                    f"Available tools (first 10): {', '.join(available_tools)}"
+                )
+
+            # Inject context into arguments for adapters to extract user
+            arguments['ctx'] = ctx
+
+            # Execute through registry
+            result = await registry.execute(
+                name=tool_name,
+                arguments=arguments
+            )
+
+            logger.info(f"execute_forgetful_tool: {tool_name} executed successfully")
+            return result
+
+        except ToolError:
+            raise
+        except Exception as e:
+            logger.error(f"execute_forgetful_tool failed for {tool_name}: {e}", exc_info=True)
+            raise ToolError(f"Failed to execute '{tool_name}': {str(e)}")

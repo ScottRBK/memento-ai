@@ -4,123 +4,164 @@ Tool Registry for Meta-tools
 This module provides a registry system for storing tool metadata and implementations,
 enabling the meta-tools.
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from app.models.tool_registry_models import (
     ToolCategory,
-    ToolDataDetailed,
     ToolMetadata,
+    ToolParameter,
+    ToolImplementation,
 )
+from app.config.logging_config import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ToolRegistry:
-    """
-    Central registry for tool metadata and discovery.
-
-    Populated during application startup from all registered tools.
-    Enables meta-tools to provide progressive disclosure of available functionality.
-    """
+    """Central registry for all tools with metadata and implementations"""
 
     def __init__(self):
-        """Initialize empty registry with category indexes"""
-        self._tools: Dict[str, ToolDataDetailed] = {}  # name -> metadata
-        self._by_category: Dict[ToolCategory, List[str]] = {
-            ToolCategory.MEMORY: [],
-            ToolCategory.PROJECT: [],
-            ToolCategory.CODE_ARTIFACT: [],
-            ToolCategory.DOCUMENT: [],
-            ToolCategory.LINKING: [],
-        }
+        """Initialize an empty tool registry"""
+        self._tools: Dict[str, ToolImplementation] = {}
 
-    def register_tool(self, metadata: ToolDataDetailed) -> None:
+    def register(
+        self,
+        name: str,
+        category: ToolCategory,
+        description: str,
+        parameters: List[ToolParameter],
+        returns: str,
+        implementation: Any,  # Callable[..., Awaitable[Any]]
+        examples: List[str] = None,
+        tags: List[str] = None,
+    ) -> None:
         """
-        Register a tool with its metadata
+        Register a tool with its metadata and implementation
 
         Args:
-            metadata: Complete tool metadata including schema and examples
-
-        Raises:
-            ValueError: If tool name already registered (prevents accidental overwrite)
+            name: Unique tool name
+            category: Tool category for organization
+            description: Brief description of what the tool does
+            parameters: List of parameter metadata
+            returns: Description of return value
+            implementation: Async callable that implements the tool
+            examples: Example usage strings
+            tags: Tags for categorization
         """
-        if metadata.name in self._tools:
-            raise ValueError(
-                f"Tool '{metadata.name}' already registered. "
-                "Each tool must have a unique name."
-            )
+        if name in self._tools:
+            logger.warning(f"Tool '{name}' already registered, overwriting")
 
-        self._tools[metadata.name] = metadata
-        self._by_category[metadata.category].append(metadata.name)
+        metadata = ToolMetadata(
+            name=name,
+            category=category,
+            description=description,
+            parameters=parameters,
+            returns=returns,
+            examples=examples or [],
+            tags=tags or [],
+        )
 
-    def get_by_category(self, category: ToolCategory) -> List[ToolMetadata]:
+        self._tools[name] = ToolImplementation(
+            metadata=metadata,
+            implementation=implementation,
+        )
+
+        logger.debug(f"Registered tool: {name} (category: {category.value})")
+
+    def get_tool(self, name: str) -> Optional[ToolImplementation]:
         """
-        Get all tools in a category (summary format, not detailed)
+        Retrieve a tool by name
 
         Args:
-            category: Tool category to filter by
+            name: Tool name
 
         Returns:
-            List of ToolMetadata (excludes json_schema and further_examples)
+            ToolImplementation if found, None otherwise
         """
-        tool_names = self._by_category[category]
+        return self._tools.get(name)
+
+    def list_all_tools(self) -> List[ToolMetadata]:
+        """
+        List all registered tools
+
+        Returns:
+            List of all tool metadata
+        """
+        return [impl.metadata for impl in self._tools.values()]
+
+    def list_by_category(self, category: ToolCategory) -> List[ToolMetadata]:
+        """
+        List tools filtered by category
+
+        Args:
+            category: Category to filter by
+
+        Returns:
+            List of tool metadata in the specified category
+        """
         return [
-            ToolMetadata(
-                **self._tools[name].model_dump(
-                    exclude={"json_schema", "further_examples"}
-                )
-            )
-            for name in tool_names
+            impl.metadata
+            for impl in self._tools.values()
+            if impl.metadata.category == category
         ]
 
-    def get_all_categories(self) -> Dict[ToolCategory, List[ToolMetadata]]:
+    def list_categories(self) -> Dict[str, int]:
         """
-        Get all tools organized by category
+        List all categories with tool counts
 
         Returns:
-            Dictionary mapping categories to their tool metadata lists
+            Dict mapping category name to count of tools
         """
-        return {
-            category: self.get_by_category(category)
-            for category in ToolCategory
-        }
+        categories: Dict[str, int] = {}
+        for impl in self._tools.values():
+            cat_name = impl.metadata.category.value
+            categories[cat_name] = categories.get(cat_name, 0) + 1
+        return categories
 
-    def get_detailed(self, tool_name: str) -> Optional[ToolDataDetailed]:
+    def tool_exists(self, name: str) -> bool:
         """
-        Get complete details for a specific tool
+        Check if a tool is registered
 
         Args:
-            tool_name: Name of the tool to retrieve
+            name: Tool name
 
         Returns:
-            Complete ToolDataDetailed or None if not found
+            True if tool exists, False otherwise
         """
-        return self._tools.get(tool_name)
+        return name in self._tools
 
-    def list_all(self) -> List[str]:
+    async def execute(
+        self,
+        name: str,
+        arguments: Dict[str, Any],
+        **context
+    ) -> Any:
         """
-        Get all registered tool names
-
-        Returns:
-            Sorted list of all tool names
-        """
-        return sorted(self._tools.keys())
-
-    def count_by_category(self, category: ToolCategory) -> int:
-        """
-        Get count of tools in a category
+        Execute a tool by name with provided arguments
 
         Args:
-            category: Tool category to count
+            name: Tool name
+            arguments: Dictionary of arguments to pass to tool
+            **context: Additional context to pass (e.g., user_id)
 
         Returns:
-            Number of tools in the category
-        """
-        return len(self._by_category[category])
+            Tool execution result
 
-    def total_count(self) -> int:
+        Raises:
+            ValueError: If tool not found
+            Exception: Any exception raised by tool implementation
         """
-        Get total number of registered tools
+        tool = self.get_tool(name)
+        if not tool:
+            raise ValueError(f"Tool '{name}' not found in registry")
 
-        Returns:
-            Total tool count across all categories
-        """
-        return len(self._tools) 
+        logger.debug(f"Executing tool: {name} with args: {list(arguments.keys())}")
+
+        try:
+            # Execute the tool implementation with arguments and context
+            result = await tool.implementation(**arguments, **context)
+            logger.debug(f"Tool '{name}' executed successfully")
+            return result
+        except Exception as e:
+            logger.error(f"Tool '{name}' execution failed: {e}", exc_info=True)
+            raise 
