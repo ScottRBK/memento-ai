@@ -21,10 +21,7 @@ class Settings(BaseSettings):
     LOG_FORMAT: str = "console"
 
     # Database Configuration
-    DATABASE: str = "SQLite"  # "SQLite" or "Postgres"
-
-    # SQLite Configuration
-    SQLITE_PATH: str = "forgetful.db"  # Path to SQLite database file, or ":memory:" for in-memory
+    DATABASE: str = "SQLite"  # "Postgres" or "SQLite"
 
     # Postgres Configuration
     POSTGRES_HOST: str = "127.0.0.1"  # 127.0.0.1 for local, forgetful-db for Docker
@@ -32,6 +29,11 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = "forgetful"
     POSTGRES_USER: str = "forgetful"
     POSTGRES_PASSWORD: str = "forgetful"
+
+    # SQLite Configuration
+    SQLITE_PATH: str = "forgetful.db"  # Path to SQLite database file
+    SQLITE_MEMORY: bool = False  # Use :memory: database (for testing)
+
     DB_LOGGING: bool = False
 
     # Auth Configuration

@@ -9,6 +9,7 @@ from starlette.responses import JSONResponse
 
 from app.config.settings import settings
 from app.routes.api import health
+# Postgres repositories
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.user_repository import PostgresUserRepository
 from app.repositories.postgres.memory_repository import PostgresMemoryRepository
@@ -16,6 +17,7 @@ from app.repositories.postgres.project_repository import PostgresProjectReposito
 from app.repositories.postgres.code_artifact_repository import PostgresCodeArtifactRepository
 from app.repositories.postgres.document_repository import PostgresDocumentRepository
 from app.repositories.postgres.entity_repository import PostgresEntityRepository
+# SQLite repositories
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.repositories.sqlite.user_repository import SqliteUserRepository
 from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
@@ -23,6 +25,7 @@ from app.repositories.sqlite.project_repository import SqliteProjectRepository
 from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
 from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
+# Shared
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService

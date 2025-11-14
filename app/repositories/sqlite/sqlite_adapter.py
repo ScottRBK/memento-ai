@@ -1,99 +1,117 @@
-"""
-SQLite Database Adapter
-
-Provides async database connection and session management for SQLite backend.
-Note: SQLite doesn't support Row-Level Security (RLS), so user isolation is
-handled at the application level through query filtering.
-"""
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
 from sqlalchemy import text, event
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from uuid import UUID
-import logging
+import sqlite_vec
+import functools
 
+from app.repositories.sqlite.sqlite_tables import Base
 from app.config.settings import settings
+
+import logging
 
 logger = logging.getLogger(__name__)
 
 
+def _sqlite_connection_creator():
+    """
+    Create a SQLite connection with sqlite-vec extension loaded.
+    This is used as a creator function for SQLAlchemy's engine.
+    """
+    import sqlite3
+
+    # Construct connection string
+    if settings.SQLITE_MEMORY:
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
+    else:
+        conn = sqlite3.connect(settings.SQLITE_PATH, check_same_thread=False)
+
+    # Load sqlite-vec extension
+    conn.enable_load_extension(True)
+    conn.load_extension(sqlite_vec.loadable_path())
+    conn.enable_load_extension(False)
+
+    # Set pragmas
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=5000")
+
+    return conn
+
+
 class SqliteDatabaseAdapter:
     """
-    SQLite database adapter with async support via aiosqlite.
+    SQLite database adapter for async operations.
 
     Key differences from Postgres:
-    - No Row-Level Security (RLS) - user filtering done in queries
-    - Single-writer database (no connection pooling benefits)
+    - No Row-Level Security (RLS) - user isolation via application-level filtering
+    - Uses sqlite-vec extension for vector operations
     - WAL mode enabled for better concurrency
-    - sqlite-vec extension for vector similarity search
+    - No connection pooling (SQLite single writer model)
     """
 
     def __init__(self):
-        connection_string = self._construct_sqlite_connection_string()
+        # Construct connection string
+        connection_string = self._construct_connection_string()
 
+        # Create async engine with SQLite-specific settings
         self._engine: AsyncEngine = create_async_engine(
             url=connection_string,
             echo=settings.DB_LOGGING,
             future=True,
-            # SQLite-specific optimizations
+            # SQLite-specific: disable pooling for better behavior
+            poolclass=None,  # No connection pool for SQLite
             connect_args={
-                "check_same_thread": False,  # Allow async usage
+                "check_same_thread": False,  # Required for async
             },
-            # Disable pooling for SQLite (single writer)
-            poolclass=None if settings.SQLITE_PATH == ":memory:" else None,
         )
 
-        # Enable WAL mode and load sqlite-vec extension on connect
-        @event.listens_for(self._engine.sync_engine, "connect")
-        def set_sqlite_pragma(dbapi_conn, connection_record):
-            cursor = dbapi_conn.cursor()
-            # Enable Write-Ahead Logging for better concurrency
-            cursor.execute("PRAGMA journal_mode=WAL")
-            # Enable foreign keys
-            cursor.execute("PRAGMA foreign_keys=ON")
-            # Load sqlite-vec extension for vector similarity search
-            try:
-                # The extension should be available in the environment
-                # sqlite-vec typically loads automatically with the package
-                cursor.execute("SELECT load_extension('vec0')")
-                logger.debug("sqlite-vec extension loaded successfully")
-            except Exception as e:
-                logger.warning(f"Failed to load sqlite-vec extension: {e}. Vector search may not work.")
-            cursor.close()
+        # Register event to load extension on each connection
+        # This works by accessing the _conn attribute of aiosqlite's AsyncAdapt wrapper
+        @event.listens_for(self._engine.sync_engine, "first_connect")
+        def on_first_connect(dbapi_conn, connection_record):
+            """Load sqlite-vec extension on first connection"""
+            # For aiosqlite, dbapi_conn is AsyncAdapt_aiosqlite_connection
+            # Access the underlying aiosqlite Connection via _connection
+            if hasattr(dbapi_conn, "_connection"):
+                aio_conn = dbapi_conn._connection
+                # aiosqlite.Connection has a _conn attribute with the raw sqlite3.Connection
+                if hasattr(aio_conn, "_conn"):
+                    raw_conn = aio_conn._conn
+                    # Load extension on raw connection
+                    raw_conn.enable_load_extension(True)
+                    raw_conn.load_extension(sqlite_vec.loadable_path())
+                    raw_conn.enable_load_extension(False)
+                    # Set pragmas
+                    raw_conn.execute("PRAGMA journal_mode=WAL")
+                    raw_conn.execute("PRAGMA synchronous=NORMAL")
+                    raw_conn.execute("PRAGMA foreign_keys=ON")
+                    raw_conn.execute("PRAGMA busy_timeout=5000")
+                    logger.info("sqlite-vec extension loaded on connection")
 
         self._session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
-            bind=self._engine,
-            expire_on_commit=False,
-            autoflush=False
+            bind=self._engine, expire_on_commit=False, autoflush=False
         )
 
     @asynccontextmanager
     async def session(self, user_id: UUID) -> AsyncIterator[AsyncSession]:
         """
-        Create a user-scoped session for database operations.
+        Create a user-scoped session.
 
-        Note: Unlike Postgres, SQLite doesn't support Row-Level Security.
-        User isolation MUST be enforced in queries using WHERE clauses.
-        The user_id parameter is kept for API compatibility but doesn't
-        set any database-level context.
-
-        Args:
-            user_id: User ID for API compatibility (not used for RLS)
-
-        Yields:
-            AsyncSession: Database session for this user's operations
+        Note: Unlike Postgres, SQLite doesn't have RLS.
+        User isolation MUST be enforced at the application level
+        by including user_id in all WHERE clauses.
         """
         session = self._session_factory()
         try:
-            # SQLite doesn't support RLS - user_id filtering must be in queries
-            # We store user_id as session info for debugging/logging purposes
-            session.info["user_id"] = str(user_id)
+            # No RLS setup needed - user filtering happens in queries
             yield session
             await session.commit()
         except Exception as e:
             logger.exception(
-                msg="Database session initialization failed",
-                extra={"error": str(e), "user_id": str(user_id)}
+                msg="Database session initialization failed", extra={"error": str(e)}
             )
             await session.rollback()
             raise
@@ -102,24 +120,15 @@ class SqliteDatabaseAdapter:
 
     @asynccontextmanager
     async def system_session(self) -> AsyncIterator[AsyncSession]:
-        """
-        Create a system session for admin operations.
-
-        For SQLite, this is identical to a regular session since there's
-        no RLS to bypass. Kept for API compatibility with Postgres adapter.
-
-        Yields:
-            AsyncSession: Database session for system operations
-        """
+        """Create a system session for admin operations"""
         session = self._session_factory()
         try:
-            session.info["is_system"] = True
             yield session
             await session.commit()
         except Exception as e:
             logger.exception(
                 msg="Database system session initialization failed",
-                extra={"error": str(e)}
+                extra={"error": str(e)},
             )
             await session.rollback()
             raise
@@ -128,61 +137,59 @@ class SqliteDatabaseAdapter:
 
     async def init_db(self) -> None:
         """
-        Initialize database - creates tables if they don't exist.
+        Initialize database - creates all tables and virtual tables for vectors.
 
-        For SQLite:
-        - Creates database file if it doesn't exist
-        - Creates all tables using SQLAlchemy metadata
-        - Enables WAL mode and foreign keys (via connect event)
-        - Attempts to load sqlite-vec extension
+        For fresh database:
+        - Creates all SQLAlchemy tables
+        - Creates vec0 virtual tables for vector storage
 
-        Note: Alembic migrations not yet implemented for SQLite.
+        Note: sqlite-vec extension is loaded automatically via event listener on first connection
         """
-        # Import Base from sqlite_tables (will create after this file)
-        from app.repositories.sqlite.sqlite_tables import Base
-
         async with self._engine.begin() as conn:
             logger.info("Initializing SQLite database")
 
-            # Check if tables exist (check for users table as indicator)
-            result = await conn.execute(text(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
-            ))
+            # Check if tables exist
+            result = await conn.execute(
+                text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+                )
+            )
 
             if not result.scalar():
-                # Fresh database - create all tables
+                # Fresh database - create schema
                 logger.info("Fresh database detected - creating schema")
-                await conn.run_sync(Base.metadata.create_all)
-                logger.info("Database schema created successfully")
 
-                # TODO: Implement Alembic migrations for SQLite
-                logger.warning("Alembic migrations not implemented for SQLite yet")
+                # Create all tables via SQLAlchemy
+                await conn.run_sync(Base.metadata.create_all)
+
+                # Create virtual table for vector storage
+                # This is separate from the main memories table
+                await conn.execute(
+                    text("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
+                        memory_id TEXT PRIMARY KEY,
+                        embedding FLOAT[384]
+                    )
+                """)
+                )
+
+                logger.info("Database schema created successfully")
+                logger.info("sqlite-vec virtual table created for vector storage")
             else:
                 # Existing database
                 logger.info("Existing database detected")
-                # TODO: Implement Alembic migrations for SQLite
-                logger.warning("Alembic migrations not implemented for SQLite yet")
+                # TODO: Handle schema migrations when needed
+                pass
 
     async def dispose(self) -> None:
-        """Dispose of the database engine and close all connections."""
+        """Dispose of the database engine and close all connections"""
         await self._engine.dispose()
 
-    def _construct_sqlite_connection_string(self) -> str:
-        """
-        Construct SQLite connection string for aiosqlite.
-
-        Formats:
-        - File-based: sqlite+aiosqlite:///path/to/database.db
-        - In-memory: sqlite+aiosqlite:///:memory:
-
-        Returns:
-            str: SQLAlchemy connection string
-        """
-        if settings.SQLITE_PATH == ":memory:":
-            connection_string = "sqlite+aiosqlite:///:memory:"
+    def _construct_connection_string(self) -> str:
+        """Construct SQLite connection string"""
+        if settings.SQLITE_MEMORY:
+            # In-memory database (for testing)
+            return "sqlite+aiosqlite:///:memory:"
         else:
-            # Use absolute path or relative to working directory
-            connection_string = f"sqlite+aiosqlite:///{settings.SQLITE_PATH}"
-
-        logger.info(f"SQLite connection: {connection_string}")
-        return connection_string
+            # File-based database
+            return f"sqlite+aiosqlite:///{settings.SQLITE_PATH}"
