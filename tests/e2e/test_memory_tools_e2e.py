@@ -17,25 +17,22 @@ from fastmcp import Client
 async def test_create_memory_basic_e2e(docker_services, mcp_server_url):
     """Test basic memory creation with real embeddings and database"""
     async with Client(mcp_server_url) as client:
-        # Create memory via MCP tool
-        result = await client.call_tool("create_memory", {
-            "title": "Python AsyncIO E2E Test",
-            "content": "AsyncIO enables concurrent I/O operations in Python using async/await syntax",
-            "context": "Testing memory creation in E2E environment with real database",
-            "keywords": ["python", "asyncio", "testing"],
-            "tags": ["testing", "python"],
-            "importance": 8
-        })
-
-        # Validate response structure
+        result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Python AsyncIO E2E Test', 'content':
+            'AsyncIO enables concurrent I/O operations in Python using async/await syntax'
+            , 'context':
+            'Testing memory creation in E2E environment with real database',
+            'keywords': ['python', 'asyncio', 'testing'], 'tags': [
+            'testing', 'python'], 'importance': 8}})
         assert result.data is not None
-        assert result.data.id is not None
-        assert result.data.title == "Python AsyncIO E2E Test"
-        assert isinstance(result.data.linked_memory_ids, list)
-        assert isinstance(result.data.similar_memories, list)
-        assert isinstance(result.data.project_ids, list)
-        assert isinstance(result.data.code_artifact_ids, list)
-        assert isinstance(result.data.document_ids, list)
+        assert result.data["id"] is not None
+        assert result.data["title"] == 'Python AsyncIO E2E Test'
+        assert isinstance(result.data["linked_memory_ids"], list)
+        assert isinstance(result.data["similar_memories"], list)
+        assert isinstance(result.data["project_ids"], list)
+        assert isinstance(result.data["code_artifact_ids"], list)
+        assert isinstance(result.data["document_ids"], list)
 
 
 @pytest.mark.e2e
@@ -43,34 +40,25 @@ async def test_create_memory_basic_e2e(docker_services, mcp_server_url):
 async def test_create_memory_auto_linking_e2e(docker_services, mcp_server_url):
     """Test that create_memory auto-links to similar memories via embeddings"""
     async with Client(mcp_server_url) as client:
-        # Create first memory about Docker
-        result1 = await client.call_tool("create_memory", {
-            "title": "Docker Container Basics",
-            "content": "Docker containers provide isolated environments for applications",
-            "context": "Testing auto-linking behavior in E2E",
-            "keywords": ["docker", "containers", "devops"],
-            "tags": ["docker", "infrastructure"],
-            "importance": 7
-        })
-
+        result1 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Docker Container Basics', 'content':
+            'Docker containers provide isolated environments for applications',
+            'context': 'Testing auto-linking behavior in E2E', 'keywords':
+            ['docker', 'containers', 'devops'], 'tags': ['docker',
+            'infrastructure'], 'importance': 7}})
         assert result1.data is not None
-        memory1_id = result1.data.id
-
-        # Create second memory also about Docker - should auto-link
-        result2 = await client.call_tool("create_memory", {
-            "title": "Docker Networking",
-            "content": "Docker provides networking capabilities to connect containers",
-            "context": "Testing auto-linking with semantic similarity",
-            "keywords": ["docker", "networking", "containers"],
-            "tags": ["docker", "networking"],
-            "importance": 7
-        })
-
+        memory1_id = result1.data["id"]
+        result2 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Docker Networking', 'content':
+            'Docker provides networking capabilities to connect containers',
+            'context': 'Testing auto-linking with semantic similarity',
+            'keywords': ['docker', 'networking', 'containers'], 'tags': [
+            'docker', 'networking'], 'importance': 7}})
         assert result2.data is not None
-
-        # Second memory should have auto-linked to first (similar keywords)
-        assert len(result2.data.similar_memories) > 0
-        similar_ids = [m.id for m in result2.data.similar_memories]
+        assert len(result2.data["similar_memories"]) > 0
+        similar_ids = [m["id"] for m in result2.data["similar_memories"]]
         assert memory1_id in similar_ids
 
 
@@ -79,130 +67,95 @@ async def test_create_memory_auto_linking_e2e(docker_services, mcp_server_url):
 async def test_query_memory_e2e(docker_services, mcp_server_url):
     """Test semantic memory search with real pgvector"""
     async with Client(mcp_server_url) as client:
-        # Create a memory about testing
-        create_result = await client.call_tool("create_memory", {
-            "title": "Python Testing Best Practices",
-            "content": "Use pytest for testing Python applications with fixtures and parametrization",
-            "context": "Testing semantic search in E2E environment",
-            "keywords": ["python", "pytest", "testing"],
-            "tags": ["testing", "best-practices"],
-            "importance": 8
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Python Testing Best Practices', 'content':
+            'Use pytest for testing Python applications with fixtures and parametrization'
+            , 'context': 'Testing semantic search in E2E environment',
+            'keywords': ['python', 'pytest', 'testing'], 'tags': ['testing',
+            'best-practices'], 'importance': 8}})
         assert create_result.data is not None
-
-        # Query for the memory
-        query_result = await client.call_tool("query_memory", {
-            "query": "python testing practices",
-            "query_context": "looking for testing information",
-            "k": 5,
-            "include_links": False
-        })
-
-        # Validate query response structure
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'python testing practices', 'query_context':
+            'looking for testing information', 'k': 5, 'include_links': False}}
+            )
         assert query_result.data is not None
-        assert query_result.data.query == "python testing practices"
-        assert isinstance(query_result.data.primary_memories, list)
-        assert isinstance(query_result.data.linked_memories, list)
-        assert query_result.data.total_count > 0
-        assert query_result.data.token_count > 0
-        assert isinstance(query_result.data.truncated, bool)
-
-        # Should find the memory we just created
-        found_titles = [m.title for m in query_result.data.primary_memories]
-        assert "Python Testing Best Practices" in found_titles
+        assert query_result.data["query"] == 'python testing practices'
+        assert isinstance(query_result.data["primary_memories"], list)
+        assert isinstance(query_result.data["linked_memories"], list)
+        assert query_result.data["total_count"] > 0
+        assert query_result.data["token_count"] > 0
+        assert isinstance(query_result.data["truncated"], bool)
+        found_titles = [m["title"] for m in query_result.data["primary_memories"]]
+        assert 'Python Testing Best Practices' in found_titles
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_create_and_query_persistence_e2e(docker_services, mcp_server_url):
+async def test_create_and_query_persistence_e2e(docker_services, mcp_server_url
+    ):
     """Test that memories persist in database and can be queried"""
     async with Client(mcp_server_url) as client:
-        # Create memory with unique title
-        unique_title = "FastAPI Development Patterns E2E"
-        create_result = await client.call_tool("create_memory", {
-            "title": unique_title,
-            "content": "FastAPI is a modern Python web framework with automatic API documentation",
-            "context": "Testing database persistence across operations",
-            "keywords": ["fastapi", "python", "web"],
-            "tags": ["framework", "python"],
-            "importance": 7
-        })
-
+        unique_title = 'FastAPI Development Patterns E2E'
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            unique_title, 'content':
+            'FastAPI is a modern Python web framework with automatic API documentation'
+            , 'context': 'Testing database persistence across operations',
+            'keywords': ['fastapi', 'python', 'web'], 'tags': ['framework',
+            'python'], 'importance': 7}})
         assert create_result.data is not None
-        created_id = create_result.data.id
-
-        # Query to verify persistence
-        query_result = await client.call_tool("query_memory", {
-            "query": "FastAPI web framework",
-            "query_context": "verifying persistence of created memory",
-            "k": 10,
-            "include_links": False
-        })
-
+        created_id = create_result.data["id"]
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'FastAPI web framework', 'query_context':
+            'verifying persistence of created memory', 'k': 10,
+            'include_links': False}})
         assert query_result.data is not None
-
-        # Memory should be found in query results
         found_memory = None
-        for memory in query_result.data.primary_memories:
-            if memory.id == created_id:
+        for memory in query_result.data["primary_memories"]:
+            if memory["id"] == created_id:
                 found_memory = memory
                 break
-
         assert found_memory is not None
-        assert found_memory.title == unique_title
-        assert found_memory.importance == 7
+        assert found_memory["title"] == unique_title
+        assert found_memory["importance"] == 7
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_query_memory_with_linked_memories_e2e(docker_services, mcp_server_url):
+async def test_query_memory_with_linked_memories_e2e(docker_services,
+    mcp_server_url):
     """Test query with include_links to retrieve 1-hop neighbor memories"""
     async with Client(mcp_server_url) as client:
-        # Create two related memories that will auto-link
-        result1 = await client.call_tool("create_memory", {
-            "title": "PostgreSQL Database",
-            "content": "PostgreSQL is a powerful open-source relational database",
-            "context": "Testing linked memory retrieval",
-            "keywords": ["postgresql", "database", "sql"],
-            "tags": ["database"],
-            "importance": 8
-        })
-        
+        result1 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'PostgreSQL Database', 'content':
+            'PostgreSQL is a powerful open-source relational database',
+            'context': 'Testing linked memory retrieval', 'keywords': [
+            'postgresql', 'database', 'sql'], 'tags': ['database'],
+            'importance': 8}})
         assert result1.data is not None
-
-        result2 = await client.call_tool("create_memory", {
-            "title": "PostgreSQL Indexing",
-            "content": "PostgreSQL supports various index types including B-tree and GIN",
-            "context": "Testing linked memory retrieval with auto-linking",
-            "keywords": ["postgresql", "indexing", "performance"],
-            "tags": ["database", "performance"],
-            "importance": 7
-        })
-
-        # These should have auto-linked due to keyword overlap
-        assert len(result2.data.similar_memories) > 0
-
-        # Query with include_links enabled
-        query_result = await client.call_tool("query_memory", {
-            "query": "postgresql database",
-            "query_context": "testing linked memory retrieval",
-            "k": 5,
-            "include_links": True,
-            "max_links_per_primary": 5
-        })
-
+        result2 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'PostgreSQL Indexing', 'content':
+            'PostgreSQL supports various index types including B-tree and GIN',
+            'context': 'Testing linked memory retrieval with auto-linking',
+            'keywords': ['postgresql', 'indexing', 'performance'], 'tags':
+            ['database', 'performance'], 'importance': 7}})
+        assert len(result2.data["similar_memories"]) > 0
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'postgresql database', 'query_context':
+            'testing linked memory retrieval', 'k': 5, 'include_links': 
+            True, 'max_links_per_primary': 5}})
         assert query_result.data is not None
-
-        # Should have primary memories
-        assert len(query_result.data.primary_memories) > 0
-
-        # May have linked memories if relationships exist
-        assert isinstance(query_result.data.linked_memories, list)
-
-        # Verify total count includes both primary and linked
-        total = len(query_result.data.primary_memories) + len(query_result.data.linked_memories)
-        assert query_result.data.total_count == total
+        assert len(query_result.data["primary_memories"]) > 0
+        assert isinstance(query_result.data["linked_memories"], list)
+        total = len(query_result.data["primary_memories"]) + len(query_result.
+            data["linked_memories"])
+        assert query_result.data["total_count"] == total
 
 
 @pytest.mark.e2e
@@ -210,110 +163,84 @@ async def test_query_memory_with_linked_memories_e2e(docker_services, mcp_server
 async def test_update_memory_single_field_e2e(docker_services, mcp_server_url):
     """Test updating a single field preserves other fields (PATCH semantics)"""
     async with Client(mcp_server_url) as client:
-        # Create memory with initial values
-        create_result = await client.call_tool("create_memory", {
-            "title": "Original Title",
-            "content": "Original content about Python asyncio",
-            "context": "Original context for testing",
-            "keywords": ["python", "asyncio", "original"],
-            "tags": ["test", "original"],
-            "importance": 7
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Original Title', 'content':
+            'Original content about Python asyncio', 'context':
+            'Original context for testing', 'keywords': ['python',
+            'asyncio', 'original'], 'tags': ['test', 'original'],
+            'importance': 7}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Update only the title field
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "title": "Updated Title"
-        })
-
-        # Verify: title changed, all other fields unchanged
+        memory_id = create_result.data["id"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'title': 'Updated Title'}})
         assert update_result.data is not None
-        assert update_result.data.id == memory_id
-        assert update_result.data.title == "Updated Title"
-        assert update_result.data.content == "Original content about Python asyncio"
-        assert update_result.data.context == "Original context for testing"
-        assert update_result.data.keywords == ["python", "asyncio", "original"]
-        assert update_result.data.tags == ["test", "original"]
-        assert update_result.data.importance == 7
+        assert update_result.data["id"] == memory_id
+        assert update_result.data["title"] == 'Updated Title'
+        assert update_result.data["content"] == 'Original content about Python asyncio'
+        assert update_result.data["context"] == 'Original context for testing'
+        assert update_result.data["keywords"] == ['python', 'asyncio', 'original']
+        assert update_result.data["tags"] == ['test', 'original']
+        assert update_result.data["importance"] == 7
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_memory_multiple_fields_e2e(docker_services, mcp_server_url):
+async def test_update_memory_multiple_fields_e2e(docker_services,
+    mcp_server_url):
     """Test updating multiple fields simultaneously (PATCH semantics)"""
     async with Client(mcp_server_url) as client:
-        # Create memory
-        create_result = await client.call_tool("create_memory", {
-            "title": "Original Multi-Field Title",
-            "content": "Original content for multi-field test",
-            "context": "Original context",
-            "keywords": ["original"],
-            "tags": ["test"],
-            "importance": 6
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Original Multi-Field Title', 'content':
+            'Original content for multi-field test', 'context':
+            'Original context', 'keywords': ['original'], 'tags': ['test'],
+            'importance': 6}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Update title, content, and importance simultaneously
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "title": "Updated Multi-Field Title",
-            "content": "Updated content for multi-field test",
-            "importance": 9
-        })
-
-        # Verify: updated fields changed, others unchanged
+        memory_id = create_result.data["id"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'title': 'Updated Multi-Field Title', 'content':
+            'Updated content for multi-field test', 'importance': 9}})
         assert update_result.data is not None
-        assert update_result.data.title == "Updated Multi-Field Title"
-        assert update_result.data.content == "Updated content for multi-field test"
-        assert update_result.data.importance == 9
-        assert update_result.data.context == "Original context"
-        assert update_result.data.keywords == ["original"]
-        assert update_result.data.tags == ["test"]
+        assert update_result.data["title"] == 'Updated Multi-Field Title'
+        assert update_result.data["content"] == 'Updated content for multi-field test'
+        assert update_result.data["importance"] == 9
+        assert update_result.data["context"] == 'Original context'
+        assert update_result.data["keywords"] == ['original']
+        assert update_result.data["tags"] == ['test']
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_memory_content_triggers_embedding_refresh_e2e(docker_services, mcp_server_url):
+async def test_update_memory_content_triggers_embedding_refresh_e2e(
+    docker_services, mcp_server_url):
     """Test that updating content regenerates embeddings for semantic search"""
     async with Client(mcp_server_url) as client:
-        # Create memory about Python
-        create_result = await client.call_tool("create_memory", {
-            "title": "Async Programming Patterns",
-            "content": "Python asyncio enables concurrent I/O operations with async/await syntax",
-            "context": "Testing embedding refresh on content update",
-            "keywords": ["python", "asyncio"],
-            "tags": ["programming"],
-            "importance": 8
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Async Programming Patterns', 'content':
+            'Python asyncio enables concurrent I/O operations with async/await syntax'
+            , 'context': 'Testing embedding refresh on content update',
+            'keywords': ['python', 'asyncio'], 'tags': ['programming'],
+            'importance': 8}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Update content to completely different topic (Rust)
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "content": "Rust async enables concurrent operations using futures and tokio runtime"
-        })
-
+        memory_id = create_result.data["id"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'content':
+            'Rust async enables concurrent operations using futures and tokio runtime'
+            }})
         assert update_result.data is not None
-
-        # Query for Rust-related content - should find the updated memory
-        query_result = await client.call_tool("query_memory", {
-            "query": "Rust async programming",
-            "query_context": "testing embedding refresh after content update",
-            "k": 10,
-            "include_links": False
-        })
-
-        # Verify: updated memory is found via semantic search
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'Rust async programming', 'query_context':
+            'testing embedding refresh after content update', 'k': 10,
+            'include_links': False}})
         assert query_result.data is not None
-        found_ids = [m.id for m in query_result.data.primary_memories]
-        assert memory_id in found_ids, "Updated memory should be found by semantic search for new content"
+        found_ids = [m["id"] for m in query_result.data["primary_memories"]]
+        assert memory_id in found_ids, 'Updated memory should be found by semantic search for new content'
 
 
 @pytest.mark.e2e
@@ -321,83 +248,58 @@ async def test_update_memory_content_triggers_embedding_refresh_e2e(docker_servi
 async def test_update_memory_persistence_e2e(docker_services, mcp_server_url):
     """Test that memory updates persist to database"""
     async with Client(mcp_server_url) as client:
-        # Create memory
-        create_result = await client.call_tool("create_memory", {
-            "title": "Persistence Test Original",
-            "content": "Testing database persistence of updates",
-            "context": "E2E persistence validation",
-            "keywords": ["persistence", "database"],
-            "tags": ["test"],
-            "importance": 7
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Persistence Test Original', 'content':
+            'Testing database persistence of updates', 'context':
+            'E2E persistence validation', 'keywords': ['persistence',
+            'database'], 'tags': ['test'], 'importance': 7}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Update title and importance
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "title": "Persistence Test Updated",
-            "importance": 9
-        })
-
+        memory_id = create_result.data["id"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'title': 'Persistence Test Updated', 'importance': 9}})
         assert update_result.data is not None
-
-        # Query by new title to verify persistence
-        query_result = await client.call_tool("query_memory", {
-            "query": "Persistence Test Updated",
-            "query_context": "verifying update persistence",
-            "k": 5,
-            "include_links": False
-        })
-
-        # Find the updated memory
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'Persistence Test Updated', 'query_context':
+            'verifying update persistence', 'k': 5, 'include_links': False}})
         found_memory = None
-        for memory in query_result.data.primary_memories:
-            if memory.id == memory_id:
+        for memory in query_result.data["primary_memories"]:
+            if memory["id"] == memory_id:
                 found_memory = memory
                 break
-
-        # Verify: changes persisted
-        assert found_memory is not None, "Updated memory should be found in database"
-        assert found_memory.title == "Persistence Test Updated"
-        assert found_memory.importance == 9
+        assert found_memory is not None, 'Updated memory should be found in database'
+        assert found_memory["title"] == 'Persistence Test Updated'
+        assert found_memory["importance"] == 9
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_memory_keywords_tags_replacement_e2e(docker_services, mcp_server_url):
+async def test_update_memory_keywords_tags_replacement_e2e(docker_services,
+    mcp_server_url):
     """Test that updating keywords/tags replaces (not appends) existing values"""
     async with Client(mcp_server_url) as client:
-        # Create memory with initial keywords and tags
-        create_result = await client.call_tool("create_memory", {
-            "title": "Keywords Tags Replacement Test",
-            "content": "Testing REPLACE semantics for list fields",
-            "context": "Validating list field behavior",
-            "keywords": ["python", "testing", "original"],
-            "tags": ["test", "automation", "original"],
-            "importance": 7
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Keywords Tags Replacement Test', 'content':
+            'Testing REPLACE semantics for list fields', 'context':
+            'Validating list field behavior', 'keywords': ['python',
+            'testing', 'original'], 'tags': ['test', 'automation',
+            'original'], 'importance': 7}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Update keywords and tags to completely different values
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "keywords": ["javascript", "unit-test", "jest"],
-            "tags": ["ci", "jest", "integration"]
-        })
-
-        # Verify: old values completely replaced, not appended
+        memory_id = create_result.data["id"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'keywords': ['javascript', 'unit-test', 'jest'],
+            'tags': ['ci', 'jest', 'integration']}})
         assert update_result.data is not None
-        assert update_result.data.keywords == ["javascript", "unit-test", "jest"]
-        assert update_result.data.tags == ["ci", "jest", "integration"]
-
-        # Verify old keywords/tags are NOT present
-        assert "python" not in update_result.data.keywords
-        assert "original" not in update_result.data.keywords
-        assert "automation" not in update_result.data.tags
+        assert update_result.data["keywords"] == ['javascript', 'unit-test',
+            'jest']
+        assert update_result.data["tags"] == ['ci', 'jest', 'integration']
+        assert 'python' not in update_result.data["keywords"]
+        assert 'original' not in update_result.data["keywords"]
+        assert 'automation' not in update_result.data["tags"]
 
 
 @pytest.mark.e2e
@@ -405,18 +307,15 @@ async def test_update_memory_keywords_tags_replacement_e2e(docker_services, mcp_
 async def test_update_memory_invalid_id_e2e(docker_services, mcp_server_url):
     """Test error handling when updating non-existent memory"""
     async with Client(mcp_server_url) as client:
-        # Attempt to update a memory that doesn't exist
         try:
-            await client.call_tool("update_memory", {
-                "memory_id": 999999,
-                "title": "This Should Fail"
-            })
-            # Should not reach here
-            assert False, "Expected ToolError for invalid memory_id"
+            await client.call_tool('execute_forgetful_tool', {'tool_name':
+                'update_memory', 'arguments': {'memory_id': 999999, 'title':
+                'This Should Fail'}})
+            assert False, 'Expected ToolError for invalid memory_id'
         except Exception as e:
-            # Verify error message indicates memory not found
             error_message = str(e)
-            assert "not found" in error_message.lower() or "validation_error" in error_message.lower()
+            assert 'not found' in error_message.lower(
+                ) or 'validation_error' in error_message.lower()
 
 
 @pytest.mark.e2e
@@ -424,37 +323,29 @@ async def test_update_memory_invalid_id_e2e(docker_services, mcp_server_url):
 async def test_get_memory_basic_retrieval_e2e(docker_services, mcp_server_url):
     """Test basic memory retrieval by ID with get_memory tool"""
     async with Client(mcp_server_url) as client:
-        # Create a memory first
-        create_result = await client.call_tool("create_memory", {
-            "title": "Get Memory E2E Test",
-            "content": "Testing get_memory retrieval by ID in E2E environment",
-            "context": "Validating get_memory tool functionality",
-            "keywords": ["get", "retrieval", "testing"],
-            "tags": ["test", "get-memory"],
-            "importance": 8
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Get Memory E2E Test', 'content':
+            'Testing get_memory retrieval by ID in E2E environment',
+            'context': 'Validating get_memory tool functionality',
+            'keywords': ['get', 'retrieval', 'testing'], 'tags': ['test',
+            'get-memory'], 'importance': 8}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Retrieve the memory using get_memory
-        get_result = await client.call_tool("get_memory", {
-            "memory_id": memory_id
-        })
-
-        # Verify all fields are returned correctly
+        memory_id = create_result.data["id"]
+        get_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory', 'arguments': {'memory_id': memory_id}})
         assert get_result.data is not None
-        assert get_result.data.id == memory_id
-        assert get_result.data.title == "Get Memory E2E Test"
-        assert get_result.data.content == "Testing get_memory retrieval by ID in E2E environment"
-        assert get_result.data.context == "Validating get_memory tool functionality"
-        assert get_result.data.keywords == ["get", "retrieval", "testing"]
-        assert get_result.data.tags == ["test", "get-memory"]
-        assert get_result.data.importance == 8
-        assert isinstance(get_result.data.linked_memory_ids, list)
-        assert isinstance(get_result.data.project_ids, list)
-        assert isinstance(get_result.data.code_artifact_ids, list)
-        assert isinstance(get_result.data.document_ids, list)
+        assert get_result.data["id"] == memory_id
+        assert get_result.data["title"] == 'Get Memory E2E Test'
+        assert get_result.data["content"] == 'Testing get_memory retrieval by ID in E2E environment'
+        assert get_result.data["context"] == 'Validating get_memory tool functionality'
+        assert get_result.data["keywords"] == ['get', 'retrieval', 'testing']
+        assert get_result.data["tags"] == ['test', 'get-memory']
+        assert get_result.data["importance"] == 8
+        assert isinstance(get_result.data["linked_memory_ids"], list)
+        assert isinstance(get_result.data["project_ids"], list)
+        assert isinstance(get_result.data["code_artifact_ids"], list)
+        assert isinstance(get_result.data["document_ids"], list)
 
 
 @pytest.mark.e2e
@@ -462,17 +353,14 @@ async def test_get_memory_basic_retrieval_e2e(docker_services, mcp_server_url):
 async def test_get_memory_invalid_id_e2e(docker_services, mcp_server_url):
     """Test error handling when retrieving non-existent memory"""
     async with Client(mcp_server_url) as client:
-        # Attempt to retrieve a memory that doesn't exist
         try:
-            await client.call_tool("get_memory", {
-                "memory_id": 999999
-            })
-            # Should not reach here
-            assert False, "Expected ToolError for invalid memory_id"
+            await client.call_tool('execute_forgetful_tool', {'tool_name':
+                'get_memory', 'arguments': {'memory_id': 999999}})
+            assert False, 'Expected ToolError for invalid memory_id'
         except Exception as e:
-            # Verify error message indicates memory not found
             error_message = str(e)
-            assert "not found" in error_message.lower() or "validation_error" in error_message.lower()
+            assert 'not found' in error_message.lower(
+                ) or 'validation_error' in error_message.lower()
 
 
 @pytest.mark.e2e
@@ -480,322 +368,226 @@ async def test_get_memory_invalid_id_e2e(docker_services, mcp_server_url):
 async def test_mark_memory_obsolete_basic_e2e(docker_services, mcp_server_url):
     """Test basic memory obsolete functionality with mark_memory_obsolete tool"""
     async with Client(mcp_server_url) as client:
-        # Create a memory
-        create_result = await client.call_tool("create_memory", {
-            "title": "Memory to Obsolete",
-            "content": "This memory will be marked as obsolete in the test",
-            "context": "Testing mark_memory_obsolete functionality",
-            "keywords": ["obsolete", "test", "soft-delete"],
-            "tags": ["test", "obsolete"],
-            "importance": 7
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Memory to Obsolete', 'content':
+            'This memory will be marked as obsolete in the test', 'context':
+            'Testing mark_memory_obsolete functionality', 'keywords': [
+            'obsolete', 'test', 'soft-delete'], 'tags': ['test', 'obsolete'
+            ], 'importance': 7}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Mark the memory as obsolete
-        obsolete_result = await client.call_tool("mark_memory_obsolete", {
-            "memory_id": memory_id,
-            "reason": "Testing soft delete functionality"
-        })
-
-        # Verify the operation succeeded
-        assert obsolete_result.data is True
+        memory_id = create_result.data["id"]
+        obsolete_result = await client.call_tool('execute_forgetful_tool',
+            {'tool_name': 'mark_memory_obsolete', 'arguments': {'memory_id':
+            memory_id, 'reason': 'Testing soft delete functionality'}})
+        assert obsolete_result.data["success"] is True
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_mark_memory_obsolete_filtered_from_query_e2e(docker_services, mcp_server_url):
+async def test_mark_memory_obsolete_filtered_from_query_e2e(docker_services,
+    mcp_server_url):
     """Test that obsolete memories are filtered from query_memory results"""
     async with Client(mcp_server_url) as client:
-        # Create three memories with similar content
-        result1 = await client.call_tool("create_memory", {
-            "title": "Kubernetes Basics Active",
-            "content": "Kubernetes orchestrates containerized applications across clusters",
-            "context": "Testing obsolete filtering in queries",
-            "keywords": ["kubernetes", "containers", "orchestration"],
-            "tags": ["k8s", "infrastructure"],
-            "importance": 8
-        })
-        memory1_id = result1.data.id
-
-        result2 = await client.call_tool("create_memory", {
-            "title": "Kubernetes Networking Active",
-            "content": "Kubernetes provides networking capabilities for pod communication",
-            "context": "Testing obsolete filtering - this remains active",
-            "keywords": ["kubernetes", "networking", "pods"],
-            "tags": ["k8s", "networking"],
-            "importance": 8
-        })
-        memory2_id = result2.data.id
-
-        result3 = await client.call_tool("create_memory", {
-            "title": "Kubernetes Obsolete Memory",
-            "content": "Kubernetes content that will be marked obsolete",
-            "context": "Testing obsolete filtering - this will be obsolete",
-            "keywords": ["kubernetes", "obsolete", "test"],
-            "tags": ["k8s", "test"],
-            "importance": 7
-        })
-        memory3_id = result3.data.id
-
-        # Mark the third memory as obsolete
-        await client.call_tool("mark_memory_obsolete", {
-            "memory_id": memory3_id,
-            "reason": "Testing that obsolete memories are filtered from queries"
-        })
-
-        # Query for kubernetes memories
-        query_result = await client.call_tool("query_memory", {
-            "query": "kubernetes containers orchestration",
-            "query_context": "testing obsolete filtering in semantic search",
-            "k": 10,
-            "include_links": False
-        })
-
+        result1 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Kubernetes Basics Active', 'content':
+            'Kubernetes orchestrates containerized applications across clusters'
+            , 'context': 'Testing obsolete filtering in queries',
+            'keywords': ['kubernetes', 'containers', 'orchestration'],
+            'tags': ['k8s', 'infrastructure'], 'importance': 8}})
+        memory1_id = result1.data["id"]
+        result2 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Kubernetes Networking Active', 'content':
+            'Kubernetes provides networking capabilities for pod communication'
+            , 'context': 'Testing obsolete filtering - this remains active',
+            'keywords': ['kubernetes', 'networking', 'pods'], 'tags': [
+            'k8s', 'networking'], 'importance': 8}})
+        memory2_id = result2.data["id"]
+        result3 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Kubernetes Obsolete Memory', 'content':
+            'Kubernetes content that will be marked obsolete', 'context':
+            'Testing obsolete filtering - this will be obsolete',
+            'keywords': ['kubernetes', 'obsolete', 'test'], 'tags': ['k8s',
+            'test'], 'importance': 7}})
+        memory3_id = result3.data["id"]
+        await client.call_tool('execute_forgetful_tool', {'tool_name':
+            'mark_memory_obsolete', 'arguments': {'memory_id': memory3_id,
+            'reason':
+            'Testing that obsolete memories are filtered from queries'}})
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'kubernetes containers orchestration', 'query_context':
+            'testing obsolete filtering in semantic search', 'k': 10,
+            'include_links': False}})
         assert query_result.data is not None
-
-        # Collect IDs from query results
-        found_ids = [m.id for m in query_result.data.primary_memories]
-
-        # Verify: active memories are found
-        assert memory1_id in found_ids or memory2_id in found_ids, "At least one active memory should be found"
-
-        # Verify: obsolete memory is NOT found
-        assert memory3_id not in found_ids, "Obsolete memory should be filtered from query results"
+        found_ids = [m["id"] for m in query_result.data["primary_memories"]]
+        assert memory1_id in found_ids or memory2_id in found_ids, 'At least one active memory should be found'
+        assert memory3_id not in found_ids, 'Obsolete memory should be filtered from query results'
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_mark_memory_obsolete_retrievable_by_id_e2e(docker_services, mcp_server_url):
+async def test_mark_memory_obsolete_retrievable_by_id_e2e(docker_services,
+    mcp_server_url):
     """Test that obsolete memories can still be retrieved by ID using get_memory (audit trail)"""
     async with Client(mcp_server_url) as client:
-        # Create a memory
-        create_result = await client.call_tool("create_memory", {
-            "title": "Memory for Audit Trail Test",
-            "content": "This memory will be obsolete but retrievable by ID",
-            "context": "Testing soft-delete audit trail behavior",
-            "keywords": ["audit", "obsolete", "retrieval"],
-            "tags": ["test", "audit"],
-            "importance": 7
-        })
-
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Memory for Audit Trail Test', 'content':
+            'This memory will be obsolete but retrievable by ID', 'context':
+            'Testing soft-delete audit trail behavior', 'keywords': [
+            'audit', 'obsolete', 'retrieval'], 'tags': ['test', 'audit'],
+            'importance': 7}})
         assert create_result.data is not None
-        memory_id = create_result.data.id
-
-        # Mark as obsolete
-        await client.call_tool("mark_memory_obsolete", {
-            "memory_id": memory_id,
-            "reason": "Testing that get_memory can still retrieve obsolete memories"
-        })
-
-        # Verify: query_memory does NOT return it
-        query_result = await client.call_tool("query_memory", {
-            "query": "audit trail obsolete retrieval",
-            "query_context": "verifying obsolete memory filtered from query",
-            "k": 10,
-            "include_links": False
-        })
-
-        query_ids = [m.id for m in query_result.data.primary_memories]
-        assert memory_id not in query_ids, "Obsolete memory should not appear in query_memory results"
-
-        # Verify: get_memory CAN still retrieve it (audit trail)
-        get_result = await client.call_tool("get_memory", {
-            "memory_id": memory_id
-        })
-
+        memory_id = create_result.data["id"]
+        await client.call_tool('execute_forgetful_tool', {'tool_name':
+            'mark_memory_obsolete', 'arguments': {'memory_id': memory_id,
+            'reason':
+            'Testing that get_memory can still retrieve obsolete memories'}})
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'audit trail obsolete retrieval', 'query_context':
+            'verifying obsolete memory filtered from query', 'k': 10,
+            'include_links': False}})
+        query_ids = [m["id"] for m in query_result.data["primary_memories"]]
+        assert memory_id not in query_ids, 'Obsolete memory should not appear in query_memory results'
+        get_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory', 'arguments': {'memory_id': memory_id}})
         assert get_result.data is not None
-        assert get_result.data.id == memory_id
-        assert get_result.data.title == "Memory for Audit Trail Test"
-        assert get_result.data.content == "This memory will be obsolete but retrievable by ID"
+        assert get_result.data["id"] == memory_id
+        assert get_result.data["title"] == 'Memory for Audit Trail Test'
+        assert get_result.data["content"] == 'This memory will be obsolete but retrievable by ID'
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_mark_memory_obsolete_with_superseded_by_e2e(docker_services, mcp_server_url):
+async def test_mark_memory_obsolete_with_superseded_by_e2e(docker_services,
+    mcp_server_url):
     """Test marking memory obsolete with superseded_by parameter"""
     async with Client(mcp_server_url) as client:
-        # Create the original memory
-        old_result = await client.call_tool("create_memory", {
-            "title": "Old API Pattern",
-            "content": "Use REST API with XML responses",
-            "context": "Outdated API pattern that will be superseded",
-            "keywords": ["api", "rest", "xml"],
-            "tags": ["api", "deprecated"],
-            "importance": 6
-        })
-        old_memory_id = old_result.data.id
-
-        # Create the new memory that supersedes it
-        new_result = await client.call_tool("create_memory", {
-            "title": "New API Pattern",
-            "content": "Use REST API with JSON responses",
-            "context": "Modern API pattern superseding XML approach",
-            "keywords": ["api", "rest", "json"],
-            "tags": ["api", "modern"],
-            "importance": 8
-        })
-        new_memory_id = new_result.data.id
-
-        # Mark old memory as obsolete with superseded_by
-        obsolete_result = await client.call_tool("mark_memory_obsolete", {
-            "memory_id": old_memory_id,
-            "reason": "Superseded by modern JSON API pattern",
-            "superseded_by": new_memory_id
-        })
-
-        # Verify the operation succeeded
-        assert obsolete_result.data is True
-
-        # Verify old memory is filtered from queries
-        query_result = await client.call_tool("query_memory", {
-            "query": "REST API pattern",
-            "query_context": "finding current API patterns",
-            "k": 10,
-            "include_links": False
-        })
-
-        found_ids = [m.id for m in query_result.data.primary_memories]
-        assert old_memory_id not in found_ids, "Old memory should be filtered from queries"
-
-        # New memory should be findable
-        assert new_memory_id in found_ids or len(found_ids) > 0, "New memory should be found in queries"
-
-
-# ============ Memory-Project Integration Tests ============
+        old_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Old API Pattern', 'content': 'Use REST API with XML responses',
+            'context': 'Outdated API pattern that will be superseded',
+            'keywords': ['api', 'rest', 'xml'], 'tags': ['api',
+            'deprecated'], 'importance': 6}})
+        old_memory_id = old_result.data["id"]
+        new_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'New API Pattern', 'content':
+            'Use REST API with JSON responses', 'context':
+            'Modern API pattern superseding XML approach', 'keywords': [
+            'api', 'rest', 'json'], 'tags': ['api', 'modern'], 'importance':
+            8}})
+        new_memory_id = new_result.data["id"]
+        obsolete_result = await client.call_tool('execute_forgetful_tool',
+            {'tool_name': 'mark_memory_obsolete', 'arguments': {'memory_id':
+            old_memory_id, 'reason':
+            'Superseded by modern JSON API pattern', 'superseded_by':
+            new_memory_id}})
+        assert obsolete_result.data["success"] is True
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'REST API pattern', 'query_context':
+            'finding current API patterns', 'k': 10, 'include_links': False}})
+        found_ids = [m["id"] for m in query_result.data["primary_memories"]]
+        assert old_memory_id not in found_ids, 'Old memory should be filtered from queries'
+        assert new_memory_id in found_ids or len(found_ids
+            ) > 0, 'New memory should be found in queries'
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_memory_add_project_ids_e2e(docker_services, mcp_server_url):
+async def test_update_memory_add_project_ids_e2e(docker_services,
+    mcp_server_url):
     """Test adding project_ids to a memory using update_memory tool"""
     async with Client(mcp_server_url) as client:
-        # Create a project
-        project_result = await client.call_tool("create_project", {
-            "name": "update-memory-project-test",
-            "description": "Project for testing memory updates with project_ids",
-            "project_type": "development"
-        })
-        project_id = project_result.data.id
-
-        # Create a memory without project
-        memory_result = await client.call_tool("create_memory", {
-            "title": "Memory without project",
-            "content": "This memory will be updated to add a project",
-            "context": "Testing project_ids updates",
-            "keywords": ["test", "project", "update"],
-            "tags": ["test"],
-            "importance": 7
-        })
-        memory_id = memory_result.data.id
-
-        # Verify memory has no project_ids initially
-        assert memory_result.data.project_ids == []
-
-        # Update memory to add project_ids
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "project_ids": [project_id]
-        })
-
-        # Verify project_ids were added
+        project_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_project', 'arguments': {'name':
+            'update-memory-project-test', 'description':
+            'Project for testing memory updates with project_ids',
+            'project_type': 'development'}})
+        project_id = project_result.data["id"]
+        memory_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Memory without project', 'content':
+            'This memory will be updated to add a project', 'context':
+            'Testing project_ids updates', 'keywords': ['test', 'project',
+            'update'], 'tags': ['test'], 'importance': 7}})
+        memory_id = memory_result.data["id"]
+        assert memory_result.data["project_ids"] == []
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'project_ids': [project_id]}})
         assert update_result.data is not None
-        assert project_id in update_result.data.project_ids
-
-        # Get memory to double-check persistence
-        get_result = await client.call_tool("get_memory", {
-            "memory_id": memory_id
-        })
-
-        assert project_id in get_result.data.project_ids
+        assert project_id in update_result.data["project_ids"]
+        get_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory', 'arguments': {'memory_id': memory_id}})
+        assert project_id in get_result.data["project_ids"]
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_memory_add_multiple_projects_e2e(docker_services, mcp_server_url):
+async def test_update_memory_add_multiple_projects_e2e(docker_services,
+    mcp_server_url):
     """Test adding multiple project_ids to a memory"""
     async with Client(mcp_server_url) as client:
-        # Create two projects
-        project1_result = await client.call_tool("create_project", {
-            "name": "multi-project-1",
-            "description": "First project for multi-project test",
-            "project_type": "development"
-        })
-        project1_id = project1_result.data.id
-
-        project2_result = await client.call_tool("create_project", {
-            "name": "multi-project-2",
-            "description": "Second project for multi-project test",
-            "project_type": "work"
-        })
-        project2_id = project2_result.data.id
-
-        # Create a memory
-        memory_result = await client.call_tool("create_memory", {
-            "title": "Memory for multiple projects",
-            "content": "This memory belongs to multiple projects",
-            "context": "Testing multiple project_ids",
-            "keywords": ["test", "multi-project"],
-            "tags": ["test"],
-            "importance": 7
-        })
-        memory_id = memory_result.data.id
-
-        # Update memory with both project_ids
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "project_ids": [project1_id, project2_id]
-        })
-
-        # Verify both project_ids were added
+        project1_result = await client.call_tool('execute_forgetful_tool',
+            {'tool_name': 'create_project', 'arguments': {'name':
+            'multi-project-1', 'description':
+            'First project for multi-project test', 'project_type':
+            'development'}})
+        project1_id = project1_result.data["id"]
+        project2_result = await client.call_tool('execute_forgetful_tool',
+            {'tool_name': 'create_project', 'arguments': {'name':
+            'multi-project-2', 'description':
+            'Second project for multi-project test', 'project_type': 'work'}})
+        project2_id = project2_result.data["id"]
+        memory_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Memory for multiple projects', 'content':
+            'This memory belongs to multiple projects', 'context':
+            'Testing multiple project_ids', 'keywords': ['test',
+            'multi-project'], 'tags': ['test'], 'importance': 7}})
+        memory_id = memory_result.data["id"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'project_ids': [project1_id, project2_id]}})
         assert update_result.data is not None
-        assert project1_id in update_result.data.project_ids
-        assert project2_id in update_result.data.project_ids
-        assert len(update_result.data.project_ids) == 2
+        assert project1_id in update_result.data["project_ids"]
+        assert project2_id in update_result.data["project_ids"]
+        assert len(update_result.data["project_ids"]) == 2
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_memory_remove_project_ids_e2e(docker_services, mcp_server_url):
+async def test_update_memory_remove_project_ids_e2e(docker_services,
+    mcp_server_url):
     """Test removing project_ids from a memory"""
     async with Client(mcp_server_url) as client:
-        # Create a project
-        project_result = await client.call_tool("create_project", {
-            "name": "remove-project-test",
-            "description": "Project to be removed from memory",
-            "project_type": "development"
-        })
-        project_id = project_result.data.id
-
-        # Create a memory WITH project
-        memory_result = await client.call_tool("create_memory", {
-            "title": "Memory with project to remove",
-            "content": "This memory will have its project removed",
-            "context": "Testing project_ids removal",
-            "keywords": ["test", "remove", "project"],
-            "tags": ["test"],
-            "importance": 7,
-            "project_ids": [project_id]
-        })
-        memory_id = memory_result.data.id
-
-        # Verify memory has project initially
-        assert project_id in memory_result.data.project_ids
-
-        # Update memory to remove project_ids (empty list)
-        update_result = await client.call_tool("update_memory", {
-            "memory_id": memory_id,
-            "project_ids": []
-        })
-
-        # Verify project_ids were removed
+        project_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_project', 'arguments': {'name':
+            'remove-project-test', 'description':
+            'Project to be removed from memory', 'project_type':
+            'development'}})
+        project_id = project_result.data["id"]
+        memory_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Memory with project to remove', 'content':
+            'This memory will have its project removed', 'context':
+            'Testing project_ids removal', 'keywords': ['test', 'remove',
+            'project'], 'tags': ['test'], 'importance': 7, 'project_ids': [
+            project_id]}})
+        memory_id = memory_result.data["id"]
+        assert project_id in memory_result.data["project_ids"]
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory', 'arguments': {'memory_id':
+            memory_id, 'project_ids': []}})
         assert update_result.data is not None
-        assert update_result.data.project_ids == []
-
-        # Get memory to double-check
-        get_result = await client.call_tool("get_memory", {
-            "memory_id": memory_id
-        })
-
-        assert get_result.data.project_ids == []
+        assert update_result.data["project_ids"] == []
+        get_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory', 'arguments': {'memory_id': memory_id}})
+        assert get_result.data["project_ids"] == []

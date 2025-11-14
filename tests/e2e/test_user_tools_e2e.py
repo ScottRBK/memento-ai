@@ -16,13 +16,19 @@ async def test_get_current_user_e2e(docker_services, mcp_server_url):
     """Test get_current_user MCP tool via HTTP transport"""
     async with Client(mcp_server_url) as client:
         # Call MCP tool using FastMCP Client
-        result = await client.call_tool("get_current_user", {})
+        result = await client.call_tool(
+            "execute_forgetful_tool",
+            {
+                "tool_name": "get_current_user",
+                "arguments": {}
+            }
+        )
 
         # Access attributes from Pydantic UserResponse
         assert result.data is not None
-        assert result.data.name is not None
-        assert result.data.created_at is not None
-        assert result.data.updated_at is not None
+        assert result.data["name"] is not None
+        assert result.data["created_at"] is not None
+        assert result.data["updated_at"] is not None
 
 
 @pytest.mark.e2e
@@ -31,19 +37,28 @@ async def test_update_user_notes_e2e(docker_services, mcp_server_url):
     """Test update_user_notes MCP tool via HTTP transport"""
     async with Client(mcp_server_url) as client:
         # First, get current user
-        get_result = await client.call_tool("get_current_user", {})
+        get_result = await client.call_tool(
+            "execute_forgetful_tool",
+            {
+                "tool_name": "get_current_user",
+                "arguments": {}
+            }
+        )
         assert get_result.data is not None
         user_data = get_result.data
 
         # Update notes using MCP tool
         update_result = await client.call_tool(
-            "update_user_notes",
-            {"user_notes": "Test notes from E2E test"}
+            "execute_forgetful_tool",
+            {
+                "tool_name": "update_user_notes",
+                "arguments": {"user_notes": "Test notes from E2E test"}
+            }
         )
 
         assert update_result.data is not None
-        assert update_result.data.notes == "Test notes from E2E test"
-        assert update_result.data.name == user_data.name
+        assert update_result.data["notes"] == "Test notes from E2E test"
+        assert update_result.data["name"] == user_data["name"]
 
 
 @pytest.mark.e2e
@@ -52,14 +67,26 @@ async def test_user_persistence_e2e(docker_services, mcp_server_url):
     """Test that user data persists across multiple MCP tool calls via HTTP transport"""
     async with Client(mcp_server_url) as client:
         # First call - creates user
-        result1 = await client.call_tool("get_current_user", {})
+        result1 = await client.call_tool(
+            "execute_forgetful_tool",
+            {
+                "tool_name": "get_current_user",
+                "arguments": {}
+            }
+        )
         assert result1.data is not None
         user1 = result1.data
 
         # Second call - should return same user
-        result2 = await client.call_tool("get_current_user", {})
+        result2 = await client.call_tool(
+            "execute_forgetful_tool",
+            {
+                "tool_name": "get_current_user",
+                "arguments": {}
+            }
+        )
         assert result2.data is not None
         user2 = result2.data
 
-        assert user1.name == user2.name
-        assert user1.created_at == user2.created_at
+        assert user1["name"] == user2["name"]
+        assert user1["created_at"] == user2["created_at"]

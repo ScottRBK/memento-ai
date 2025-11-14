@@ -33,6 +33,7 @@ from app.models.entity_models import (
     EntityRelationship,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
+    EntityType,
 )
 from app.config.settings import settings
 from app.utils.pydantic_helper import filter_none_values
@@ -260,7 +261,7 @@ class MemoryToolAdapters:
         memory_id: int,
         related_ids: List[int],
         ctx: Context,
-    ) -> List[int]:
+    ) -> dict:
         """Adapter for link_memories tool"""
         logger.info(
             "MCP Tool -> link_memories",
@@ -294,7 +295,7 @@ class MemoryToolAdapters:
             }
         )
 
-        return links_created
+        return {"linked_memory_ids": links_created}
 
     async def get_memory(
         self,
@@ -327,7 +328,7 @@ class MemoryToolAdapters:
         reason: str,
         ctx: Context,
         superseded_by: Optional[int] = None,
-    ) -> bool:
+    ) -> dict:
         """Adapter for mark_memory_obsolete tool"""
         logger.info(
             "MCP Tool -> mark_memory_obsolete",
@@ -343,7 +344,7 @@ class MemoryToolAdapters:
             superseded_by=superseded_by
         )
 
-        return success
+        return {"success": success}
 
 
 def create_memory_adapters(
@@ -425,12 +426,12 @@ class ProjectToolAdapters:
             notes=notes,
         )
 
-        updated_project = ProjectUpdate(**updated_dict)
+        project_data = ProjectUpdate(**updated_dict)
 
         project = await self.project_service.update_project(
             user_id=user.id,
             project_id=project_id,
-            updated_project=updated_project,
+            project_data=project_data,
         )
 
         return project
@@ -448,24 +449,28 @@ class ProjectToolAdapters:
             project_id=project_id
         )
 
-        return result
+        return {"success": result, "project_id": project_id}
 
     async def list_projects(
         self,
         ctx: Context,
-        status: Optional[ProjectStatus] = None,
+        status: Optional[str] = None,
         repo_name: Optional[str] = None,
     ) -> dict:
         """Adapter for list_projects tool"""
         user = await get_user_from_auth(ctx)
 
+        # Convert string to enum if provided
+        status_enum = ProjectStatus(status) if status else None
+
         result = await self.project_service.list_projects(
             user_id=user.id,
-            status=status,
+            status=status_enum,
             repo_name=repo_name,
         )
 
-        return {"projects": result, "count": len(result)}
+        count = len(result)
+        return {"projects": result, "total_count": count, "count": count}
 
     async def get_project(
         self,
@@ -570,7 +575,7 @@ class CodeArtifactToolAdapters:
             tags=tags,
         )
 
-        return {"code_artifacts": result, "count": len(result)}
+        return {"code_artifacts": result, "total_count": len(result)}
 
     async def update_code_artifact(
         self,
@@ -595,12 +600,12 @@ class CodeArtifactToolAdapters:
             project_id=project_id,
         )
 
-        updated_artifact = CodeArtifactUpdate(**updated_dict)
+        artifact_data = CodeArtifactUpdate(**updated_dict)
 
         artifact = await self.code_artifact_service.update_code_artifact(
             user_id=user.id,
             artifact_id=artifact_id,
-            updated_artifact=updated_artifact,
+            artifact_data=artifact_data,
         )
 
         return artifact
@@ -618,7 +623,7 @@ class CodeArtifactToolAdapters:
             artifact_id=artifact_id
         )
 
-        return result
+        return {"success": result, "deleted_id": artifact_id}
 
 
 def create_code_artifact_adapters(
@@ -710,7 +715,7 @@ class DocumentToolAdapters:
             tags=tags,
         )
 
-        return {"documents": result, "count": len(result)}
+        return {"documents": result, "total_count": len(result)}
 
     async def update_document(
         self,
@@ -737,12 +742,12 @@ class DocumentToolAdapters:
             project_id=project_id,
         )
 
-        updated_document = DocumentUpdate(**updated_dict)
+        document_data = DocumentUpdate(**updated_dict)
 
         document = await self.document_service.update_document(
             user_id=user.id,
             document_id=document_id,
-            updated_document=updated_document,
+            document_data=document_data,
         )
 
         return document
@@ -760,7 +765,7 @@ class DocumentToolAdapters:
             document_id=document_id
         )
 
-        return result
+        return {"success": result, "deleted_id": document_id}
 
 
 def create_document_adapters(
@@ -845,14 +850,17 @@ class EntityToolAdapters:
         """Adapter for list_entities tool"""
         user = await get_user_from_auth(ctx)
 
+        # Convert string to enum if provided
+        entity_type_enum = EntityType(entity_type) if entity_type else None
+
         result = await self.entity_service.list_entities(
             user_id=user.id,
             project_id=project_id,
-            entity_type=entity_type,
+            entity_type=entity_type_enum,
             tags=tags,
         )
 
-        return {"entities": result, "count": len(result)}
+        return {"entities": result, "total_count": len(result)}
 
     async def update_entity(
         self,
@@ -900,7 +908,7 @@ class EntityToolAdapters:
             entity_id=entity_id
         )
 
-        return result
+        return {"success": result, "deleted_id": entity_id}
 
     async def link_entity_to_memory(
         self,
@@ -917,7 +925,7 @@ class EntityToolAdapters:
             memory_id=memory_id
         )
 
-        return result
+        return {"success": result}
 
     async def unlink_entity_from_memory(
         self,
@@ -934,7 +942,7 @@ class EntityToolAdapters:
             memory_id=memory_id
         )
 
-        return result
+        return {"success": result}
 
     async def create_entity_relationship(
         self,
@@ -982,7 +990,7 @@ class EntityToolAdapters:
             relationship_type=relationship_type,
         )
 
-        return result
+        return {"relationships": result}
 
     async def update_entity_relationship(
         self,
@@ -1026,7 +1034,7 @@ class EntityToolAdapters:
             relationship_id=relationship_id
         )
 
-        return result
+        return {"success": result, "deleted_id": relationship_id}
 
 
 def create_entity_adapters(

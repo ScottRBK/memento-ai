@@ -547,8 +547,6 @@ def register_all_tools_metadata(
 
     # Import adapter factory functions
     from app.routes.mcp.tool_adapters import (
-        create_user_adapters,
-        create_memory_adapters,
         create_project_adapters,
         create_code_artifact_adapters,
         create_document_adapters,
