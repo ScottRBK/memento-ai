@@ -44,6 +44,23 @@ These tests use in-memory stubs and run fast (~seconds). They form the bulk of o
 
 ### End-to-End Tests
 
+#### SQLite E2E Tests (Default)
+
+**Location**: `tests/e2e_sqlite/`
+
+**Purpose**: Test complete stack with in-memory SQLite
+
+**Requirements**: None (no Docker required)
+
+**Run locally**:
+```bash
+pytest tests/e2e_sqlite/
+```
+
+These tests run by default and use an in-memory SQLite database for test isolation. Fast execution (~30 seconds for 94 tests) with automatic cleanup.
+
+#### PostgreSQL E2E Tests
+
 **Location**: `tests/e2e/`
 
 **Purpose**: Test complete stack with real PostgreSQL
@@ -59,7 +76,8 @@ docker compose up -d postgres
 pytest -m e2e
 ```
 
-These tests are marked with `@pytest.mark.e2e` and skipped by default. They validate the full application stack.
+These tests are marked with `@pytest.mark.e2e` and skipped by default. They validate the full application stack with PostgreSQL backend.
+
 ---
 ## Linting
 linting with ruff and uv

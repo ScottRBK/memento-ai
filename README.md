@@ -63,7 +63,7 @@ Heavily influenced by the [Zettelkasten principle](https://en.wikipedia.org/wiki
 - **Multi-Resource Support** – Memories + Projects + Code Artifacts + Documents (organized hierarchy)
 - **Token Budget Protection** – Configurable limits prevent context window overload (default 8K tokens)
 - **Local Processing** – No external API calls; embeddings generated locally via FastEmbed
-- **Production-Grade Storage** – PostgreSQL with pgvector extension for reliability and scale
+- **Flexible Storage** – SQLite (default, zero-config) or PostgreSQL (for scale and production deployments)
 - **Two-Tier Retrieval** – Returns primary results + 1-hop linked memories for richer context
 
 For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
@@ -72,17 +72,24 @@ For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 
 ## Quick Start
 
-
-### Deploy with Docker
-
-See [deployment docker file](/docker/docker-compose.deployment.yml) and [.env.example](/docker/.env.example)
-
-### Cloned Repo and Docker
+### Option 1: SQLite (Zero Config, Recommended for Getting Started)
 
 ```bash
 git clone https://github.com/ScottRBK/forgetful.git
 cd forgetful
+
+# Install dependencies with uv
+uv sync
+
+# Run the server (uses SQLite by default)
+uv run python -m app.main
 ```
+
+The server starts on `http://localhost:8020` with SQLite database (`forgetful.db`) created automatically.
+
+### Option 2: PostgreSQL with Docker (For Production/Scale)
+
+See [deployment docker file](/docker/docker-compose.deployment.yml) and [.env.example](/docker/.env.example)
 
 ```bash
 cd docker

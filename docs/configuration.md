@@ -84,15 +84,35 @@ docker compose up -d
 
 ---
 
-## Database Configuration
+## Database Configuration (SQLite/PostgreSQL)
 
 ### `DATABASE`
-- **Default**: `Postgres`
-- **Description**: Database type identifier
-- **Note**: Currently only PostgreSQL is supported
-- **Example**: `DATABASE=Postgres`
+- **Default**: `SQLite`
+- **Description**: Database backend to use
+- **Values**:
+  - `SQLite` - Lightweight, zero-config (default, recommended for getting started)
+  - `Postgres` - Production-grade, scalable (recommended for high load)
+- **Example**: `DATABASE=SQLite`
 
-### `POSTGRES_HOST`
+### SQLite Settings
+
+#### `SQLITE_PATH`
+- **Default**: `forgetful.db`
+- **Description**: File path for SQLite database
+- **Note**: Relative paths are relative to the project root
+- **Example**: `SQLITE_PATH=/data/forgetful.db`
+
+#### `SQLITE_MEMORY`
+- **Default**: `false`
+- **Description**: Use in-memory database (ephemeral, for testing only)
+- **Values**: `true`, `false`
+- **Example**: `SQLITE_MEMORY=false`
+
+### PostgreSQL Settings
+
+**Note**: These settings only apply when `DATABASE=Postgres`
+
+#### `POSTGRES_HOST`
 - **Default**: `127.0.0.1`
 - **Description**: PostgreSQL server hostname
 - **Values**:
@@ -114,18 +134,20 @@ docker compose up -d
 ### `POSTGRES_USER`
 - **Default**: `forgetful`
 - **Description**: PostgreSQL username for authentication
-- **  Security**: Change this in production deployments
+- **ï¿½ Security**: Change this in production deployments
 - **Example**: `POSTGRES_USER=my_secure_user`
 
 ### `POSTGRES_PASSWORD`
 - **Default**: `forgetful`
 - **Description**: PostgreSQL password for authentication
-- **  Security**: **Always change this in production deployments**
+- **ï¿½ Security**: **Always change this in production deployments**
 - **Example**: `POSTGRES_PASSWORD=my_secure_password_123`
 
-### `DB_LOGGING`
+### Common Database Settings
+
+#### `DB_LOGGING`
 - **Default**: `false`
-- **Description**: Enable SQL query logging for debugging
+- **Description**: Enable SQL query logging for debugging (applies to both SQLite and PostgreSQL)
 - **Values**: `true`, `false`
 - **Note**: Very verbose - use only for troubleshooting
 - **Example**: `DB_LOGGING=true`
@@ -134,7 +156,7 @@ docker compose up -d
 
 ## Authentication Configuration
 
-  **Note**: Authentication is not yet implemented (roadmap feature)
+ï¿½ **Note**: Authentication is not yet implemented (roadmap feature)
 
 ### `AUTH_ENABLED`
 - **Default**: `false`
@@ -347,7 +369,7 @@ DENSE_SEARCH_CANDIDATES=100
 LOG_LEVEL=DEBUG
 DB_LOGGING=true
 ```
-  **Warning**: Very verbose output, use only for troubleshooting
+ï¿½ **Warning**: Very verbose output, use only for troubleshooting
 
 ---
 
