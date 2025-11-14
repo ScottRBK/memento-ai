@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 from typing import List
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_, func
 
 from app.repositories.sqlite.sqlite_tables import (
     EntitiesTable,
@@ -162,8 +162,13 @@ class SqliteEntityRepository:
                     stmt = stmt.where(EntitiesTable.entity_type == entity_type.value)
 
                 if tags:
-                    # GIN array overlap search - finds entities with ANY of the provided tags
-                    stmt = stmt.where(EntitiesTable.tags.overlap(tags))
+                    # SQLite JSON array search - finds entities with ANY of the provided tags
+                    # Check if any provided tag exists in the JSON array
+                    tag_conditions = [
+                        func.json_extract(EntitiesTable.tags, '$').like(f'%"{tag}"%')
+                        for tag in tags
+                    ]
+                    stmt = stmt.where(or_(*tag_conditions))
 
                 # Order by creation date (newest first)
                 stmt = stmt.order_by(EntitiesTable.created_at.desc())

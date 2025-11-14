@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 
 from app.repositories.sqlite.sqlite_tables import DocumentsTable
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
@@ -159,8 +159,12 @@ class SqliteDocumentRepository:
                     stmt = stmt.where(DocumentsTable.document_type == document_type)
 
                 if tags:
-                    # GIN array overlap search - finds documents with ANY of the provided tags
-                    stmt = stmt.where(DocumentsTable.tags.overlap(tags))
+                    # SQLite JSON array search - finds documents with ANY of the provided tags
+                    tag_conditions = [
+                        func.json_extract(DocumentsTable.tags, '$').like(f'%"{tag}"%')
+                        for tag in tags
+                    ]
+                    stmt = stmt.where(or_(*tag_conditions))
 
                 # Order by creation date (newest first)
                 stmt = stmt.order_by(DocumentsTable.created_at.desc())

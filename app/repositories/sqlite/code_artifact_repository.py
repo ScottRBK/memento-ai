@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 
 from app.repositories.sqlite.sqlite_tables import CodeArtifactsTable
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
@@ -153,8 +153,12 @@ class SqliteCodeArtifactRepository:
                     stmt = stmt.where(CodeArtifactsTable.language == language.lower())
 
                 if tags:
-                    # GIN array overlap search - finds artifacts with ANY of the provided tags
-                    stmt = stmt.where(CodeArtifactsTable.tags.overlap(tags))
+                    # SQLite JSON array search - finds artifacts with ANY of the provided tags
+                    tag_conditions = [
+                        func.json_extract(CodeArtifactsTable.tags, '$').like(f'%"{tag}"%')
+                        for tag in tags
+                    ]
+                    stmt = stmt.where(or_(*tag_conditions))
 
                 # Order by creation date (newest first)
                 stmt = stmt.order_by(CodeArtifactsTable.created_at.desc())
