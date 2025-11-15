@@ -1,0 +1,26 @@
+name: forgetful
+
+networks:
+  forgetful:
+
+services:
+  forgetful-service:
+    image: ghcr.io/scottrbk/forgetful:${IMAGE_TAG:-latest}
+    container_name: forgetful-service
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${SERVER_PORT:-8020}:${SERVER_PORT:-8020}"
+    env_file:
+      - path: .env
+        required: false
+    networks:
+      - forgetful
+    volumes:
+      # Mount data directory for SQLite database persistence
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8020}/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 90s

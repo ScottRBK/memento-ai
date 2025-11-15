@@ -16,6 +16,46 @@ docker compose up -d
 
 ---
 
+## Docker Deployment Options
+
+Forgetful provides three Docker Compose configurations:
+
+### Local Development (`docker-compose.yml`)
+- **Use case**: Local development with hot reload and build context
+- **Features**: Builds from source, optional volume mounting for live code updates
+- **Command**: `docker compose up -d --build`
+
+### SQLite Deployment (`docker-compose.sqlite.yml`)
+- **Use case**: Production deployment with single-container simplicity
+- **Features**:
+  - Single container (no separate database service)
+  - Persistent storage via `./data:/app/data` volume mount
+  - Zero-config database setup
+- **Setup**:
+  ```bash
+  cd docker
+  cp .env.example .env
+  # Edit .env: Set DATABASE=SQLite, SQLITE_PATH=data/forgetful.db
+  docker compose -f docker-compose.sqlite.yml up -d
+  ```
+- **Important**: The `./data` directory persists your database across container restarts
+
+### PostgreSQL Deployment (`docker-compose.postgres.yml`)
+- **Use case**: Production deployment with PostgreSQL for scale and robustness
+- **Features**:
+  - Multi-container stack (app + PostgreSQL + pgvector)
+  - Named volume for database persistence
+  - Production-grade database with vector search
+- **Setup**:
+  ```bash
+  cd docker
+  cp .env.example .env
+  # Edit .env: Set DATABASE=Postgres, configure POSTGRES_* settings
+  docker compose -f docker-compose.postgres.yml up -d
+  ```
+
+---
+
 ## Application Info
 
 ### `SERVICE_NAME`
@@ -99,8 +139,11 @@ docker compose up -d
 #### `SQLITE_PATH`
 - **Default**: `forgetful.db`
 - **Description**: File path for SQLite database
-- **Note**: Relative paths are relative to the project root
-- **Example**: `SQLITE_PATH=/data/forgetful.db`
+- **Notes**:
+  - Relative paths are relative to the project root (or `/app` in Docker containers)
+  - **Docker deployment**: Use `data/forgetful.db` with volume mount `./data:/app/data` to persist data across container restarts (see `docker-compose.sqlite.yml`)
+  - Without volume mounting, the database will be ephemeral and lost on container removal
+- **Example**: `SQLITE_PATH=data/forgetful.db`
 
 #### `SQLITE_MEMORY`
 - **Default**: `false`

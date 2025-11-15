@@ -72,7 +72,7 @@ For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 
 ## Quick Start
 
-### Option 1: SQLite (Zero Config, Recommended for Getting Started)
+### Option 1: From source (defaults to SQL Lite)
 
 ```bash
 git clone https://github.com/ScottRBK/forgetful.git
@@ -87,25 +87,35 @@ uv run python -m app.main
 
 The server starts on `http://localhost:8020` with SQLite database (`forgetful.db`) created automatically.
 
-### Option 2: PostgreSQL with Docker (For Production/Scale)
+### Option 2: Docker Deployment (Production/Scale)
 
-See [deployment docker file](/docker/docker-compose.deployment.yml) and [.env.example](/docker/.env.example)
+Forgetful provides two Docker deployment options:
 
-```bash
-cd docker
-docker compose up -d --build
-```
+#### SQLite with Docker (Simpler, Single-Container)
 
-**Optional**: Customize configuration by copying the example environment file:
+See [docker-compose.sqlite.yml](/docker/docker-compose.sqlite.yml)
 
 ```bash
 cd docker
 cp .env.example .env
-# Edit .env with your custom values
-docker compose up -d
+# Edit .env: Set DATABASE=SQLite and SQLITE_PATH=data/forgetful.db
+docker compose -f docker-compose.sqlite.yml up -d
 ```
 
-If no `.env` file exists, the application uses defaults from `app/config/settings.py`.
+The SQLite database persists in the `./data` directory on the host.
+
+#### PostgreSQL with Docker (Recommended for multitenant)
+
+See [docker-compose.postgres.yml](/docker/docker-compose.postgres.yml) and [.env.example](/docker/.env.example)
+
+```bash
+cd docker
+cp .env.example .env
+# Edit .env: Set DATABASE=Postgres and configure POSTGRES_* settings
+docker compose -f docker-compose.postgres.yml up -d
+```
+
+**Note**: If no `.env` file exists, the application uses defaults from `app/config/settings.py`.
 For all configuration options, see [Configuration Guide](docs/configuration.md).
 
 ### Connecting to An Agent

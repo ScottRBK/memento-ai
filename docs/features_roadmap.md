@@ -15,7 +15,7 @@
     - [ ] Implement Authorisation Code flow support [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
     - [ ] Dynamic Client Registration Authorisation Code Flow [RFC 7591](https://datatracker.ietf.org/doc/html/rfc7591)
 - [ ] Repository Adapters
-    - Add SQLLite repository support
+    - [x] Add SQLLite repository support
 - [ ] Embedding Adapters
     - [x] Fastembed
     - [ ] Google
