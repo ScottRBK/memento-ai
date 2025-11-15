@@ -500,6 +500,40 @@ def register_memory_tools_metadata(
             ],
             "tags": ["memory", "delete", "obsolete", "lifecycle"],
         },
+        {
+            "name": "get_recent_memories",
+            "description": "Retrieve most recent memories sorted by creation timestamp (newest first)",
+            "parameters": [
+                {
+                    "name": "ctx",
+                    "type": "Context",
+                    "description": "FastMCP Context (automatically injected)",
+                    "required": True,
+                },
+                {
+                    "name": "limit",
+                    "type": "int",
+                    "description": "Maximum number of memories to return (1-100)",
+                    "required": False,
+                    "default": 10,
+                    "example": 10
+                },
+                {
+                    "name": "project_ids",
+                    "type": "Optional[List[int]]",
+                    "description": "Optional filter to specific projects",
+                    "required": False,
+                    "default": None,
+                    "example": [1, 3]
+                },
+            ],
+            "returns": "List of Memory objects sorted by created_at DESC",
+            "examples": [
+                'execute_forgetful_tool("get_recent_memories", {"limit": 5})',
+                'execute_forgetful_tool("get_recent_memories", {"limit": 10, "project_ids": [1, 2]})',
+            ],
+            "tags": ["memory", "query", "recency", "timeline"],
+        },
     ]
 
     for tool_def in tools:
@@ -958,6 +992,23 @@ def register_entity_tools_metadata(
                 'execute_forgetful_tool("list_entities", {"entity_type": "organization"})',
             ],
             "tags": ["entity", "list", "query"],
+        },
+        {
+            "name": "search_entities",
+            "description": "Search entities by name using text matching (case-insensitive)",
+            "parameters": [
+                {"name": "query", "type": "str", "description": "Text to search for in entity name", "required": True, "example": "tech"},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "entity_type", "type": "Optional[str]", "description": "Filter by entity type", "required": False, "default": None, "example": "Organization"},
+                {"name": "tags", "type": "Optional[List[str]]", "description": "Filter by tags (returns entities with ANY of these)", "required": False, "default": None, "example": ["startup"]},
+                {"name": "limit", "type": "int", "description": "Maximum number of results (1-100)", "required": False, "default": 20, "example": 20},
+            ],
+            "returns": "Dictionary with entities list, total_count, search_query, and filters",
+            "examples": [
+                'execute_forgetful_tool("search_entities", {"query": "tech"})',
+                'execute_forgetful_tool("search_entities", {"query": "server", "entity_type": "Device", "limit": 10})',
+            ],
+            "tags": ["entity", "search", "query", "text"],
         },
         {
             "name": "update_entity",

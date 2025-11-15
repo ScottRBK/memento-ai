@@ -251,6 +251,87 @@ def register(mcp: FastMCP):
             raise ToolError(f"Failed to list entities: {str(e)}")
 
     @mcp.tool()
+    async def search_entities(
+        query: str,
+        ctx: Context,
+        entity_type: str = None,
+        tags: List[str] = None,
+        limit: int = 20
+    ) -> dict:
+        """
+        Search entities by name using text matching.
+
+        WHEN: Looking for specific entities by name. Examples:
+        - "Find entities named Sarah"
+        - "Search for organizations containing 'Tech'"
+        - "Find all entities with 'server' in name"
+
+        BEHAVIOR: Case-insensitive text search on entity name field. Returns lightweight
+        entity summaries (excludes notes to save tokens). Results sorted by creation date
+        (newest first). Use get_entity for full details including notes.
+
+        NOT-USE: Listing all entities (use list_entities), semantic/meaning-based search
+        (not available for entities), searching memories (use query_memory).
+
+        FILTERS (optional):
+        - entity_type: Filter by type (Organization, Individual, Team, Device, Other)
+        - tags: Show entities with ANY of these tags (OR logic)
+        - limit: Maximum results (1-100, default 20)
+
+        Args:
+            query: Text to search for in entity name (required)
+            entity_type: Optional filter by entity type
+            tags: Optional filter by tags (returns entities with ANY matching tag)
+            limit: Maximum number of results (1-100, default 20)
+            ctx: Context (automatically injected)
+
+        Returns:
+            Dict with entities list, total_count, and search_query
+        """
+
+        logger.info("MCP Tool Called -> search_entities", extra={
+            "query": query,
+            "entity_type": entity_type,
+            "tags": tags,
+            "limit": limit
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            # Convert entity_type string to enum if provided
+            entity_type_enum = EntityType(entity_type) if entity_type else None
+
+            # Clamp limit to reasonable range
+            limit = max(1, min(limit, 100))
+
+            entity_service = ctx.fastmcp.entity_service
+            entities = await entity_service.search_entities(
+                user_id=user.id,
+                search_query=query,
+                entity_type=entity_type_enum,
+                tags=tags,
+                limit=limit
+            )
+
+            return {
+                "entities": entities,
+                "total_count": len(entities),
+                "search_query": query,
+                "filters": {
+                    "entity_type": entity_type,
+                    "tags": tags,
+                    "limit": limit
+                }
+            }
+
+        except ValueError as e:
+            raise ToolError(f"Invalid entity_type: {e}")
+        except Exception as e:
+            logger.error("Failed to search entities", exc_info=True)
+            raise ToolError(f"Failed to search entities: {str(e)}")
+
+    @mcp.tool()
     async def update_entity(
         entity_id: int,
         ctx: Context,

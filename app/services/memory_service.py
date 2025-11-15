@@ -284,7 +284,29 @@ class MemoryService:
             user_id=user_id
         )
 
-    
+    async def get_recent_memories(
+            self,
+            user_id: UUID,
+            limit: int = 10,
+            project_ids: List[int] | None = None
+    ) -> List[Memory]:
+        """
+        Retrieve most recent memories sorted by creation timestamp
+
+        Args:
+            user_id: User ID
+            limit: Maximum number of memories to return
+            project_ids: Optional filter to only retrieve memories from specific projects
+
+        Returns:
+            List of Memory objects sorted by created_at DESC (newest first)
+        """
+        return await self.memory_repo.get_recent_memories(
+            user_id=user_id,
+            limit=limit,
+            project_ids=project_ids
+        )
+
     async def link_memories(
             self,
             user_id: UUID,

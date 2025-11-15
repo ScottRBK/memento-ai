@@ -508,8 +508,77 @@ def register(mcp: FastMCP):
                 "error_message": str(e),
             })
             raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {str(e)}")
-        
-    
+
+    @mcp.tool()
+    async def get_recent_memories(
+        ctx: Context,
+        limit: int = 10,
+        project_ids: List[int] = None
+    ) -> List[Memory]:
+        """
+        Retrieve most recent memories by creation timestamp
+
+        WHEN: You want to see what was recently learned, created, or discussed. Useful for getting context on recent
+        work, reviewing recent decisions, or understanding what was added to memory recently.
+
+        BEHAVIOR: Returns memories sorted by creation date (newest first). Optionally filter to specific projects.
+        Does not use semantic search - purely timestamp-based retrieval. Excludes obsolete memories.
+
+        NOT-USE: Searching for specific topics (use query_memory), getting a specific memory by ID (use get_memory),
+        or listing all memories without time constraints.
+
+        Args:
+            limit: Number of memories to return (1-100, default 10)
+            project_ids: Optional filter to specific projects. Accepts array [1] or [1, 3] for multiple
+
+        Returns:
+            List of Memory objects sorted by created_at DESC (newest first)
+        """
+        try:
+            logger.info("MCP Tool -> get_recent_memories", extra={
+                "limit": limit,
+                "project_ids": project_ids
+            })
+
+            user = await get_user_from_auth(ctx)
+
+            # Clamp limit to reasonable range
+            limit = max(1, min(limit, 100))
+
+            memory_service = ctx.fastmcp.memory_service
+            memories = await memory_service.get_recent_memories(
+                user_id=user.id,
+                limit=limit,
+                project_ids=project_ids
+            )
+
+            logger.info("MCP Tool - get_recent_memories completed", extra={
+                "count": len(memories),
+                "user_id": str(user.id)
+            })
+
+            return memories
+
+        except NotFoundError as e:
+            logger.debug("MCP Tool - get_recent_memories validation error", extra={
+                "error_type": "NotFoundError",
+                "error_message": str(e)
+            })
+            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+        except ValidationError as e:
+            error_details = str(e)
+            logger.debug("MCP Tool - get_recent_memories validation error", extra={
+                "error_type": "ValidationError",
+                "error_message": error_details
+            })
+            raise ToolError(f"VALIDATION_ERROR: {error_details}")
+        except Exception as e:
+            logger.error("MCP Tool -> get_recent_memories failed", exc_info=True, extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e)
+            })
+            raise ToolError(f"INTERNAL_ERROR: Retrieving recent memories failed - {type(e).__name__}: {str(e)}")
+
     @mcp.tool()
     async def mark_memory_obsolete(
         memory_id: int,

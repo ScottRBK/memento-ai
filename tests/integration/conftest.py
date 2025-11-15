@@ -349,6 +349,28 @@ class InMemoryMemoryRepository(MemoryRepository):
 
         return True
 
+    async def get_recent_memories(
+        self,
+        user_id: UUID,
+        limit: int,
+        project_ids: List[int] | None = None
+    ) -> List[Memory]:
+        """Get most recent memories sorted by creation timestamp"""
+        user_memories = self._memories.get(user_id, {})
+        memories = list(user_memories.values())
+
+        # Filter out obsolete memories
+        memories = [m for m in memories if not m.is_obsolete]
+
+        # Apply project filter if provided
+        if project_ids:
+            memories = [m for m in memories if any(pid in m.project_ids for pid in project_ids)]
+
+        # Sort by created_at descending (newest first)
+        memories.sort(key=lambda m: m.created_at, reverse=True)
+
+        return memories[:limit]
+
 
 @pytest.fixture
 def mock_embeddings_adapter():
@@ -736,6 +758,34 @@ class InMemoryEntityRepository(EntityRepository):
 
         entities.sort(key=lambda e: e.created_at, reverse=True)
         return [EntitySummary.model_validate(e) for e in entities]
+
+    async def search_entities(
+        self,
+        user_id: UUID,
+        search_query: str,
+        entity_type: EntityType | None = None,
+        tags: List[str] | None = None,
+        limit: int = 20
+    ) -> List[EntitySummary]:
+        """Search entities by name using case-insensitive text matching"""
+        user_entities = self._entities.get(user_id, {})
+        entities = list(user_entities.values())
+
+        # Filter by name (case-insensitive search)
+        search_lower = search_query.lower()
+        entities = [e for e in entities if search_lower in e.name.lower()]
+
+        # Apply optional filters
+        if entity_type:
+            entities = [e for e in entities if e.entity_type == entity_type]
+        if tags:
+            entities = [e for e in entities if any(t in e.tags for t in tags)]
+
+        # Sort by creation date (newest first)
+        entities.sort(key=lambda e: e.created_at, reverse=True)
+
+        # Apply limit
+        return [EntitySummary.model_validate(e) for e in entities[:limit]]
 
     async def update_entity(self, user_id: UUID, entity_id: int, entity_data: EntityUpdate) -> Entity:
         entity = await self.get_entity_by_id(user_id, entity_id)

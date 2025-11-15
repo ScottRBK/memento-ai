@@ -189,6 +189,73 @@ class SqliteEntityRepository:
             )
             raise
 
+    async def search_entities(
+        self,
+        user_id: UUID,
+        search_query: str,
+        entity_type: EntityType | None = None,
+        tags: List[str] | None = None,
+        limit: int = 20
+    ) -> List[EntitySummary]:
+        """Search entities by name using text matching
+
+        Args:
+            user_id: User ID for ownership filtering
+            search_query: Text to search for in entity name
+            entity_type: Optional filter by entity type
+            tags: Optional filter by tags (returns entities with ANY of these tags)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of EntitySummary matching the search
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                # Build query with name search (LIKE is case-insensitive in SQLite by default)
+                search_pattern = f"%{search_query}%"
+                stmt = select(EntitiesTable).where(
+                    EntitiesTable.user_id == str(user_id),
+                    EntitiesTable.name.like(search_pattern)
+                )
+
+                # Apply optional filters
+                if entity_type:
+                    stmt = stmt.where(EntitiesTable.entity_type == entity_type.value)
+
+                if tags:
+                    # SQLite JSON array search - finds entities with ANY of the provided tags
+                    tag_conditions = [
+                        func.json_extract(EntitiesTable.tags, '$').like(f'%"{tag}"%')
+                        for tag in tags
+                    ]
+                    stmt = stmt.where(or_(*tag_conditions))
+
+                # Order by creation date (newest first) and limit
+                stmt = stmt.order_by(EntitiesTable.created_at.desc()).limit(limit)
+
+                result = await session.execute(stmt)
+                entities = result.scalars().all()
+
+                logger.info("Entity search completed", extra={
+                    "user_id": str(user_id),
+                    "query": search_query,
+                    "results_count": len(entities)
+                })
+
+                return [EntitySummary.model_validate(e) for e in entities]
+
+        except Exception as e:
+            logger.error(
+                "Failed to search entities",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "query": search_query,
+                    "error": str(e)
+                }
+            )
+            raise
+
     async def update_entity(
         self,
         user_id: UUID,

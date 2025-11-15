@@ -672,6 +672,63 @@ class SqliteMemoryRepository:
 
         return links_created
 
+    async def get_recent_memories(
+            self,
+            user_id: UUID,
+            limit: int,
+            project_ids: List[int] | None = None
+    ) -> List[Memory]:
+        """
+        Get most recent memories sorted by creation timestamp
+
+        Args:
+            user_id: User ID for ownership filtering
+            limit: Maximum number of memories to return
+            project_ids: Optional filter to only retrieve memories from specific projects
+
+        Returns:
+            List of Memory objects sorted by created_at DESC (newest first)
+        """
+        from app.repositories.sqlite.sqlite_tables import memory_project_association
+
+        stmt = (
+            select(MemoryTable)
+            .options(
+                selectinload(MemoryTable.projects),
+                selectinload(MemoryTable.linked_memories),
+                selectinload(MemoryTable.code_artifacts),
+                selectinload(MemoryTable.documents)
+            )
+            .where(
+                MemoryTable.user_id == str(user_id),
+                MemoryTable.is_obsolete.is_(False)
+            )
+        )
+
+        # Apply project filter if provided
+        if project_ids:
+            project_filter = select(memory_project_association.c.memory_id).where(
+                memory_project_association.c.memory_id == MemoryTable.id,
+                memory_project_association.c.project_id.in_(project_ids)
+            ).exists()
+            stmt = stmt.where(project_filter)
+
+        # Order by creation date descending and limit results
+        stmt = stmt.order_by(MemoryTable.created_at.desc()).limit(limit)
+
+        async with self.db_adapter.session(user_id) as session:
+            result = await session.execute(stmt)
+            memories = result.scalars().all()
+
+            logger.info("Retrieved recent memories", extra={
+                "user_id": str(user_id),
+                "count": len(memories),
+                "limit": limit,
+                "project_filtered": project_ids is not None
+            })
+
+            return [Memory.model_validate(m) for m in memories]
+
     async def _link_projects(self, session, memory: MemoryTable, project_ids: List[int], user_id: UUID) -> None:
         """Link memory to projects"""
         stmt = select(ProjectsTable).where(

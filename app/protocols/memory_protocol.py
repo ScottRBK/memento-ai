@@ -69,5 +69,13 @@ class MemoryRepository(Protocol):
             max_links: int
     ) -> List[Memory]:
         ...
-            
+
+    async def get_recent_memories(
+            self,
+            user_id: UUID,
+            limit: int,
+            project_ids: List[int] | None = None
+    ) -> List[Memory]:
+        ...
+
 

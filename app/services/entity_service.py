@@ -172,6 +172,55 @@ class EntityService:
 
         return entities
 
+    async def search_entities(
+        self,
+        user_id: UUID,
+        search_query: str,
+        entity_type: EntityType | None = None,
+        tags: List[str] | None = None,
+        limit: int = 20
+    ) -> List[EntitySummary]:
+        """Search entities by name using text matching
+
+        Args:
+            user_id: User ID for ownership filtering
+            search_query: Text to search for in entity name
+            entity_type: Optional filter by entity type
+            tags: Optional filter by tags (returns entities with ANY of these tags)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of EntitySummary matching the search
+        """
+        logger.info(
+            "searching entities",
+            extra={
+                "user_id": str(user_id),
+                "query": search_query,
+                "entity_type": entity_type.value if entity_type else None,
+                "tags": tags,
+                "limit": limit
+            }
+        )
+
+        entities = await self.entity_repo.search_entities(
+            user_id=user_id,
+            search_query=search_query,
+            entity_type=entity_type,
+            tags=tags,
+            limit=limit
+        )
+
+        logger.info(
+            "entity search completed",
+            extra={
+                "count": len(entities),
+                "user_id": str(user_id)
+            }
+        )
+
+        return entities
+
     async def update_entity(
         self,
         user_id: UUID,

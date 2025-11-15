@@ -8,7 +8,7 @@
     - [ ] Images
     - [ ] Video 
 - [ ] Search Enhancements
-    - Implement Cross-Encoder reranking
+    - [ ] Implement Cross-Encoder reranking
 - [ ] Dynamic Tool Discovery 
 - [ ] Authentication 
     - [ ] Implement Opaque Bearer Token authorisation support [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662)

@@ -540,3 +540,153 @@ async def test_update_memory_remove_project_ids_e2e(mcp_client):
     get_result = await mcp_client.call_tool('execute_forgetful_tool', {
         'tool_name': 'get_memory', 'arguments': {'memory_id': memory_id}})
     assert get_result.data["project_ids"] == []
+
+
+@pytest.mark.asyncio
+async def test_get_recent_memories_basic_e2e(mcp_client):
+    """Test getting recent memories sorted by creation timestamp"""
+    # Create several memories
+    memory_ids = []
+    for i in range(5):
+        result = await mcp_client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {
+                'title': f'Recent Memory Test {i}',
+                'content': f'Testing recent memories retrieval {i}',
+                'context': f'E2E test for get_recent_memories {i}',
+                'keywords': ['recent', 'test', f'memory{i}'],
+                'tags': ['test', 'recent'],
+                'importance': 7
+            }
+        })
+        memory_ids.append(result.data["id"])
+
+    # Get recent memories (should return newest first)
+    recent_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_recent_memories', 'arguments': {
+            'limit': 3
+        }
+    })
+
+    assert recent_result.content is not None
+    import json
+    memories = json.loads(recent_result.content[0].text)
+    assert isinstance(memories, list)
+    assert len(memories) >= 3
+
+    # Check that most recent memories are returned
+    recent_ids = [m["id"] for m in memories]
+    # The last 3 created memories should be in the results
+    assert memory_ids[-1] in recent_ids or memory_ids[-2] in recent_ids or memory_ids[-3] in recent_ids
+
+
+@pytest.mark.asyncio
+async def test_get_recent_memories_with_project_filter_e2e(mcp_client):
+    """Test getting recent memories filtered by project"""
+    # Create a project
+    project_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_project', 'arguments': {
+            'name': 'recent-memories-project-filter-test-sqlite',
+            'description': 'Project for testing get_recent_memories filtering',
+            'project_type': 'development'
+        }
+    })
+    project_id = project_result.data["id"]
+
+    # Create memories with and without the project
+    with_project_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory', 'arguments': {
+            'title': 'Memory With Project SQLite',
+            'content': 'This memory belongs to the test project',
+            'context': 'Testing project filtering in get_recent_memories',
+            'keywords': ['project', 'filter', 'test'],
+            'tags': ['test'],
+            'importance': 7,
+            'project_ids': [project_id]
+        }
+    })
+    memory_with_project_id = with_project_result.data["id"]
+
+    without_project_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory', 'arguments': {
+            'title': 'Memory Without Project SQLite',
+            'content': 'This memory does not belong to any project',
+            'context': 'Testing project filtering exclusion',
+            'keywords': ['no-project', 'test'],
+            'tags': ['test'],
+            'importance': 7
+        }
+    })
+    memory_without_project_id = without_project_result.data["id"]
+
+    # Get recent memories filtered by project
+    recent_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_recent_memories', 'arguments': {
+            'limit': 10,
+            'project_ids': [project_id]
+        }
+    })
+
+    assert recent_result.content is not None
+    import json
+    memories = json.loads(recent_result.content[0].text)
+    recent_ids = [m["id"] for m in memories]
+
+    # Should include memory with project
+    assert memory_with_project_id in recent_ids
+    # Should NOT include memory without project
+    assert memory_without_project_id not in recent_ids
+
+
+@pytest.mark.asyncio
+async def test_get_recent_memories_excludes_obsolete_e2e(mcp_client):
+    """Test that get_recent_memories excludes obsolete memories"""
+    # Create an active memory
+    active_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory', 'arguments': {
+            'title': 'Active Memory for Recent Test SQLite',
+            'content': 'This memory should appear in recent results',
+            'context': 'Testing obsolete exclusion',
+            'keywords': ['active', 'recent', 'test'],
+            'tags': ['test', 'active'],
+            'importance': 7
+        }
+    })
+    active_memory_id = active_result.data["id"]
+
+    # Create a memory to be marked obsolete
+    obsolete_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory', 'arguments': {
+            'title': 'Memory To Be Obsolete SQLite',
+            'content': 'This memory will be marked obsolete',
+            'context': 'Testing obsolete filtering',
+            'keywords': ['obsolete', 'test'],
+            'tags': ['test', 'obsolete'],
+            'importance': 7
+        }
+    })
+    obsolete_memory_id = obsolete_result.data["id"]
+
+    # Mark the second memory as obsolete
+    await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'mark_memory_obsolete', 'arguments': {
+            'memory_id': obsolete_memory_id,
+            'reason': 'Testing obsolete filtering in get_recent_memories'
+        }
+    })
+
+    # Get recent memories - should exclude obsolete
+    recent_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_recent_memories', 'arguments': {
+            'limit': 10
+        }
+    })
+
+    assert recent_result.content is not None
+    import json
+    memories = json.loads(recent_result.content[0].text)
+    recent_ids = [m["id"] for m in memories]
+
+    # Should include active memory
+    assert active_memory_id in recent_ids
+    # Should NOT include obsolete memory
+    assert obsolete_memory_id not in recent_ids

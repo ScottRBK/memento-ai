@@ -287,3 +287,126 @@ async def test_mark_memory_obsolete(test_memory_service):
     retrieved = await test_memory_service.get_memory(user_id, new_memory.id)
     assert retrieved.id == new_memory.id
     assert retrieved.is_obsolete is False
+
+
+@pytest.mark.asyncio
+async def test_get_recent_memories_basic(test_memory_service):
+    """Test getting recent memories sorted by creation timestamp"""
+    user_id = uuid4()
+
+    # Create memories with small delays to ensure different timestamps
+    import asyncio
+    memories_created = []
+    for i in range(5):
+        memory_data = MemoryCreate(
+            title=f"Memory {i}",
+            content=f"Content for memory {i}",
+            context=f"Context {i}",
+            keywords=[f"keyword{i}"],
+            tags=[f"tag{i}"],
+            importance=7
+        )
+        memory, _ = await test_memory_service.create_memory(user_id, memory_data)
+        memories_created.append(memory)
+        await asyncio.sleep(0.01)  # Small delay to ensure different timestamps
+
+    # Get recent memories (should be in reverse creation order)
+    recent = await test_memory_service.get_recent_memories(user_id, limit=3)
+
+    assert len(recent) == 3
+    # Most recent should be first (Memory 4, then 3, then 2)
+    assert recent[0].title == "Memory 4"
+    assert recent[1].title == "Memory 3"
+    assert recent[2].title == "Memory 2"
+
+
+@pytest.mark.asyncio
+async def test_get_recent_memories_with_project_filter(test_memory_service):
+    """Test getting recent memories filtered by project"""
+    user_id = uuid4()
+
+    # Create memories with different project associations
+    memory1_data = MemoryCreate(
+        title="Project A Memory 1",
+        content="Content for project A",
+        context="Context A",
+        keywords=["projectA"],
+        tags=["project"],
+        importance=7,
+        project_ids=[1]
+    )
+    memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
+
+    memory2_data = MemoryCreate(
+        title="Project B Memory",
+        content="Content for project B",
+        context="Context B",
+        keywords=["projectB"],
+        tags=["project"],
+        importance=7,
+        project_ids=[2]
+    )
+    memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
+
+    memory3_data = MemoryCreate(
+        title="Project A Memory 2",
+        content="Another content for project A",
+        context="Context A2",
+        keywords=["projectA"],
+        tags=["project"],
+        importance=7,
+        project_ids=[1]
+    )
+    memory3, _ = await test_memory_service.create_memory(user_id, memory3_data)
+
+    # Get recent memories for project 1 only
+    recent_project_a = await test_memory_service.get_recent_memories(
+        user_id,
+        limit=10,
+        project_ids=[1]
+    )
+
+    assert len(recent_project_a) == 2
+    # Should only have Project A memories
+    assert all("Project A" in m.title for m in recent_project_a)
+
+
+@pytest.mark.asyncio
+async def test_get_recent_memories_excludes_obsolete(test_memory_service):
+    """Test that get_recent_memories excludes obsolete memories"""
+    user_id = uuid4()
+
+    # Create memories
+    memory1_data = MemoryCreate(
+        title="Active Memory",
+        content="This memory is active",
+        context="Active context",
+        keywords=["active"],
+        tags=["current"],
+        importance=7
+    )
+    memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
+
+    memory2_data = MemoryCreate(
+        title="To Be Obsolete",
+        content="This will be marked obsolete",
+        context="Obsolete context",
+        keywords=["obsolete"],
+        tags=["old"],
+        importance=7
+    )
+    memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
+
+    # Mark second memory as obsolete
+    await test_memory_service.mark_memory_obsolete(
+        user_id=user_id,
+        memory_id=memory2.id,
+        reason="Testing obsolete filtering"
+    )
+
+    # Get recent memories - should only return active one
+    recent = await test_memory_service.get_recent_memories(user_id, limit=10)
+
+    assert len(recent) == 1
+    assert recent[0].id == memory1.id
+    assert recent[0].title == "Active Memory"

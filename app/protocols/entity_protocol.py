@@ -84,6 +84,29 @@ class EntityRepository(Protocol):
         """
         ...
 
+    async def search_entities(
+        self,
+        user_id: UUID,
+        search_query: str,
+        entity_type: EntityType | None = None,
+        tags: List[str] | None = None,
+        limit: int = 20
+    ) -> List[EntitySummary]:
+        """Search entities by name using text matching
+
+        Args:
+            user_id: User ID for ownership filtering
+            search_query: Text to search for in entity name
+            entity_type: Optional filter by entity type
+            tags: Optional filter by tags (returns entities with ANY of these tags)
+            limit: Maximum number of results to return
+
+        Returns:
+            List of EntitySummary matching the search
+            Sorted by creation date (newest first)
+        """
+        ...
+
     async def update_entity(
         self,
         user_id: UUID,

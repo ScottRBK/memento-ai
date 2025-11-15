@@ -346,6 +346,28 @@ class MemoryToolAdapters:
 
         return {"success": success}
 
+    async def get_recent_memories(
+        self,
+        ctx: Context,
+        limit: int = 10,
+        project_ids: Optional[List[int]] = None,
+    ) -> List[Memory]:
+        """Adapter for get_recent_memories tool"""
+        logger.info(
+            "MCP Tool -> get_recent_memories",
+            extra={"limit": limit, "project_ids": project_ids}
+        )
+
+        user = await get_user_from_auth(ctx)
+
+        memories = await self.memory_service.get_recent_memories(
+            user_id=user.id,
+            limit=limit,
+            project_ids=project_ids
+        )
+
+        return memories
+
 
 def create_memory_adapters(
     memory_service: MemoryService,
@@ -360,6 +382,7 @@ def create_memory_adapters(
         "link_memories": adapters.link_memories,
         "get_memory": adapters.get_memory,
         "mark_memory_obsolete": adapters.mark_memory_obsolete,
+        "get_recent_memories": adapters.get_recent_memories,
     }
 
 
@@ -862,6 +885,39 @@ class EntityToolAdapters:
 
         return {"entities": result, "total_count": len(result)}
 
+    async def search_entities(
+        self,
+        query: str,
+        ctx: Context,
+        entity_type: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        limit: int = 20
+    ) -> dict:
+        """Adapter for search_entities tool"""
+        user = await get_user_from_auth(ctx)
+
+        # Convert string to enum if provided
+        entity_type_enum = EntityType(entity_type) if entity_type else None
+
+        result = await self.entity_service.search_entities(
+            user_id=user.id,
+            search_query=query,
+            entity_type=entity_type_enum,
+            tags=tags,
+            limit=limit
+        )
+
+        return {
+            "entities": result,
+            "total_count": len(result),
+            "search_query": query,
+            "filters": {
+                "entity_type": entity_type,
+                "tags": tags,
+                "limit": limit
+            }
+        }
+
     async def update_entity(
         self,
         entity_id: int,
@@ -1047,6 +1103,7 @@ def create_entity_adapters(
         "create_entity": adapters.create_entity,
         "get_entity": adapters.get_entity,
         "list_entities": adapters.list_entities,
+        "search_entities": adapters.search_entities,
         "update_entity": adapters.update_entity,
         "delete_entity": adapters.delete_entity,
         "link_entity_to_memory": adapters.link_entity_to_memory,

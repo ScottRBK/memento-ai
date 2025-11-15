@@ -368,3 +368,204 @@ async def test_get_entity_not_found_e2e(docker_services, mcp_server_url):
             assert False, 'Expected error for non-existent entity'
         except Exception as e:
             assert 'not found' in str(e).lower()
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_search_entities_basic_e2e(docker_services, mcp_server_url):
+    """Test basic entity search by name"""
+    async with Client(mcp_server_url) as client:
+        # Create entities with different names
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'TechCorp Solutions',
+                'entity_type': 'Organization',
+                'tags': ['search-test']
+            }
+        })
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'TechFlow Systems',
+                'entity_type': 'Organization',
+                'tags': ['search-test']
+            }
+        })
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'Sarah Chen',
+                'entity_type': 'Individual',
+                'tags': ['search-test']
+            }
+        })
+
+        # Search for "tech"
+        search_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'search_entities', 'arguments': {
+                'query': 'tech'
+            }
+        })
+
+        assert search_result.data is not None
+        assert 'entities' in search_result.data
+        assert 'total_count' in search_result.data
+        entities = search_result.data['entities']
+
+        # Filter to our test entities
+        test_entities = [e for e in entities if 'search-test' in e['tags']]
+        assert len(test_entities) >= 2
+        assert all('tech' in e['name'].lower() for e in test_entities)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_search_entities_case_insensitive_e2e(docker_services, mcp_server_url):
+    """Test that entity search is case-insensitive"""
+    async with Client(mcp_server_url) as client:
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'UPPERCASE ORGANIZATION',
+                'entity_type': 'Organization',
+                'tags': ['case-test']
+            }
+        })
+
+        # Search with lowercase should find it
+        search_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'search_entities', 'arguments': {
+                'query': 'uppercase',
+                'tags': ['case-test']
+            }
+        })
+
+        assert search_result.data is not None
+        entities = search_result.data['entities']
+        assert len(entities) >= 1
+        assert any(e['name'] == 'UPPERCASE ORGANIZATION' for e in entities)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_search_entities_with_type_filter_e2e(docker_services, mcp_server_url):
+    """Test searching entities filtered by entity type"""
+    async with Client(mcp_server_url) as client:
+        # Create different types
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'Server Alpha',
+                'entity_type': 'Device',
+                'tags': ['type-filter-test']
+            }
+        })
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'Server Beta',
+                'entity_type': 'Device',
+                'tags': ['type-filter-test']
+            }
+        })
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'Server Team',
+                'entity_type': 'Team',
+                'tags': ['type-filter-test']
+            }
+        })
+
+        # Search for "server" but only devices
+        search_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'search_entities', 'arguments': {
+                'query': 'server',
+                'entity_type': 'Device',
+                'tags': ['type-filter-test']
+            }
+        })
+
+        assert search_result.data is not None
+        entities = search_result.data['entities']
+        assert len(entities) >= 2
+        assert all(e['entity_type'] == 'Device' for e in entities)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_search_entities_with_tags_filter_e2e(docker_services, mcp_server_url):
+    """Test searching entities filtered by tags"""
+    async with Client(mcp_server_url) as client:
+        # Create entities with different tags
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'Production Server',
+                'entity_type': 'Device',
+                'tags': ['production', 'tag-search-test']
+            }
+        })
+        await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_entity', 'arguments': {
+                'name': 'Staging Server',
+                'entity_type': 'Device',
+                'tags': ['staging', 'tag-search-test']
+            }
+        })
+
+        # Search for "server" with production tag
+        search_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'search_entities', 'arguments': {
+                'query': 'server',
+                'tags': ['production']
+            }
+        })
+
+        assert search_result.data is not None
+        entities = search_result.data['entities']
+        prod_entities = [e for e in entities if 'tag-search-test' in e['tags']]
+        assert len(prod_entities) >= 1
+        assert all('production' in e['tags'] for e in prod_entities)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_search_entities_limit_e2e(docker_services, mcp_server_url):
+    """Test that search respects limit parameter"""
+    async with Client(mcp_server_url) as client:
+        # Create many entities
+        for i in range(10):
+            await client.call_tool('execute_forgetful_tool', {
+                'tool_name': 'create_entity', 'arguments': {
+                    'name': f'Limit Test Entity {i}',
+                    'entity_type': 'Organization',
+                    'tags': ['limit-test']
+                }
+            })
+
+        # Search with limit
+        search_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'search_entities', 'arguments': {
+                'query': 'limit test',
+                'limit': 3
+            }
+        })
+
+        assert search_result.data is not None
+        entities = search_result.data['entities']
+        limit_test_entities = [e for e in entities if 'limit-test' in e['tags']]
+        assert len(limit_test_entities) <= 3
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_search_entities_no_results_e2e(docker_services, mcp_server_url):
+    """Test search returns empty when no matches found"""
+    async with Client(mcp_server_url) as client:
+        # Search for something that definitely doesn't exist
+        search_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'search_entities', 'arguments': {
+                'query': 'xyznonexistententity12345'
+            }
+        })
+
+        assert search_result.data is not None
+        assert 'entities' in search_result.data
+        assert 'total_count' in search_result.data
+        # May have results from other tests, but none should match our query
+        entities = search_result.data['entities']
+        assert all('xyznonexistententity12345' not in e['name'].lower() for e in entities)
