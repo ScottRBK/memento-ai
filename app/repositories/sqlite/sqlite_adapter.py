@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator
 from uuid import UUID
 import sqlite_vec
-import functools
 
 from app.repositories.sqlite.sqlite_tables import Base
 from app.config.settings import settings

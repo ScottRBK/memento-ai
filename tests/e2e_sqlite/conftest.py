@@ -171,7 +171,6 @@ async def mcp_client(sqlite_app):
             result = await mcp_client.call_tool("tool_name", {...})
     """
     from fastmcp import Client
-    import asyncio
 
     # Create stdio transport for in-process testing
     async with Client(sqlite_app) as client:

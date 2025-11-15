@@ -6,8 +6,6 @@ import asyncio
 import sqlite3
 import sqlite_vec
 import numpy as np
-from typing import List
-import json
 
 
 def test_sqlite_vec_sync():

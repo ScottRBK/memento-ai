@@ -16,7 +16,6 @@ from app.repositories.sqlite.sqlite_tables import (
     ProjectsTable,
     CodeArtifactsTable,
     DocumentsTable,
-    memory_project_association,
 )
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter

@@ -21,7 +21,7 @@ async def test_sqlite_init():
     # Force SQLite mode
     settings.DATABASE = "SQLite"
     settings.SQLITE_MEMORY = True  # Use in-memory for testing
-    print(f"\n✓ Settings configured:")
+    print("\n✓ Settings configured:")
     print(f"  DATABASE: {settings.DATABASE}")
     print(f"  SQLITE_MEMORY: {settings.SQLITE_MEMORY}")
 
@@ -70,9 +70,9 @@ async def test_sqlite_init():
             )
             table_name = result.scalar()
             if table_name:
-                print(f"  ✓ vec_memories virtual table exists")
+                print("  ✓ vec_memories virtual table exists")
             else:
-                print(f"  ✗ vec_memories table not found")
+                print("  ✗ vec_memories table not found")
                 raise ValueError("vec_memories table not found")
     except Exception as e:
         print(f"  ✗ vec_memories test failed: {e}")

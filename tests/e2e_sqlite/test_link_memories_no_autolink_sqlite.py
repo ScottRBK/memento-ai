@@ -6,7 +6,6 @@ the auto-linking feature (MEMORY_NUM_AUTO_LINK=0) to ensure we're testing
 manual linking, not auto-linking side effects.
 """
 import pytest
-from fastmcp.client import Client
 DOCKER_ENV_OVERRIDE = {'MEMORY_NUM_AUTO_LINK': '0'}
 
 

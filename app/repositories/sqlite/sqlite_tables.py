@@ -24,9 +24,8 @@ from sqlalchemy import (
     Index,
     JSON,
 )
-from uuid import uuid4, UUID
+from uuid import uuid4
 from datetime import datetime, timezone
-from app.config.settings import settings
 
 
 class Base(DeclarativeBase):
