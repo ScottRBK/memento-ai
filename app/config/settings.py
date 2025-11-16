@@ -37,7 +37,6 @@ class Settings(BaseSettings):
     DB_LOGGING: bool = False
 
     # Auth Configuration
-    AUTH_ENABLED: bool = False
     DEFAULT_USER_ID: str = "default-user-id"
     DEFAULT_USER_NAME: str = "default-user-name"
     DEFAULT_USER_EMAIL: str = "default-user-email"

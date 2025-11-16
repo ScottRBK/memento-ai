@@ -199,28 +199,187 @@ Forgetful provides three Docker Compose configurations:
 
 ## Authentication Configuration
 
-� **Note**: Authentication is not yet implemented (roadmap feature)
+Forgetful leverages **FastMCP's built-in authentication system** via environment variables. This provides flexible auth options without custom code.
 
-### `AUTH_ENABLED`
-- **Default**: `false`
-- **Description**: Enable authentication middleware
-- **Current Status**: Always `false` (auth not implemented)
-- **Example**: `AUTH_ENABLED=false`
+**📚 Official Documentation**:
+- [FastMCP Auth Guide](https://fastmcp.wiki/en/servers/auth/authentication)
+- [Auth Examples](https://github.com/jlowin/fastmcp/tree/main/docs/servers/auth)
 
-### `DEFAULT_USER_ID`
+---
+
+### Authentication Modes
+
+#### **No Authentication (Default)**
+
+When `FASTMCP_SERVER_AUTH` is **not set**, authentication is disabled and all requests use the default user:
+
+```bash
+# .env - No auth configured
+DEFAULT_USER_ID="default-user-id"
+DEFAULT_USER_NAME="default-user-name"
+DEFAULT_USER_EMAIL="default.user@forgetful.dev"
+```
+
+#### **Token Introspection (OAuth 2.0 RFC 7662)**
+
+Validates opaque bearer tokens via an introspection endpoint. Recommended for microservices architectures.
+
+```bash
+# .env - Token Introspection
+FASTMCP_SERVER_AUTH=fastmcp.server.auth.providers.introspection.IntrospectionTokenVerifier
+FASTMCP_SERVER_AUTH_INTROSPECTION_URL=https://auth.yourcompany.com/oauth/introspect
+FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_ID=forgetful-resource-server
+FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_SECRET=your-client-secret
+FASTMCP_SERVER_AUTH_INTROSPECTION_REQUIRED_SCOPES=api:read,api:write
+```
+
+**How it works**:
+- Client sends bearer token in `Authorization` header
+- Forgetful validates token via introspection endpoint
+- User provisioned from token claims (`sub`, `name`, `email`)
+
+#### **JWT Verification**
+
+Validates JWT tokens using JWKS endpoint or public key. Ideal for stateless authentication.
+
+```bash
+# .env - JWT Verification
+FASTMCP_SERVER_AUTH=fastmcp.server.auth.providers.jwt.JWTVerifier
+FASTMCP_SERVER_AUTH_JWT_JWKS_URI=https://auth.yourcompany.com/.well-known/jwks.json
+FASTMCP_SERVER_AUTH_JWT_ISSUER=https://auth.yourcompany.com
+FASTMCP_SERVER_AUTH_JWT_AUDIENCE=forgetful-api
+FASTMCP_SERVER_AUTH_JWT_REQUIRED_SCOPES=api:read,api:write
+```
+
+**How it works**:
+- Client sends JWT in `Authorization: Bearer <token>` header
+- Forgetful validates signature, issuer, audience, expiration
+- User provisioned from JWT claims (`sub`, `name`, `email`)
+
+#### **OAuth Proxy (GitHub, Google, etc.)**
+
+For OAuth providers that don't support Dynamic Client Registration (DCR). Pre-register your app with the provider.
+
+```bash
+# .env - GitHub OAuth Proxy
+FASTMCP_SERVER_AUTH=fastmcp.server.auth.providers.github.GitHubProvider
+FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID=Ov23li...
+FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET=abc123...
+FASTMCP_SERVER_AUTH_GITHUB_BASE_URL=https://forgetful.yourcompany.com
+```
+
+**Supported Providers**:
+- `fastmcp.server.auth.providers.github.GitHubProvider`
+- `fastmcp.server.auth.providers.google.GoogleProvider`
+- See [FastMCP docs](https://github.com/jlowin/fastmcp/tree/main/docs/servers/auth) for full list
+
+---
+
+### Configuration Reference
+
+#### `FASTMCP_SERVER_AUTH`
+- **Default**: Not set (authentication disabled)
+- **Description**: Fully-qualified class path to FastMCP auth provider
+- **Values**:
+  - *Omit* - No authentication (default user mode)
+  - `fastmcp.server.auth.providers.introspection.IntrospectionTokenVerifier` - Token introspection
+  - `fastmcp.server.auth.providers.jwt.JWTVerifier` - JWT verification
+  - `fastmcp.server.auth.providers.github.GitHubProvider` - GitHub OAuth
+  - `fastmcp.server.auth.providers.google.GoogleProvider` - Google OAuth
+- **Example**: `FASTMCP_SERVER_AUTH=fastmcp.server.auth.providers.jwt.JWTVerifier`
+
+#### Default User Settings (when auth is disabled)
+
+##### `DEFAULT_USER_ID`
 - **Default**: `default-user-id`
-- **Description**: User ID to use when auth is disabled
-- **Example**: `DEFAULT_USER_ID=test-user-123`
+- **Description**: External user ID when authentication is disabled
+- **Example**: `DEFAULT_USER_ID=local-dev-user`
 
-### `DEFAULT_USER_NAME`
+##### `DEFAULT_USER_NAME`
 - **Default**: `default-user-name`
 - **Description**: Display name for default user
-- **Example**: `DEFAULT_USER_NAME=Test User`
+- **Example**: `DEFAULT_USER_NAME=Local Developer`
 
-### `DEFAULT_USER_EMAIL`
+##### `DEFAULT_USER_EMAIL`
 - **Default**: `default-user-email`
 - **Description**: Email address for default user
-- **Example**: `DEFAULT_USER_EMAIL=test@example.com`
+- **Example**: `DEFAULT_USER_EMAIL=dev@localhost`
+
+---
+
+### User Provisioning
+
+When authentication is enabled, Forgetful automatically provisions users from token claims:
+
+**Required Claims**:
+- `sub` - Subject identifier (maps to `external_id`)
+- `name` OR `preferred_username` - Display name
+
+**Optional Claims**:
+- `email` - Email address (defaults to empty string)
+
+**Auto-provisioning behavior**:
+- First request: User created in database
+- Subsequent requests: User retrieved by `external_id`
+- Updates: Name/email updated if changed in token
+
+**Example token claims**:
+```json
+{
+  "sub": "auth0|507f1f77bcf86cd799439011",
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "iat": 1700000000,
+  "exp": 1700003600
+}
+```
+
+---
+
+### Security Best Practices
+
+1. **Production Deployments**:
+   - Always enable authentication (`FASTMCP_SERVER_AUTH`)
+   - Use HTTPS for all endpoints
+   - Rotate client secrets regularly
+   - Bind to localhost: `BIND_ADDRESS=127.0.0.1`
+
+2. **Token Scopes**:
+   - Define required scopes: `FASTMCP_SERVER_AUTH_*_REQUIRED_SCOPES`
+   - Implement least-privilege access
+
+3. **Development vs Production**:
+   ```bash
+   # Development - No auth for local testing
+   # FASTMCP_SERVER_AUTH not set
+   DEFAULT_USER_ID=dev-user
+
+   # Production - JWT auth required
+   FASTMCP_SERVER_AUTH=fastmcp.server.auth.providers.jwt.JWTVerifier
+   FASTMCP_SERVER_AUTH_JWT_JWKS_URI=https://auth.company.com/.well-known/jwks.json
+   FASTMCP_SERVER_AUTH_JWT_ISSUER=https://auth.company.com
+   FASTMCP_SERVER_AUTH_JWT_AUDIENCE=forgetful-prod
+   ```
+
+---
+
+### Troubleshooting
+
+**"Authentication required but no bearer token provided"**:
+- Client must send `Authorization: Bearer <token>` header
+- Check MCP client configuration
+
+**"Token contains no 'sub' claim"**:
+- Token is invalid or missing required claim
+- Verify token with JWT debugger (jwt.io)
+
+**"Token requires 'name' or 'preferred_username' claim"**:
+- Token missing user display name
+- Configure IdP to include `name` claim
+
+**401 Unauthorized**:
+- Token expired, invalid signature, or wrong audience
+- Enable debug logging: `LOG_LEVEL=DEBUG`
 
 ---
 
