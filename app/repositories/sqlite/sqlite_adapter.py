@@ -75,11 +75,11 @@ class SqliteDatabaseAdapter:
             },
         )
 
-        # Register event to load extension on each connection
-        # This works by accessing the _conn attribute of aiosqlite's AsyncAdapt wrapper
-        @event.listens_for(self._engine.sync_engine, "first_connect")
-        def on_first_connect(dbapi_conn, connection_record):
-            """Load sqlite-vec extension on first connection"""
+        # Register event to load extension on EVERY connection (not just first)
+        # This is critical since poolclass=None means each session gets a new connection
+        @event.listens_for(self._engine.sync_engine, "connect")
+        def on_connect(dbapi_conn, connection_record):
+            """Load sqlite-vec extension on every connection"""
             # For aiosqlite, dbapi_conn is AsyncAdapt_aiosqlite_connection
             # Access the underlying aiosqlite Connection via _connection
             if hasattr(dbapi_conn, "_connection"):
@@ -96,7 +96,7 @@ class SqliteDatabaseAdapter:
                     raw_conn.execute("PRAGMA synchronous=NORMAL")
                     raw_conn.execute("PRAGMA foreign_keys=ON")
                     raw_conn.execute("PRAGMA busy_timeout=5000")
-                    logger.info("sqlite-vec extension loaded on connection")
+                    logger.debug("sqlite-vec extension loaded on connection")
 
         self._session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
             bind=self._engine, expire_on_commit=False, autoflush=False

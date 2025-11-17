@@ -256,7 +256,7 @@ def register_memory_tools_metadata(
                 {
                     "name": "k",
                     "type": "int",
-                    "description": "Number of primary results to return (1-20)",
+                    "description": "Number of primary results to return (1-20), use INSTEAD of LIMIT", 
                     "required": False,
                     "default": 3,
                     "example": 5
