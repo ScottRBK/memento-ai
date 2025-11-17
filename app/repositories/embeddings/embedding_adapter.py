@@ -64,7 +64,8 @@ class AzureOpenAIAdapter(EmbeddingsAdapter):
         try:
             response = self.client.embeddings.create(
                 input=[text],
-                model=self.model 
+                model=self.model,
+                dimensions=settings.EMBEDDING_DIMENSIONS
             )
         except Exception:
             logger.error("Error generatring embeddings", exc_info=True, extra={

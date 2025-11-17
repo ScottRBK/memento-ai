@@ -172,10 +172,10 @@ class SqliteDatabaseAdapter:
                 # Create virtual table for vector storage
                 # This is separate from the main memories table
                 await conn.execute(
-                    text("""
+                    text(f"""
                     CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
                         memory_id TEXT PRIMARY KEY,
-                        embedding FLOAT[384]
+                        embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
                     )
                 """)
                 )
