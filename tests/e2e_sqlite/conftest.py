@@ -24,7 +24,7 @@ from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 
 # Shared imports
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
+from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -40,12 +40,24 @@ from app.routes.api import health
 @pytest.fixture(scope="module")
 def embedding_adapter():
     """
-    Module-scoped FastEmbedding adapter to avoid reloading model for each test.
+    Module-scoped embedding adapter to avoid reloading model for each test.
+
+    Dynamically selects adapter based on EMBEDDING_PROVIDER setting:
+    - Azure: AzureOpenAIAdapter (requires AZURE_* env vars)
+    - Google: GoogleEmbeddingsAdapter (requires GOOGLE_AI_API_KEY)
+    - Default: FastEmbeddingAdapter (local, zero-config)
 
     FastEmbed model loading is expensive (~1-2 seconds), so we share the adapter
     across all tests in the module for better performance.
     """
-    return FastEmbeddingAdapter()
+    from app.config.settings import settings
+
+    if settings.EMBEDDING_PROVIDER == "Azure":
+        return AzureOpenAIAdapter()
+    elif settings.EMBEDDING_PROVIDER == "Google":
+        return GoogleEmbeddingsAdapter()
+    else:
+        return FastEmbeddingAdapter()
 
 
 @pytest.fixture

@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH: int = 100  # e.g., "works_at", "owns", "manages"
 
     # Search Configuration
-    EMBEDDING_PROVIDER: str = "FastEmbed"
+    EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
     DENSE_SEARCH_CANDIDATES: int = 50     # number of candidates to retrieve from the dense search
@@ -85,6 +85,9 @@ class Settings(BaseSettings):
     AZURE_DEPLOYMENT: str = ""
     AZURE_API_VERSION: str = ""
     AZURE_API_KEY: str = ""
+    
+    # GOOGLE EMBEDDING PROVIDER CONFIG
+    GOOGLE_AI_API_KEY: str = ""
 
 
     """Pydantic Configuration"""

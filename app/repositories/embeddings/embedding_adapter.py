@@ -1,9 +1,11 @@
 """Embedding Adapter to abstract provider specific implementation details"""
 from typing import Protocol, List
 import time
+import asyncio
 
 from fastembed import TextEmbedding
 from openai import AzureOpenAI
+import google.generativeai as genai 
 
 from app.config.settings import settings
 
@@ -60,7 +62,7 @@ class AzureOpenAIAdapter(EmbeddingsAdapter):
         )
         self.model = settings.AZURE_DEPLOYMENT
         
-    async def generate_embedding(self, text):
+    async def generate_embedding(self, text) -> List[float]:
         try:
             response = self.client.embeddings.create(
                 input=[text],
@@ -80,5 +82,40 @@ class AzureOpenAIAdapter(EmbeddingsAdapter):
         embeddings  = response.data[0].embedding 
 
         return embeddings
+
+class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
+    """Generate embeddings using Google Generative AI embedding models."""
+
+    def __init__(self):
+        logger.info("Initialising Google Generative AI embeddings adapter", extra={
+            "embedding_model": settings.EMBEDDING_MODEL
+        })
+
+        self.api_key = settings.GOOGLE_AI_API_KEY
+        self.model = settings.EMBEDDING_MODEL
+
+        if not self.api_key:
+            raise ValueError("GOOGLE_AI_API_KEY must be configured for GoogleEmbeddingsAdapter")
+
+        genai.configure(api_key=self.api_key)
+
+    async def generate_embedding(self, text: str) -> List[float]:
+        try:
+            result = await asyncio.to_thread(
+                genai.embed_content,
+                model=self.model,
+                content=text,
+            )
+        except Exception:
+            logger.error("Error generating embeddings", exc_info=True, extra={
+                "embedding_provider": "google",
+                "embedding_model": self.model
+            })
+            raise
+
+        embedding = result.get("embedding")
+        if embedding is None:
+            raise RuntimeError("Google Generative AI response did not contain embedding vector")
+        return list(map(float, embedding))
 
         

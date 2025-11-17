@@ -1,6 +1,6 @@
 [project]
 name = "forgetful"
-version = "0.0.6"
+version = "0.0.7"
 description = "MCP Server for AI Agent Memory Service"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -11,6 +11,7 @@ dependencies = [
     "fastapi>=0.116.1",
     "fastembed>=0.7.3",
     "fastmcp>=2.13.1",
+    "google-generativeai>=0.8.5",
     "httpx>=0.28.1",
     "openai>=2.8.0",
     "pgvector>=0.4.1",

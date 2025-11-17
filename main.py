@@ -26,7 +26,7 @@ from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactR
 from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 # Shared
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter
+from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -50,6 +50,8 @@ atexit.register(shutdown_logging)
 
 if settings.EMBEDDING_PROVIDER == "Azure":
     embeddings_adapter = AzureOpenAIAdapter()
+elif settings.EMBEDDING_PROVIDER == "Google":
+    embeddings_adapter = GoogleEmbeddingsAdapter()
 else:
     embeddings_adapter = FastEmbeddingAdapter()
 

@@ -10,15 +10,16 @@
 - [ ] Search Enhancements
     - [ ] Implement Cross-Encoder reranking
 - [ ] Dynamic Tool Discovery 
-- [ ] Authentication 
-    - [ ] Implement Opaque Bearer Token authorisation support [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662)
-    - [ ] Implement Authorisation Code flow support [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
-    - [ ] Dynamic Client Registration Authorisation Code Flow [RFC 7591](https://datatracker.ietf.org/doc/html/rfc7591)
-- [ ] Repository Adapters
+- [x] Authentication 
+    - [x] Implement Opaque Bearer Token authorisation support [RFC 7662](https://datatracker.ietf.org/doc/html/rfc7662)
+    - [x] Implement Authorisation Code flow support [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
+    - [x] Dynamic Client Registration Authorisation Code Flow [RFC 7591](https://datatracker.ietf.org/doc/html/rfc7591)
+- [x] Repository Adapters
     - [x] Add SQLLite repository support
 - [ ] Embedding Adapters
     - [x] Fastembed
-    - [ ] Google
+    - [x] Google
+    - [x] AzureOpenAI
     - [ ] Open AI
     - [ ] Ollama
     - [ ] Open Router
