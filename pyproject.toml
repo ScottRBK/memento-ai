@@ -12,6 +12,7 @@ dependencies = [
     "fastembed>=0.7.3",
     "fastmcp>=2.13.1",
     "httpx>=0.28.1",
+    "openai>=2.8.0",
     "pgvector>=0.4.1",
     "psycopg2-binary>=2.9.11",
     "pydantic>=2.11.7",

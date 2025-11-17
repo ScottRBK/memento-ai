@@ -3,6 +3,7 @@ from typing import Protocol, List
 import time
 
 from fastembed import TextEmbedding
+from openai import AzureOpenAI
 
 from app.config.settings import settings
 
@@ -14,7 +15,7 @@ class EmbeddingsAdapter(Protocol):
     async def generate_embedding(self, text: str) -> List[float]:
         ...
 
-class FastEmbeddingAdapter:
+class FastEmbeddingAdapter(EmbeddingsAdapter):
     """Generate embeddings using the fastembed libary"""
     
     def __init__(self):
@@ -44,3 +45,39 @@ class FastEmbeddingAdapter:
             raise RuntimeError("FastEmbedding response did not contain embedding vector")
         
         return list(map(float, embeddings[0]))
+    
+class AzureOpenAIAdapter(EmbeddingsAdapter):
+    """Generate embeddings using Azure Open AI Embeddings Provider"""
+    
+    def __init__(self):
+        logger.info("Intialising Azure Open AI embeddings adapter", extra={
+            "embedding_model": settings.EMBEDDING_MODEL
+        })
+        self.client = AzureOpenAI(
+            api_version=settings.AZURE_API_VERSION,
+            azure_endpoint=settings.AZURE_ENDPOINT,
+            api_key=settings.AZURE_API_KEY
+        )
+        self.model = settings.AZURE_DEPLOYMENT
+        
+    async def generate_embedding(self, text):
+        try:
+            response = self.client.embeddings.create(
+                input=[text],
+                model=self.model 
+            )
+        except Exception:
+            logger.error("Error generatring embeddings", exc_info=True, extra={
+                "embedding provider": "Azure",
+                "embedding model": self.model
+            })
+            raise
+        
+        if response is None:
+            raise RuntimeError("Azure response did not contain embedding vector")
+
+        embeddings  = response.data[0].embedding 
+
+        return embeddings
+
+        

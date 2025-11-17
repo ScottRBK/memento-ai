@@ -26,7 +26,7 @@ from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactR
 from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 # Shared
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
+from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -47,10 +47,15 @@ queue_listener = configure_logging(
 logger = logging.getLogger(__name__)
 atexit.register(shutdown_logging)
 
+
+if settings.EMBEDDING_PROVIDER == "Azure":
+    embeddings_adapter = AzureOpenAIAdapter()
+else:
+    embeddings_adapter = FastEmbeddingAdapter()
+
 if settings.DATABASE == "Postgres":
     db_adapter = PostgresDatabaseAdapter()
     user_repository = PostgresUserRepository(db_adapter=db_adapter)
-    embeddings_adapter = FastEmbeddingAdapter()
     memory_repository = PostgresMemoryRepository(
         db_adapter=db_adapter,
         embedding_adapter=embeddings_adapter
@@ -62,7 +67,6 @@ if settings.DATABASE == "Postgres":
 elif settings.DATABASE == "SQLite":
     db_adapter = SqliteDatabaseAdapter()
     user_repository = SqliteUserRepository(db_adapter=db_adapter)
-    embeddings_adapter = FastEmbeddingAdapter()
     memory_repository = SqliteMemoryRepository(
         db_adapter=db_adapter,
         embedding_adapter=embeddings_adapter

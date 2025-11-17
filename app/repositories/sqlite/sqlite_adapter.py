@@ -52,6 +52,14 @@ class SqliteDatabaseAdapter:
     """
 
     def __init__(self):
+        
+        if not settings.SQLITE_MEMORY:
+            from pathlib import Path
+            db_path = Path(settings.SQLITE_PATH)
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            logger.info("Validated DB directory exists", extra={
+                "SQL Lite Path": settings.SQLITE_PATH
+            })
         # Construct connection string
         connection_string = self._construct_connection_string()
 

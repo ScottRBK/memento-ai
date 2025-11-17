@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
     DENSE_SEARCH_CANDIDATES: int = 50     # number of candidates to retrieve from the dense search
+    
+    # AZURE EMBEDDING PROVIDER CONFIG
+    AZURE_ENDPOINT: str = ""
+    AZURE_DEPLOYMENT: str = ""
+    AZURE_API_VERSION: str = ""
+    AZURE_API_KEY: str = ""
 
 
     """Pydantic Configuration"""
