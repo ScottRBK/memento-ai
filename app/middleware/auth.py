@@ -2,6 +2,7 @@
 Authentication Middleware helpers for integrating with FastMCP and FastAPI
 """
 import os
+import json
 from fastmcp import Context
 from fastmcp.server.dependencies import get_access_token, AccessToken
 
@@ -55,18 +56,21 @@ async def get_user_from_auth(ctx: Context) -> User:
 
     claims = token.claims
 
+    # DEBUG: Log all claims to see what we're getting
+    logger.debug(f"Token claims received: {json.dumps(claims, indent=2, default=str)}")
+
     sub = claims.get("sub")
-    name = claims.get("name") or claims.get("preferred_username")
+    name = claims.get("name") or claims.get("preferred_username") or claims.get("login") or f"User {sub}"
 
     if not sub:
         raise ValueError("Token contains no 'sub' claim")
 
-    if not name:
-        raise ValueError("Token requires 'name' or 'preferred_username' claim")
+    # Generate placeholder email if not provided by OAuth provider
+    email = claims.get("email") or f"{sub}@oauth.local"
 
     user = UserCreate(
         external_id=sub,
         name=name,
-        email=claims.get("email", "")
+        email=email
     )
     return await user_service.get_or_create_user(user=user)
