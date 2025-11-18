@@ -113,7 +113,7 @@ def register(mcp: FastMCP):
         try:
             entity_data = EntityCreate(
                 name=name,
-                entity_type=EntityType(entity_type),
+                entity_type=EntityType(entity_type.title()),
                 custom_type=custom_type,
                 notes=notes,
                 tags=tags or [],
@@ -224,7 +224,7 @@ def register(mcp: FastMCP):
 
         try:
             # Convert entity_type string to enum if provided
-            entity_type_enum = EntityType(entity_type) if entity_type else None
+            entity_type_enum = EntityType(entity_type.title()) if entity_type else None
 
             entity_service = ctx.fastmcp.entity_service
             entities = await entity_service.list_entities(
@@ -300,7 +300,7 @@ def register(mcp: FastMCP):
 
         try:
             # Convert entity_type string to enum if provided
-            entity_type_enum = EntityType(entity_type) if entity_type else None
+            entity_type_enum = EntityType(entity_type.title()) if entity_type else None
 
             # Clamp limit to reasonable range
             limit = max(1, min(limit, 100))
@@ -381,7 +381,7 @@ def register(mcp: FastMCP):
         # Build update dict with only provided values
         update_dict = filter_none_values(
             name=name,
-            entity_type=EntityType(entity_type) if entity_type else None,
+            entity_type=EntityType(entity_type.title()) if entity_type else None,
             custom_type=custom_type,
             notes=notes,
             tags=tags,
