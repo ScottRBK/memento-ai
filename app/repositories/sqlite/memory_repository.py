@@ -19,7 +19,9 @@ from app.repositories.sqlite.sqlite_tables import (
 )
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
-from app.repositories.helpers import build_embedding_text
+from app.repositories.embeddings.reranker_adapter import RerankAdapter
+from app.repositories.helpers import build_embedding_text, build_memory_text, build_contextual_query
+from app.config.settings import settings
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
 from app.exceptions import NotFoundError
 from app.config.logging_config import logging
@@ -38,9 +40,15 @@ class SqliteMemoryRepository:
     - No RLS - user isolation via WHERE clauses
     """
 
-    def __init__(self, db_adapter: SqliteDatabaseAdapter, embedding_adapter: EmbeddingsAdapter):
+    def __init__(
+            self,
+            db_adapter: SqliteDatabaseAdapter,
+            embedding_adapter: EmbeddingsAdapter,
+            rerank_adapter: RerankAdapter | None = None,
+    ):
         self.db_adapter = db_adapter
         self.embedding_adapter = embedding_adapter
+        self.rerank_adapter = rerank_adapter
 
     async def search(
         self,
@@ -73,7 +81,10 @@ class SqliteMemoryRepository:
             List of Memories objects
         """
 
-        candidates_to_return = k  # TODO: for now set to k, but once cross encoding enabled switch to settings
+        if settings.RERANKING_ENABLED:
+            candidates_to_return = settings.DENSE_SEARCH_CANDIDATES
+        else:
+            candidates_to_return = k
 
         dense_candidates = await self.semantic_search(
             user_id=user_id,
@@ -84,7 +95,27 @@ class SqliteMemoryRepository:
             exclude_ids=exclude_ids,
         )
 
-        return dense_candidates
+        if not dense_candidates or not settings.RERANKING_ENABLED or len(dense_candidates) <= k:
+            return dense_candidates
+
+        documents = []
+        for memory in dense_candidates:
+            memory_text = build_memory_text(memory)
+            documents.append(memory_text)
+
+        if query_context:
+            rerank_query = build_contextual_query(query=query, context=query_context)
+        else:
+            rerank_query = query
+
+        scores = await self.rerank_adapter.rerank(query=rerank_query, documents=documents)
+
+        scored_candidates = list(zip(dense_candidates, scores))
+        scored_candidates.sort(key=lambda x: x[1], reverse=True)
+
+        top_k_memories = [memory for memory, score in scored_candidates[:k]]
+
+        return top_k_memories
 
     async def semantic_search(
         self,

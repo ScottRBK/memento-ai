@@ -25,6 +25,7 @@ from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 
 # Shared imports
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
+from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -60,8 +61,23 @@ def embedding_adapter():
         return FastEmbeddingAdapter()
 
 
+@pytest.fixture(scope="module")
+def reranker_adapter():
+    """
+    Module-scoped reranker adapter to avoid reloading model for each test.
+
+    Returns FastEmbedCrossEncoderAdapter if reranking is enabled, None otherwise.
+    Cross-encoder model loading is expensive, so we share across tests.
+    """
+    from app.config.settings import settings
+
+    if settings.RERANKING_ENABLED:
+        return FastEmbedCrossEncoderAdapter()
+    return None
+
+
 @pytest.fixture
-async def sqlite_app(embedding_adapter):
+async def sqlite_app(embedding_adapter, reranker_adapter):
     """
     Create and configure FastMCP application with in-memory SQLite backend
 
@@ -93,10 +109,11 @@ async def sqlite_app(embedding_adapter):
 
         # Create repositories
         user_repository = SqliteUserRepository(db_adapter=db_adapter)
-        # Use module-scoped embedding adapter (passed as fixture parameter)
+        # Use module-scoped adapters (passed as fixture parameters)
         memory_repository = SqliteMemoryRepository(
             db_adapter=db_adapter,
-            embedding_adapter=embedding_adapter
+            embedding_adapter=embedding_adapter,
+            rerank_adapter=reranker_adapter,
         )
         project_repository = SqliteProjectRepository(db_adapter=db_adapter)
         code_artifact_repository = SqliteCodeArtifactRepository(db_adapter=db_adapter)

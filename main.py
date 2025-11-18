@@ -27,6 +27,7 @@ from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 # Shared
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
+from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -54,13 +55,18 @@ elif settings.EMBEDDING_PROVIDER == "Google":
     embeddings_adapter = GoogleEmbeddingsAdapter()
 else:
     embeddings_adapter = FastEmbeddingAdapter()
+    
+reranker_adapter = None
+if settings.RERANKING_ENABLED:
+    reranker_adapter = FastEmbedCrossEncoderAdapter()
 
 if settings.DATABASE == "Postgres":
     db_adapter = PostgresDatabaseAdapter()
     user_repository = PostgresUserRepository(db_adapter=db_adapter)
     memory_repository = PostgresMemoryRepository(
         db_adapter=db_adapter,
-        embedding_adapter=embeddings_adapter
+        embedding_adapter=embeddings_adapter,
+        rerank_adapter=reranker_adapter,
     )
     project_repository = PostgresProjectRepository(db_adapter=db_adapter)
     code_artifact_repository = PostgresCodeArtifactRepository(db_adapter=db_adapter)
@@ -71,7 +77,8 @@ elif settings.DATABASE == "SQLite":
     user_repository = SqliteUserRepository(db_adapter=db_adapter)
     memory_repository = SqliteMemoryRepository(
         db_adapter=db_adapter,
-        embedding_adapter=embeddings_adapter
+        embedding_adapter=embeddings_adapter,
+        rerank_adapter=reranker_adapter,
     )
     project_repository = SqliteProjectRepository(db_adapter=db_adapter)
     code_artifact_repository = SqliteCodeArtifactRepository(db_adapter=db_adapter)
