@@ -105,6 +105,7 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
                 genai.embed_content,
                 model=self.model,
                 content=text,
+                output_dimensionality=settings.EMBEDDING_DIMENSIONS
             )
         except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
