@@ -503,9 +503,8 @@ wheels = [
 ]
 
 [[package]]
-name = "forgetful"
-version = "0.0.8"
-source = { virtual = "." }
+name = "forgetful-ai"
+source = { editable = "." }
 dependencies = [
     { name = "aiosqlite" },
     { name = "asyncpg" },
@@ -517,6 +516,7 @@ dependencies = [
     { name = "httpx" },
     { name = "openai" },
     { name = "pgvector" },
+    { name = "platformdirs" },
     { name = "psycopg2-binary" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -541,6 +541,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "openai", specifier = ">=2.8.0" },
     { name = "pgvector", specifier = ">=0.4.1" },
+    { name = "platformdirs", specifier = ">=4.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pydantic-settings", specifier = ">=2.10.1" },

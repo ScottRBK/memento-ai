@@ -1,6 +1,9 @@
 """
-    FastAPI application for a python service 
+    FastAPI application for a python service
 """
+import argparse
+import sys
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastmcp import FastMCP
 from starlette.requests import Request
@@ -49,6 +52,17 @@ logger = logging.getLogger(__name__)
 atexit.register(shutdown_logging)
 
 
+def _check_first_run_models():
+    """Log message on first run when models need to be downloaded."""
+    from platformdirs import user_cache_dir
+
+    cache_dir = Path(user_cache_dir("fastembed"))
+    if not cache_dir.exists() or not any(cache_dir.iterdir()):
+        logger.info("First run detected - downloading embedding models. This may take a minute...")
+        print("First run: Downloading embedding models (~180MB). This may take a minute...", file=sys.stderr)
+
+_check_first_run_models()
+
 if settings.EMBEDDING_PROVIDER == "Azure":
     embeddings_adapter = AzureOpenAIAdapter()
 elif settings.EMBEDDING_PROVIDER == "Google":
@@ -92,6 +106,12 @@ async def lifespan(app):
     """"Manages application lifecycle."""
 
     logger.info("Starting session", extra={"service": settings.SERVICE_NAME})
+
+    # Ensure data directory exists for SQLite
+    if settings.DATABASE == "SQLite" and not settings.SQLITE_MEMORY:
+        data_dir = Path(settings.SQLITE_PATH).parent
+        data_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Data directory ensured: {data_dir}")
 
     # Initialize database FIRST
     await db_adapter.init_db()
@@ -170,9 +190,36 @@ health.register(mcp)
 meta_tools.register(mcp)
 logger.info("Meta-tools registered (discover_forgetful_tools, how_to_use_forgetful_tool, execute_forgetful_tool)")
 
-if __name__ == "__main__":
-    mcp.run(transport="http", host=settings.SERVER_HOST, port=settings.SERVER_PORT)
-    
-    
+def cli():
+    """Command-line interface for running the Forgetful MCP server."""
+    parser = argparse.ArgumentParser(
+        description="Forgetful - MCP Server for AI Agent Memory"
+    )
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "http"],
+        default="stdio",
+        help="Transport method (default: stdio for MCP clients)"
+    )
+    parser.add_argument(
+        "--host",
+        default=settings.SERVER_HOST,
+        help=f"HTTP host (default: {settings.SERVER_HOST})"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=settings.SERVER_PORT,
+        help=f"HTTP port (default: {settings.SERVER_PORT})"
+    )
+    args = parser.parse_args()
 
+    if args.transport == "stdio":
+        mcp.run()  # FastMCP defaults to stdio
+    else:
+        mcp.run(transport="http", host=args.host, port=args.port)
+
+
+if __name__ == "__main__":
+    cli()
 

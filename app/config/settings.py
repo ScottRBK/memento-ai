@@ -1,11 +1,17 @@
 """
     Configuration Management For the Service
 """
+from pathlib import Path
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
+from platformdirs import user_data_dir, user_config_dir
 
 load_dotenv()
+
+# Platform-specific default paths
+_default_data_dir = Path(user_data_dir("forgetful", ensure_exists=False))
+_default_config_dir = Path(user_config_dir("forgetful", ensure_exists=False))
 
 
 class Settings(BaseSettings):
@@ -31,7 +37,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "forgetful"
 
     # SQLite Configuration
-    SQLITE_PATH: str = "forgetful.db"  # Path to SQLite database file
+    SQLITE_PATH: str = str(_default_data_dir / "forgetful.db")  # Platform-specific path
     SQLITE_MEMORY: bool = False  # Use :memory: database (for testing)
 
     DB_LOGGING: bool = False
@@ -97,7 +103,11 @@ class Settings(BaseSettings):
     """Pydantic Configuration"""
 
     model_config = ConfigDict(
-        env_file="docker/.env",
+        env_file=[
+            ".env",  # Local override
+            "docker/.env",  # Development/Docker
+            str(_default_config_dir / ".env"),  # User config
+        ],
         env_file_encoding="utf-8",
         extra="ignore"
     )

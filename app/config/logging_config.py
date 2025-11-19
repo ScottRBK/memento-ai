@@ -10,8 +10,9 @@ This module provides:
 import json
 import logging
 import logging.config
-import logging.handlers 
+import logging.handlers
 import re
+import sys
 from queue import Queue
 from datetime import datetime, timezone, date
 from uuid import UUID
@@ -215,8 +216,8 @@ def configure_logging(
             datefmt='%Y-%m-%d %H:%M:%S'
         )
 
-    # Create console handler (writes to stdout)
-    console_handler = logging.StreamHandler()
+    # Create console handler (writes to stderr to avoid interfering with stdio transport)
+    console_handler = logging.StreamHandler(sys.stderr)
     console_handler.setFormatter(formatter)
     console_handler.addFilter(SensitiveDataFilter())
 
