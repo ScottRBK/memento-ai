@@ -45,6 +45,7 @@ Issues = "https://github.com/scottrbk/forgetful/issues"
 
 [project.scripts]
 forgetful = "main:cli"
+forgetful-ai = "main:cli"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
