@@ -72,7 +72,25 @@ For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 
 ## Quick Start
 
-### Option 1: From source (defaults to SQL Lite)
+### Option 1: PyPI (Recommended)
+
+```bash
+# Run directly with uvx (no installation needed)
+uvx forgetful-ai
+
+# Or install globally
+uv tool install forgetful-ai
+forgetful
+```
+
+By default, runs with stdio transport for MCP clients. For HTTP:
+```bash
+uvx forgetful-ai --transport http --port 8020
+```
+
+Data stored in platform-appropriate locations (`~/.local/share/forgetful` on Linux, `AppData` on Windows).
+
+### Option 2: From Source
 
 ```bash
 git clone https://github.com/ScottRBK/forgetful.git
@@ -82,12 +100,12 @@ cd forgetful
 uv sync
 
 # Run the server (uses SQLite by default)
-uv run python -m app.main
+uv run main.py
 ```
 
-The server starts on `http://localhost:8020` with SQLite database (`forgetful.db`) created automatically.
+The server starts with stdio transport. For HTTP: `uv run main.py --transport http`
 
-### Option 2: Docker Deployment (Production/Scale)
+### Option 3: Docker Deployment (Production/Scale)
 
 Forgetful provides two Docker deployment options:
 
@@ -122,6 +140,20 @@ For all configuration options, see [Configuration Guide](docs/configuration.md).
 
 Add Forgetful to your MCP client configuration:
 
+**stdio transport (recommended for local use):**
+```json
+{
+  "mcpServers": {
+    "forgetful": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["forgetful-ai"]
+    }
+  }
+}
+```
+
+**HTTP transport (for Docker/remote):**
 ```json
 {
   "mcpServers": {
@@ -133,11 +165,7 @@ Add Forgetful to your MCP client configuration:
 }
 ```
 
-**Note**: This assumes the default server port `8020`. Adjust if you've customized `SERVER_PORT` in your `.env`.
-
 For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
-
-**WARNING:** Forgetful currently does not support authentication, so it is only advised to run this locally or on a secure local network, but don't worry though, authentication is coming :)
 
 ---
 
