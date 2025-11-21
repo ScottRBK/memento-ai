@@ -16,6 +16,7 @@ classifiers = [
 ]
 dependencies = [
     "aiosqlite>=0.21.0",
+    "alembic>=1.17.2",
     "asyncpg>=0.30.0",
     "dotenv>=0.9.9",
     "fastapi>=0.116.1",

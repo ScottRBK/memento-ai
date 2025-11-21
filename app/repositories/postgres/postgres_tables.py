@@ -58,6 +58,14 @@ memory_entity_association = Table(
     Column("entity_id", Integer, ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True),
 )
 
+# Association table for many-to-many relationship between entities and projects
+entity_project_association = Table(
+    "entity_project_association",
+    Base.metadata,
+    Column("entity_id", Integer, ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+)
+
 class UsersTable(Base):
     """
     User Table Model 
@@ -362,7 +370,8 @@ class ProjectsTable(Base):
     )
     entities: Mapped[List["EntitiesTable"]] = relationship(
         "EntitiesTable",
-        back_populates="project",
+        secondary=entity_project_association,
+        back_populates="projects",
     )
 
     # Computed properties for Pydantic conversion
@@ -482,15 +491,14 @@ class EntitiesTable(Base):
     Table for storing entities (organizations, individuals, teams, devices, etc.)
     that can be referenced by memories and related to each other through relationships
 
-    Supports dual relationships:
-    - Direct project link (project_id) for project-specific entities
-    - Memory references (many-to-many) for cross-project reuse
+    Supports many-to-many relationships:
+    - Projects (entity_project_association) for project-specific entities
+    - Memory references (memory_entity_association) for cross-project reuse
     """
     __tablename__ = "entities"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
 
     # Entity information
     name: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -514,7 +522,11 @@ class EntitiesTable(Base):
 
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="entities")
-    project: Mapped["ProjectsTable"] = relationship("ProjectsTable")
+    projects: Mapped[List["ProjectsTable"]] = relationship(
+        "ProjectsTable",
+        secondary=entity_project_association,
+        back_populates="entities",
+    )
     memories: Mapped[List["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_entity_association,
@@ -537,9 +549,24 @@ class EntitiesTable(Base):
         cascade="all, delete-orphan"
     )
 
+    @property
+    def project_ids(self) -> List[int]:
+        """
+        Compute project IDs from projects relationship.
+
+        Returns:
+            List of project IDs, or empty list if relationship not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.projects.loaded_value is not NO_VALUE:
+            return [p.id for p in self.projects]
+        return []
+
     __table_args__ = (
         Index("ix_entities_user_id", "user_id"),
-        Index("ix_entities_project_id", "project_id"),
         Index("ix_entities_entity_type", "entity_type"),
         Index("ix_entities_tags", "tags", postgresql_using="gin"),
         Index("ix_entities_name", "name"),

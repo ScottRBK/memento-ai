@@ -63,35 +63,65 @@ class PostgresDatabaseAdapter:
            await session.close()
            
     async def init_db(self) -> None:
-       """Intialize database - supports both fresh and existing databases.
-       
-        - Fresh database: Creates all tables + stamps Alembic to current revision
-        - Existing database: Runs pending Alembic migrations    
-       """
-       async with self._engine.begin() as conn:
-            # Start by enabling pg vector extension
+        """Initialize database via Alembic migrations.
+
+        Alembic handles both fresh and existing databases:
+        - Fresh database: Creates full schema via migrations
+        - Existing database: Runs pending migrations
+        """
+        async with self._engine.begin() as conn:
+            # Enable pg_vector extension
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            logger.info("Intialising Database")
-            result = await conn.execute(text(
-            "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alembic_version')"
-            ))
-            
-            if not result.scalar():
-                #Fresh Database
-                logger.info("Fresh database detected - creating schema")
-                
-                await conn.run_sync(Base.metadata.create_all) 
-                
-                logger.info("Database schema created successfully")
-                
-                #TODO: Mark almebic as current version
-                logger.warning("Alembic version not set - alembic migrations not implemented yet")
-            else:
-               # EXISTING DATABASE
-               logger.info("Existing Database Detected")
-               #TODO: implement alembic migrations
-               logger.warning("Alembic migration not applied, alembic migrations not implemented yet")
-               pass
+            logger.info("Initializing Database")
+
+            # Run migrations (Alembic handles fresh vs existing database)
+            await conn.run_sync(self._run_migrations)
+            logger.info("Database schema initialized via Alembic")
+
+    def _run_migrations(self, connection) -> None:
+        """Run pending Alembic migrations synchronously (called via run_sync)."""
+        from alembic.config import Config
+        from alembic import command
+
+        # Create Alembic config
+        alembic_cfg = Config("alembic.ini")
+
+        # Override database URL in config
+        alembic_cfg.set_main_option(
+            "sqlalchemy.url",
+            self.construct_postgres_connection_string()
+        )
+
+        # Configure to use existing connection
+        alembic_cfg.attributes['connection'] = connection
+
+        try:
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic upgrade completed successfully")
+        except Exception as e:
+            logger.error(f"Alembic migration failed: {e}", exc_info=True)
+            raise
+
+    def _stamp_db(self, connection) -> None:
+        """Stamp database with current Alembic revision (called via run_sync)."""
+        from alembic.config import Config
+        from alembic import command
+
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option(
+            "sqlalchemy.url",
+            self.construct_postgres_connection_string()
+        )
+
+        # Configure to use existing connection
+        alembic_cfg.attributes['connection'] = connection
+
+        try:
+            command.stamp(alembic_cfg, "head")
+            logger.info("Database stamped with current Alembic revision")
+        except Exception as e:
+            logger.error(f"Failed to stamp database: {e}", exc_info=True)
+            raise
 
     async def dispose(self) -> None:
        await self._engine.dispose()

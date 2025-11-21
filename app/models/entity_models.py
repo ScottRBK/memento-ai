@@ -58,9 +58,9 @@ class EntityCreate(BaseModel):
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['engineering', 'leadership'], ['ai', 'startup'])"
     )
-    project_id: int | None = Field(
+    project_ids: List[int] | None = Field(
         default=None,
-        description="Optional project ID for immediate association with a project"
+        description="Optional project IDs for immediate association with projects"
     )
 
     @field_validator("name", "custom_type", "notes")
@@ -142,9 +142,9 @@ class EntityUpdate(BaseModel):
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
         description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
     )
-    project_id: int | None = Field(
+    project_ids: List[int] | None = Field(
         default=None,
-        description="New project association. Unchanged if null."
+        description="New project associations (replaces existing). Unchanged if null. Empty list [] clears associations."
     )
 
     @field_validator("name", "custom_type", "notes")
@@ -206,9 +206,9 @@ class Entity(EntityCreate):
         ...,
         description="Unique entity identifier (auto-generated)"
     )
-    project_id: int | None = Field(
+    project_ids: List[int] | None = Field(
         default=None,
-        description="Associated project ID. Null if not linked to a project."
+        description="Associated project IDs. Empty list if not linked to any projects."
     )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(tz=timezone.utc),
@@ -251,9 +251,9 @@ class EntitySummary(BaseModel):
         ...,
         description="Tags for categorization"
     )
-    project_id: int | None = Field(
+    project_ids: List[int] | None = Field(
         default=None,
-        description="Associated project ID"
+        description="Associated project IDs"
     )
     created_at: datetime = Field(
         ...,

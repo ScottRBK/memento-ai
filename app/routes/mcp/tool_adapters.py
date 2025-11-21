@@ -822,10 +822,10 @@ class EntityToolAdapters:
         name: str,
         entity_type: str,
         ctx: Context,
-        custom_type: Optional[str] = None,
-        notes: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        project_id: Optional[int] = None,
+        custom_type: str | None = None,
+        notes: str | None = None,
+        tags: List[str] | None = None,
+        project_ids: List[int] | None = None,
     ) -> Entity:
         """Adapter for create_entity tool"""
         user = await get_user_from_auth(ctx)
@@ -837,7 +837,7 @@ class EntityToolAdapters:
             custom_type=custom_type,
             notes=notes,
             tags=tags,
-            project_id=project_id,
+            project_ids=project_ids,
         )
         entity_data = EntityCreate(**entity_dict)
 
@@ -866,7 +866,7 @@ class EntityToolAdapters:
     async def list_entities(
         self,
         ctx: Context,
-        project_id: Optional[int] = None,
+        project_ids: Optional[List[int]] = None,
         entity_type: Optional[str] = None,
         tags: Optional[List[str]] = None
     ) -> dict:
@@ -878,7 +878,7 @@ class EntityToolAdapters:
 
         result = await self.entity_service.list_entities(
             user_id=user.id,
-            project_id=project_id,
+            project_ids=project_ids,
             entity_type=entity_type_enum,
             tags=tags,
         )
@@ -922,12 +922,12 @@ class EntityToolAdapters:
         self,
         entity_id: int,
         ctx: Context,
-        name: Optional[str] = None,
-        entity_type: Optional[str] = None,
-        custom_type: Optional[str] = None,
-        notes: Optional[str] = None,
-        tags: Optional[List[str]] = None,
-        project_id: Optional[int] = None
+        name: str | None = None,
+        entity_type: str | None = None,
+        custom_type: str | None = None,
+        notes: str | None = None,
+        tags: List[str] | None = None,
+        project_ids: List[int] | None = None
     ) -> Entity:
         """Adapter for update_entity tool"""
         user = await get_user_from_auth(ctx)
@@ -938,7 +938,7 @@ class EntityToolAdapters:
             custom_type=custom_type,
             notes=notes,
             tags=tags,
-            project_id=project_id,
+            project_ids=project_ids,
         )
 
         entity_data = EntityUpdate(**updated_dict)

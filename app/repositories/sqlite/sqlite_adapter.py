@@ -143,50 +143,76 @@ class SqliteDatabaseAdapter:
             await session.close()
 
     async def init_db(self) -> None:
-        """
-        Initialize database - creates all tables and virtual tables for vectors.
+        """Initialize database via Alembic migrations.
 
-        For fresh database:
-        - Creates all SQLAlchemy tables
-        - Creates vec0 virtual tables for vector storage
+        Alembic handles both fresh and existing databases:
+        - Fresh database: Creates full schema via migrations
+        - Existing database: Runs pending migrations
 
         Note: sqlite-vec extension is loaded automatically via event listener on first connection
         """
         async with self._engine.begin() as conn:
             logger.info("Initializing SQLite database")
 
-            # Check if tables exist
-            result = await conn.execute(
-                text(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+            # Run migrations (Alembic handles fresh vs existing database)
+            await conn.run_sync(self._run_migrations)
+            logger.info("Database schema initialized via Alembic")
+
+            # Create virtual table for vector storage (not managed by Alembic)
+            await conn.execute(
+                text(f"""
+                CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
+                    memory_id TEXT PRIMARY KEY,
+                    embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
                 )
+            """)
             )
+            logger.info("sqlite-vec virtual table created for vector storage")
 
-            if not result.scalar():
-                # Fresh database - create schema
-                logger.info("Fresh database detected - creating schema")
+    def _run_migrations(self, connection) -> None:
+        """Run pending Alembic migrations synchronously (called via run_sync)."""
+        from alembic.config import Config
+        from alembic import command
 
-                # Create all tables via SQLAlchemy
-                await conn.run_sync(Base.metadata.create_all)
+        # Create Alembic config
+        alembic_cfg = Config("alembic.ini")
 
-                # Create virtual table for vector storage
-                # This is separate from the main memories table
-                await conn.execute(
-                    text(f"""
-                    CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
-                        memory_id TEXT PRIMARY KEY,
-                        embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
-                    )
-                """)
-                )
+        # Override database URL in config
+        alembic_cfg.set_main_option(
+            "sqlalchemy.url",
+            self._construct_connection_string()
+        )
 
-                logger.info("Database schema created successfully")
-                logger.info("sqlite-vec virtual table created for vector storage")
-            else:
-                # Existing database
-                logger.info("Existing database detected")
-                # TODO: Handle schema migrations when needed
-                pass
+        # Configure to use existing connection
+        alembic_cfg.attributes['connection'] = connection
+
+        try:
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Alembic upgrade completed successfully")
+        except Exception as e:
+            logger.error(f"Alembic migration failed: {e}", exc_info=True)
+            raise
+
+    def _stamp_db(self, connection) -> None:
+        """Stamp database with current Alembic revision (called via run_sync)."""
+        from alembic.config import Config
+        from alembic import command
+
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option(
+            "sqlalchemy.url",
+            self._construct_connection_string()
+        )
+
+        # Configure to use existing connection
+        alembic_cfg.attributes['connection'] = connection
+
+        try:
+            command.stamp(alembic_cfg, "head")
+            logger.info("Database stamped with current Alembic revision")
+        except Exception as e:
+            logger.error(f"Failed to stamp database: {e}", exc_info=True)
+            raise
 
     async def dispose(self) -> None:
         """Dispose of the database engine and close all connections"""

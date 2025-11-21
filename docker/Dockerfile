@@ -29,6 +29,8 @@ COPY main.py ./
 COPY app ./app
 COPY tests ./tests
 COPY pytest.ini ./
+COPY alembic.ini ./
+COPY alembic ./alembic
 
 # Expose port
 EXPOSE 8020

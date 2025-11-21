@@ -94,10 +94,12 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
     # Import settings to override for in-memory database
     from app.config.settings import settings
 
-    # Save original setting
+    # Save original settings
     original_sqlite_memory = settings.SQLITE_MEMORY
+    original_database = settings.DATABASE
 
-    # Override to use in-memory database for testing
+    # Override to use in-memory SQLite database for testing
+    settings.DATABASE = "SQLite"
     settings.SQLITE_MEMORY = True
 
     try:
@@ -182,7 +184,8 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
             # Suppress harmless event loop closure warnings during test teardown
             pass
     finally:
-        # Restore original setting
+        # Restore original settings
+        settings.DATABASE = original_database
         settings.SQLITE_MEMORY = original_sqlite_memory
 
 

@@ -130,7 +130,7 @@ class EntityService:
     async def list_entities(
         self,
         user_id: UUID,
-        project_id: int | None = None,
+        project_ids: List[int] | None = None,
         entity_type: EntityType | None = None,
         tags: List[str] | None = None
     ) -> List[EntitySummary]:
@@ -138,7 +138,7 @@ class EntityService:
 
         Args:
             user_id: User ID for ownership filtering
-            project_id: Optional filter by project
+            project_ids: Optional filter by projects (returns entities associated with ANY of these projects)
             entity_type: Optional filter by entity type
             tags: Optional filter by tags (returns entities with ANY of these tags)
 
@@ -149,7 +149,7 @@ class EntityService:
             "listing entities",
             extra={
                 "user_id": str(user_id),
-                "project_id": project_id,
+                "project_ids": project_ids,
                 "entity_type": entity_type.value if entity_type else None,
                 "tags": tags
             }
@@ -157,7 +157,7 @@ class EntityService:
 
         entities = await self.entity_repo.list_entities(
             user_id=user_id,
-            project_id=project_id,
+            project_ids=project_ids,
             entity_type=entity_type,
             tags=tags
         )

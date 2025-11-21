@@ -728,7 +728,7 @@ class InMemoryEntityRepository(EntityRepository):
             custom_type=entity_data.custom_type,
             notes=entity_data.notes,
             tags=entity_data.tags,
-            project_id=entity_data.project_id,
+            project_ids=entity_data.project_ids or [],
             created_at=now,
             updated_at=now
         )
@@ -744,13 +744,13 @@ class InMemoryEntityRepository(EntityRepository):
         return user_entities.get(entity_id)
 
     async def list_entities(
-        self, user_id: UUID, project_id: int | None = None, entity_type: EntityType | None = None, tags: List[str] | None = None
+        self, user_id: UUID, project_ids: List[int] | None = None, entity_type: EntityType | None = None, tags: List[str] | None = None
     ) -> List[EntitySummary]:
         user_entities = self._entities.get(user_id, {})
         entities = list(user_entities.values())
 
-        if project_id is not None:
-            entities = [e for e in entities if e.project_id == project_id]
+        if project_ids is not None and len(project_ids) > 0:
+            entities = [e for e in entities if any(pid in e.project_ids for pid in project_ids)]
         if entity_type:
             entities = [e for e in entities if e.entity_type == entity_type]
         if tags:

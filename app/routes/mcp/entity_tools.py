@@ -37,7 +37,7 @@ def register(mcp: FastMCP):
         custom_type: str = None,
         notes: str = None,
         tags: List[str] = None,
-        project_id: int = None,
+        project_ids: List[int] = None,
     ) -> Entity:
         """
         Create entity representing a real-world entity (organization, individual, team, device).
@@ -96,7 +96,7 @@ def register(mcp: FastMCP):
             custom_type: Required when entity_type is "Other" - specify custom type
             notes: Additional context about this entity (bio, description, purpose)
             tags: Optional tags for discovery and categorization (max 10)
-            project_id: Optional project ID for immediate association
+            project_ids: Optional project IDs for immediate association with multiple projects
             ctx: Context (automatically injected by FastMCP)
 
         Returns:
@@ -117,7 +117,7 @@ def register(mcp: FastMCP):
                 custom_type=custom_type,
                 notes=notes,
                 tags=tags or [],
-                project_id=project_id
+                project_ids=project_ids
             )
         except (ValidationError, ValueError) as e:
             raise ToolError(f"Invalid entity data: {e}")
@@ -186,7 +186,7 @@ def register(mcp: FastMCP):
     @mcp.tool()
     async def list_entities(
         ctx: Context,
-        project_id: int = None,
+        project_ids: List[int] = None,
         entity_type: str = None,
         tags: List[str] = None
     ) -> dict:
@@ -200,12 +200,12 @@ def register(mcp: FastMCP):
         Results sorted by creation date (newest first). Use get_entity for full details.
 
         FILTERS:
-        - project_id: Show only entities in specific project
+        - project_ids: Show only entities linked to ANY of these projects
         - entity_type: Filter by type (Organization, Individual, Team, Device, Other)
         - tags: Show entities with ANY of these tags (OR logic)
 
         Args:
-            project_id: Optional filter by project
+            project_ids: Optional filter by project IDs (returns entities linked to ANY)
             entity_type: Optional filter by entity type
             tags: Optional filter by tags (returns entities with ANY matching tag)
             ctx: Context (automatically injected)
@@ -215,7 +215,7 @@ def register(mcp: FastMCP):
         """
 
         logger.info("MCP Tool Called -> list_entities", extra={
-            "project_id": project_id,
+            "project_ids": project_ids,
             "entity_type": entity_type,
             "tags": tags
         })
@@ -229,7 +229,7 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             entities = await entity_service.list_entities(
                 user_id=user.id,
-                project_id=project_id,
+                project_ids=project_ids,
                 entity_type=entity_type_enum,
                 tags=tags
             )
@@ -238,7 +238,7 @@ def register(mcp: FastMCP):
                 "entities": entities,
                 "total_count": len(entities),
                 "filters": {
-                    "project_id": project_id,
+                    "project_ids": project_ids,
                     "entity_type": entity_type,
                     "tags": tags
                 }
@@ -340,7 +340,7 @@ def register(mcp: FastMCP):
         custom_type: str = None,
         notes: str = None,
         tags: List[str] = None,
-        project_id: int = None
+        project_ids: List[int] = None
     ) -> Entity:
         """
         Update existing entity (PATCH semantics - only provided fields changed).
@@ -349,10 +349,11 @@ def register(mcp: FastMCP):
         - Adding/updating notes
         - Changing tags
         - Updating entity type
-        - Moving to different project
+        - Changing project associations
 
         BEHAVIOR: Only provided arguments are updated. Null/omitted arguments leave
         the field unchanged. Empty string ("") clears optional text fields.
+        Empty list [] clears project associations.
         Returns updated entity with new timestamps.
 
         Args:
@@ -362,7 +363,7 @@ def register(mcp: FastMCP):
             custom_type: New custom type when entity_type is "Other"
             notes: New notes (unchanged if omitted, clears if empty string)
             tags: New tags (unchanged if omitted, replaces existing if provided)
-            project_id: New project association (unchanged if omitted)
+            project_ids: New project associations (unchanged if omitted, replaces existing if provided, clears if empty list)
             ctx: Context (automatically injected)
 
         Returns:
@@ -385,7 +386,7 @@ def register(mcp: FastMCP):
             custom_type=custom_type,
             notes=notes,
             tags=tags,
-            project_id=project_id
+            project_ids=project_ids
         )
 
         if not update_dict:

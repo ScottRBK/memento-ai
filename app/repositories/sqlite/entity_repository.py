@@ -6,11 +6,13 @@ from datetime import datetime, timezone
 from typing import List
 
 from sqlalchemy import select, and_, or_, func
+from sqlalchemy.orm import selectinload
 
 from app.repositories.sqlite.sqlite_tables import (
     EntitiesTable,
     EntityRelationshipsTable,
-    MemoryTable
+    MemoryTable,
+    ProjectsTable
 )
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.models.entity_models import (
@@ -66,13 +68,25 @@ class SqliteEntityRepository:
                     entity_type=entity_data.entity_type.value,  # Convert enum to string
                     custom_type=entity_data.custom_type,
                     notes=entity_data.notes,
-                    tags=entity_data.tags,
-                    project_id=entity_data.project_id
+                    tags=entity_data.tags
                 )
+
+                # Handle project associations (many-to-many)
+                if entity_data.project_ids:
+                    # Fetch project objects for the provided IDs
+                    projects_stmt = select(ProjectsTable).where(
+                        ProjectsTable.id.in_(entity_data.project_ids),
+                        ProjectsTable.user_id == str(user_id)
+                    )
+                    projects_result = await session.execute(projects_stmt)
+                    projects = projects_result.scalars().all()
+
+                    # Assign projects to the entity
+                    entity_table.projects = list(projects)
 
                 session.add(entity_table)
                 await session.commit()
-                await session.refresh(entity_table)
+                await session.refresh(entity_table, ["projects"])
 
                 # Convert ORM to Pydantic
                 return Entity.model_validate(entity_table)
@@ -104,8 +118,10 @@ class SqliteEntityRepository:
         """
         try:
             async with self.db_adapter.session(user_id) as session:
-                # Query with ownership check
-                stmt = select(EntitiesTable).where(
+                # Query with ownership check and eager load projects
+                stmt = select(EntitiesTable).options(
+                    selectinload(EntitiesTable.projects)
+                ).where(
                     EntitiesTable.id == entity_id,
                     EntitiesTable.user_id == str(user_id)
                 )
@@ -133,7 +149,7 @@ class SqliteEntityRepository:
     async def list_entities(
         self,
         user_id: UUID,
-        project_id: int | None = None,
+        project_ids: List[int] | None = None,
         entity_type: EntityType | None = None,
         tags: List[str] | None = None
     ) -> List[EntitySummary]:
@@ -141,7 +157,7 @@ class SqliteEntityRepository:
 
         Args:
             user_id: User ID for ownership filtering
-            project_id: Optional filter by project
+            project_ids: Optional filter by project IDs (returns entities linked to ANY of these projects)
             entity_type: Optional filter by entity type
             tags: Optional filter by tags (returns entities with ANY of these tags)
 
@@ -150,13 +166,19 @@ class SqliteEntityRepository:
         """
         try:
             async with self.db_adapter.session(user_id) as session:
-                # Build query with filters
-                stmt = select(EntitiesTable).where(
+                # Build query with filters and eager load projects
+                stmt = select(EntitiesTable).options(
+                    selectinload(EntitiesTable.projects)
+                ).where(
                     EntitiesTable.user_id == str(user_id)
                 )
 
-                if project_id is not None:
-                    stmt = stmt.where(EntitiesTable.project_id == project_id)
+                if project_ids is not None:
+                    # Filter entities that have any of the specified project IDs
+                    # Use join to the association table
+                    stmt = stmt.join(EntitiesTable.projects).where(
+                        ProjectsTable.id.in_(project_ids)
+                    )
 
                 if entity_type:
                     stmt = stmt.where(EntitiesTable.entity_type == entity_type.value)
@@ -174,7 +196,7 @@ class SqliteEntityRepository:
                 stmt = stmt.order_by(EntitiesTable.created_at.desc())
 
                 result = await session.execute(stmt)
-                entities = result.scalars().all()
+                entities = result.unique().scalars().all()
 
                 return [EntitySummary.model_validate(e) for e in entities]
 
@@ -279,8 +301,10 @@ class SqliteEntityRepository:
         """
         try:
             async with self.db_adapter.session(user_id) as session:
-                # Fetch existing entity
-                stmt = select(EntitiesTable).where(
+                # Fetch existing entity with projects loaded
+                stmt = select(EntitiesTable).options(
+                    selectinload(EntitiesTable.projects)
+                ).where(
                     EntitiesTable.id == entity_id,
                     EntitiesTable.user_id == str(user_id)
                 )
@@ -298,14 +322,30 @@ class SqliteEntityRepository:
                 if "entity_type" in update_data and update_data["entity_type"]:
                     update_data["entity_type"] = update_data["entity_type"].value
 
+                # Handle project_ids separately (many-to-many relationship)
+                project_ids = update_data.pop("project_ids", None)
+
                 for field, value in update_data.items():
                     setattr(entity_table, field, value)
+
+                # Update project associations if provided
+                if project_ids is not None:
+                    # Fetch project objects for the provided IDs
+                    projects_stmt = select(ProjectsTable).where(
+                        ProjectsTable.id.in_(project_ids),
+                        ProjectsTable.user_id == str(user_id)
+                    )
+                    projects_result = await session.execute(projects_stmt)
+                    projects = projects_result.scalars().all()
+
+                    # Replace existing projects with new ones
+                    entity_table.projects = list(projects)
 
                 # Update timestamp
                 entity_table.updated_at = datetime.now(timezone.utc)
 
                 await session.commit()
-                await session.refresh(entity_table)
+                await session.refresh(entity_table, ["projects"])
 
                 return Entity.model_validate(entity_table)
 
