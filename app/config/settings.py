@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     DEFAULT_USER_NAME: str = "default-user-name"
     DEFAULT_USER_EMAIL: str = "default-user-email"
 
+    # OAuth Storage Configuration
+    OAUTH_STORAGE_PATH: str = str(_default_data_dir / "oauth")  # Platform-specific path for OAuth tokens
+
     # Memory Configuration
     MEMORY_TITLE_MAX_LENGTH: int = 200      # Must be "easily titled" - scannable
     MEMORY_CONTENT_MAX_LENGTH: int = 2000   # ~300-400 words - single concept

@@ -5,7 +5,6 @@ from typing import AsyncIterator
 from uuid import UUID
 import sqlite_vec
 
-from app.repositories.sqlite.sqlite_tables import Base
 from app.config.settings import settings
 
 import logging

@@ -4,7 +4,6 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator 
 from uuid import UUID
 
-from app.repositories.postgres.postgres_tables import Base
 from app.config.settings import settings 
 
 import logging

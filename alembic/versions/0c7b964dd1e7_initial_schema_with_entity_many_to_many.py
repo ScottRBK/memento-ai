@@ -14,8 +14,6 @@ from typing import Sequence, Union
 import importlib.util
 from pathlib import Path
 
-from alembic import op
-import sqlalchemy as sa
 from app.config.settings import settings
 
 
