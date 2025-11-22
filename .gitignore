@@ -16,5 +16,8 @@ data/
 .env.*
 !.env.example
 
+#hatch-vcs 
+app/_version.py
+
 # VS Code
 .vscode

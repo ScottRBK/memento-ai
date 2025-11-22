@@ -43,3 +43,46 @@ jobs:
 
       - name: Run linting
         run: uv tool run ruff check .
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for hatch-vcs version detection
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Build wheel
+        run: uv build
+
+      - name: Verify alembic files in wheel
+        run: |
+          WHEEL=$(ls dist/*.whl)
+          echo "Checking wheel contents for alembic files..."
+          if unzip -l "$WHEEL" | grep -q "alembic"; then
+            echo "✓ Alembic files found in wheel"
+          else
+            echo "✗ Alembic files missing from wheel!"
+            exit 1
+          fi
+
+      - name: Test installation and CLI works
+        run: |
+          WHEEL=$(ls dist/*.whl)
+          echo "Testing installation from wheel: $WHEEL"
+
+          # Test that CLI command works
+          uvx --from "$WHEEL" forgetful --help
+          echo "✓ CLI command works"
+
+          echo "✓ Smoke test passed - wheel installs correctly with all dependencies"

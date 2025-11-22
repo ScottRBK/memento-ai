@@ -81,9 +81,14 @@ class PostgresDatabaseAdapter:
         """Run pending Alembic migrations synchronously (called via run_sync)."""
         from alembic.config import Config
         from alembic import command
+        from pathlib import Path
+
+        # Find alembic.ini relative to package root
+        package_root = Path(__file__).parent.parent.parent.parent
+        alembic_ini = package_root / "alembic.ini"
 
         # Create Alembic config
-        alembic_cfg = Config("alembic.ini")
+        alembic_cfg = Config(str(alembic_ini))
 
         # Override database URL in config
         alembic_cfg.set_main_option(
@@ -105,8 +110,13 @@ class PostgresDatabaseAdapter:
         """Stamp database with current Alembic revision (called via run_sync)."""
         from alembic.config import Config
         from alembic import command
+        from pathlib import Path
 
-        alembic_cfg = Config("alembic.ini")
+        # Find alembic.ini relative to package root
+        package_root = Path(__file__).parent.parent.parent.parent
+        alembic_ini = package_root / "alembic.ini"
+
+        alembic_cfg = Config(str(alembic_ini))
         alembic_cfg.set_main_option(
             "sqlalchemy.url",
             self.construct_postgres_connection_string()
