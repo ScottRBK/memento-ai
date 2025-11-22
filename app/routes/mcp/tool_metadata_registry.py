@@ -956,7 +956,7 @@ def register_entity_tools_metadata(
                 {"name": "custom_type", "type": "Optional[str]", "description": "Custom type if 'other' is selected", "required": False, "default": None, "example": "ai-company"},
                 {"name": "notes", "type": "Optional[str]", "description": "Additional notes", "required": False, "default": None, "example": "AI safety and research company"},
                 {"name": "tags", "type": "Optional[List[str]]", "description": "Tags for categorization", "required": False, "default": None, "example": ["ai", "research"]},
-                {"name": "project_id", "type": "Optional[int]", "description": "Link to project", "required": False, "default": None, "example": 1},
+                {"name": "project_ids", "type": "Optional[List[int]]", "description": "Link to projects (list of project IDs)", "required": False, "default": None, "example": [1, 2]},
             ],
             "returns": "Entity with id and timestamps",
             "examples": [
@@ -982,7 +982,7 @@ def register_entity_tools_metadata(
             "description": "List entities with optional filtering by project, type, or tags",
             "parameters": [
                 {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
-                {"name": "project_id", "type": "Optional[int]", "description": "Filter by project", "required": False, "default": None, "example": 1},
+                {"name": "project_ids", "type": "Optional[List[int]]", "description": "Filter by projects (list of project IDs)", "required": False, "default": None, "example": [1]},
                 {"name": "entity_type", "type": "Optional[str]", "description": "Filter by type", "required": False, "default": None, "example": "organization"},
                 {"name": "tags", "type": "Optional[List[str]]", "description": "Filter by tags", "required": False, "default": None, "example": ["ai"]},
             ],
@@ -1021,7 +1021,7 @@ def register_entity_tools_metadata(
                 {"name": "custom_type", "type": "Optional[str]", "description": "New custom type", "required": False, "default": None, "example": "custom"},
                 {"name": "notes", "type": "Optional[str]", "description": "New notes", "required": False, "default": None, "example": "Updated notes"},
                 {"name": "tags", "type": "Optional[List[str]]", "description": "New tags (replaces existing)", "required": False, "default": None, "example": ["updated"]},
-                {"name": "project_id", "type": "Optional[int]", "description": "New project link", "required": False, "default": None, "example": 2},
+                {"name": "project_ids", "type": "Optional[List[int]]", "description": "New project links (list of project IDs, replaces existing)", "required": False, "default": None, "example": [2, 3]},
             ],
             "returns": "Updated Entity object",
             "examples": [

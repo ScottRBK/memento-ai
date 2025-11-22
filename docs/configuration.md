@@ -305,6 +305,15 @@ FASTMCP_SERVER_AUTH_GITHUB_BASE_URL=https://forgetful.yourcompany.com
 - **Description**: Email address for default user
 - **Example**: `DEFAULT_USER_EMAIL=dev@localhost`
 
+#### OAuth Storage Configuration
+
+##### `OAUTH_STORAGE_PATH`
+- **Default**: Platform-specific user data directory (e.g., `~/.local/share/forgetful/oauth`)
+- **Description**: Directory where OAuth tokens and state are persisted
+- **Purpose**: Stores authentication tokens between restarts when using OAuth providers (GitHub, Google, etc.)
+- **Note**: This directory contains sensitive authentication data - ensure proper file permissions
+- **Example**: `OAUTH_STORAGE_PATH=/app/data/oauth`
+
 ---
 
 ### User Provisioning
@@ -443,12 +452,118 @@ These settings control the atomic memory system's behavior and constraints.
 
 ---
 
+## Project Configuration
+
+### `PROJECT_DESCRIPTION_MAX_LENGTH`
+- **Default**: `5000`
+- **Description**: Maximum characters for project descriptions
+- **Purpose**: Text field with reasonable cap for detailed project documentation
+- **Example**: `PROJECT_DESCRIPTION_MAX_LENGTH=5000`
+
+### `PROJECT_NOTES_MAX_LENGTH`
+- **Default**: `4000`
+- **Description**: Maximum characters for project notes
+- **Purpose**: Text field with reasonable cap for project-level annotations
+- **Example**: `PROJECT_NOTES_MAX_LENGTH=4000`
+
+---
+
+## Code Artifact Configuration
+
+### `CODE_ARTIFACT_TITLE_MAX_LENGTH`
+- **Default**: `500`
+- **Description**: Maximum characters for code artifact titles
+- **Note**: Database limit is String(500)
+- **Example**: `CODE_ARTIFACT_TITLE_MAX_LENGTH=500`
+
+### `CODE_ARTIFACT_DESCRIPTION_MAX_LENGTH`
+- **Default**: `5000`
+- **Description**: Maximum characters for code artifact descriptions
+- **Purpose**: Reasonable cap for text field describing the code snippet
+- **Example**: `CODE_ARTIFACT_DESCRIPTION_MAX_LENGTH=5000`
+
+### `CODE_ARTIFACT_CODE_MAX_LENGTH`
+- **Default**: `50000`
+- **Description**: Maximum characters for code artifact content (~50KB)
+- **Purpose**: Allows storage of large code snippets
+- **Example**: `CODE_ARTIFACT_CODE_MAX_LENGTH=50000`
+
+### `CODE_ARTIFACT_TAGS_MAX_COUNT`
+- **Default**: `10`
+- **Description**: Maximum number of tags per code artifact
+- **Purpose**: Categorization and filtering
+- **Example**: `CODE_ARTIFACT_TAGS_MAX_COUNT=10`
+
+---
+
+## Document Configuration
+
+### `DOCUMENT_TITLE_MAX_LENGTH`
+- **Default**: `500`
+- **Description**: Maximum characters for document titles
+- **Note**: Database limit is String(500)
+- **Example**: `DOCUMENT_TITLE_MAX_LENGTH=500`
+
+### `DOCUMENT_DESCRIPTION_MAX_LENGTH`
+- **Default**: `5000`
+- **Description**: Maximum characters for document descriptions
+- **Purpose**: Reasonable cap for text field describing the document
+- **Example**: `DOCUMENT_DESCRIPTION_MAX_LENGTH=5000`
+
+### `DOCUMENT_CONTENT_MAX_LENGTH`
+- **Default**: `100000`
+- **Description**: Maximum characters for document content (~100KB)
+- **Purpose**: Allows storage of large documents
+- **Example**: `DOCUMENT_CONTENT_MAX_LENGTH=100000`
+
+### `DOCUMENT_TAGS_MAX_COUNT`
+- **Default**: `10`
+- **Description**: Maximum number of tags per document
+- **Purpose**: Categorization and filtering
+- **Example**: `DOCUMENT_TAGS_MAX_COUNT=10`
+
+---
+
+## Entity Configuration
+
+### `ENTITY_NAME_MAX_LENGTH`
+- **Default**: `200`
+- **Description**: Maximum characters for entity names
+- **Note**: Database limit is String(200)
+- **Example**: `ENTITY_NAME_MAX_LENGTH=200`
+
+### `ENTITY_TYPE_MAX_LENGTH`
+- **Default**: `100`
+- **Description**: Maximum characters for custom entity types
+- **Examples**: "organization", "person", "device", "team"
+- **Example**: `ENTITY_TYPE_MAX_LENGTH=100`
+
+### `ENTITY_NOTES_MAX_LENGTH`
+- **Default**: `4000`
+- **Description**: Maximum characters for entity notes
+- **Purpose**: Reasonable cap for text field with entity annotations
+- **Example**: `ENTITY_NOTES_MAX_LENGTH=4000`
+
+### `ENTITY_TAGS_MAX_COUNT`
+- **Default**: `10`
+- **Description**: Maximum number of tags per entity
+- **Purpose**: Categorization and filtering
+- **Example**: `ENTITY_TAGS_MAX_COUNT=10`
+
+### `ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH`
+- **Default**: `100`
+- **Description**: Maximum characters for relationship type labels
+- **Examples**: "works_at", "owns", "manages", "depends_on"
+- **Example**: `ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH=100`
+
+---
+
 ## Search Configuration
 
 ### `EMBEDDING_PROVIDER`
 - **Default**: `FastEmbed`
 - **Description**: Embedding generation provider
-- **Current Support**: Only `FastEmbed` is currently implemented
+- **Current Support**: FastEmbed | Azure | Google
 - **Example**: `EMBEDDING_PROVIDER=FastEmbed`
 
 ### `EMBEDDING_MODEL`
@@ -469,6 +584,72 @@ These settings control the atomic memory system's behavior and constraints.
 - **Description**: Number of candidates to retrieve from dense (embedding) search before re-ranking
 - **Performance**: Higher values = better recall, slower queries
 - **Example**: `DENSE_SEARCH_CANDIDATES=100`
+
+### Azure Embedding Provider Configuration
+
+**Note**: These settings only apply when `EMBEDDING_PROVIDER=Azure`
+
+#### `AZURE_ENDPOINT`
+- **Default**: (empty string)
+- **Description**: Azure OpenAI service endpoint URL
+- **Format**: `https://<resource-name>.openai.azure.com/`
+- **Example**: `AZURE_ENDPOINT=https://my-openai.openai.azure.com/`
+
+#### `AZURE_DEPLOYMENT`
+- **Default**: (empty string)
+- **Description**: Azure OpenAI embedding model deployment name
+- **Example**: `AZURE_DEPLOYMENT=text-embedding-ada-002`
+
+#### `AZURE_API_VERSION`
+- **Default**: (empty string)
+- **Description**: Azure OpenAI API version to use
+- **Example**: `AZURE_API_VERSION=2023-05-15`
+
+#### `AZURE_API_KEY`
+- **Default**: (empty string)
+- **Description**: Azure OpenAI API authentication key
+- **Security**: **Keep this secret** - never commit to version control
+- **Example**: `AZURE_API_KEY=your-azure-api-key-here`
+
+### Google Embedding Provider Configuration
+
+**Note**: These settings only apply when `EMBEDDING_PROVIDER=Google`
+
+#### `GOOGLE_AI_API_KEY`
+- **Default**: (empty string)
+- **Description**: Google AI API key for embedding generation
+- **Security**: **Keep this secret** - never commit to version control
+- **Example**: `GOOGLE_AI_API_KEY=your-google-api-key-here`
+
+### Re-ranking Configuration
+
+#### `RERANKING_ENABLED`
+- **Default**: `true`
+- **Description**: Enable re-ranking of search results for improved relevance
+- **Values**: `true`, `false`
+- **Note**: Improves search quality at the cost of additional processing
+- **Example**: `RERANKING_ENABLED=true`
+
+#### `RERANKING_PROVIDER`
+- **Default**: `FastEmbed`
+- **Description**: Re-ranking model provider
+- **Current Support**: FastEmbed
+- **Example**: `RERANKING_PROVIDER=FastEmbed`
+
+#### `RERANKING_MODEL`
+- **Default**: `Xenova/ms-marco-MiniLM-L-12-v2`
+- **Description**: Re-ranking model identifier
+- **Purpose**: Optimized for search result re-ranking
+- **Example**: `RERANKING_MODEL=Xenova/ms-marco-MiniLM-L-12-v2`
+
+### FastEmbed Cache Configuration
+
+#### `FASTEMBED_CACHE_DIR`
+- **Default**: Platform-specific user data directory (e.g., `~/.local/share/forgetful/models/fastembed`)
+- **Description**: Directory where FastEmbed models are cached
+- **Purpose**: Avoids re-downloading models on each startup
+- **Note**: Can be customized for offline deployments (see [Offline Setup Guide](OFFLINE_SETUP.md))
+- **Example**: `FASTEMBED_CACHE_DIR=/app/data/models/fastembed`
 
 ---
 

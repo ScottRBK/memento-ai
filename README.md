@@ -3,18 +3,21 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![MCP](https://img.shields.io/badge/MCP-server-purple)
+[![FastMCP](https://img.shields.io/badge/FastMCP-powered-orange)](https://github.com/jlowin/fastmcp)
+[![FastEmbed](https://img.shields.io/badge/FastEmbed-powered-orange)](https://github.com/qdrant/fastembed)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da?logo=discord&logoColor=white)](https://discord.gg/ngaUjKWkFJ)
 
-**A unified memory layer for AI agents across platforms**
 
-![Banner](/docs/images/hero_banner.png)
+**Forgetful** is a storage and retrieval tool for AI Agents. Designed as a Model Context Protocol (MCP) server built using the FastMCP framework. Once connected to this service, MCP clients such as Coding Agents, Chat Bots or your own custom built Agents can store and retreive information from the same knowledge base. 
+
+![Banner](/docs/images/layers.png)
 
 ---
 
 ## Table of Contents
 
-- [About](#about)
-- [What is Forgetful?](#what-is-forgetful)
-- [Key Features](#key-features)
+- [Overview](#overview)
+- [Features](#features)
 - [Quick Start](#quick-start)
 - [Some Examples](#usage-example)
 - [How It Works](#how-it-works)
@@ -25,46 +28,35 @@
 
 ---
 
-## About
+## Overview
+A lot of us are using AI Agents now, especially in the realm of software development. The pace at which work and decisions are made can make it difficult for you to keep up from a notes and context persistance perspective. 
 
-Using multiple AI platforms and tools means constantly repeating context. Each tool has its own memory management, creating silos where knowledge and **experience** is trapped within individual applications.
+So if you are following something like the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) for example and you want to take your brain storming session you've just had with Claude on your desktop/mobile and use it for the basis of your next Claude Code session, then having a shared knowledge base across the two agents can help with this. 
 
-## How Forgetful Helps
+This is just one example use case to illustrate the point, more and more agentic applications are going to surface and the use cases for sharing data across them is going to increase. 
 
-![Layers](docs/images/layers.png)
-Forgetful provides cross platform **memory** for AI agents:
-- Stop repeating yourself across Claude, ChatGPT, and other AI platforms.
-- Share context seamlessly through protocol-level integration (MCP)
-- Build knowledge graphs that connect related memories automatically
-- Recall context the way humans do—through atomic concepts and associations
-- Share context between Claude Code and Codex, have Claude Plan and Codex code (or vice-versa) 
-- Have your agents avoid repeating the same mistakes or spending tokens overcoming the same complex problems
+Knowledge bases are going to become a key infrastructre component for your interacitons with AIs. There are many excellent knowledge base solutions available (many for free on github) and I would encourage you to check them out and find one that works for you (even if Forgetful doesn't) as I found from perosnal experience that interactions with my agents got easier and more rewarding once they knew more about me, my work and previous interactions that I had had with them or other AI systems. 
 
----
+What makes **Forgetful** different from other Memory based MCP services is that it is a rather opinionated view on how AI Agents such store and retreive data.
 
-## But what actually is Forgetful?
+**Forgetful** imposes the [Zettelkasten principle](https://en.wikipedia.org/wiki/Zettelkasten) when clients wish to record memories, that is each memory must be atomic (one concept per note). Along with the note (title and content), we also ask the client / agent to provide context around what it was doing when creating the note, along with keywords and tags. With this information we create semantic embeddings and store these to aid with later retrieval and in addition to this we also automatically link the memory to existing memories that have a particular similarity score, allowing for the automatic construction of a knowledge graph. 
 
-Forgetful is an **MCP (Model Context Protocol) server** that provides persistent, semantically-searchable memory for AI agents.
+We find all this helps in ensuring that when the agent requires relevant information from the memory system later, the correct information is returned.
 
-Forgetful acts as shared infrastructure:
-- **Protocol-level integration**: Works with Claude Code, Claude Desktop, Codex, and any MCP-compatible client
-- **Semantic search**: Vector embeddings understand meaning, not just keywords
-- **Knowledge graphs**: Auto-links related memories based on semantic similarity
-- **Token budget management**: Protects your LLM's context window from overload
+In addiiton to just memories, **Forgetful** also has the concept of entities (think organisaiton, people, products), projects, documents and code artifacts. All of which can be associated with one or more memories. 
 
-Heavily influenced by the [Zettelkasten principle](https://en.wikipedia.org/wiki/Zettelkasten): atomic memories (one concept per note) linked into knowledge graphs enable agents to recall context naturally rather than through keyword search.
 
----
+![Architecture](docs/images/Forgetful%20Architecture.drawio_transparent.png)
 
-## Key Features
-
-- **Semantic Search with Vector Embeddings** – Find relevant context by meaning, not keywords (BAAI/bge-small-en-v1.5 model)
-- **Automatic Knowledge Graphs** – Related memories auto-link during creation based on similarity thresholds
-- **Multi-Resource Support** – Memories + Projects + Code Artifacts + Documents (organized hierarchy)
-- **Token Budget Protection** – Configurable limits prevent context window overload (default 8K tokens)
-- **Local Processing** – No external API calls; embeddings generated locally via FastEmbed
-- **Flexible Storage** – SQLite (default, zero-config) or PostgreSQL (for scale and production deployments)
-- **Two-Tier Retrieval** – Returns primary results + 1-hop linked memories for richer context
+## Features
+- Configure either **STDIO** or **HTTP** transport mechanisim (or stand up two services to support both)
+- Multiple Authentication supported, flows see [FastMCP docs](https://github.com/jlowin/fastmcp/tree/main/docs/servers/auth) for full list
+- Meta Tool Discovery, only three tools exposed to client application to preserver context window.
+- Flexible Storage– SQLite (default, zero-config) or PostgreSQL (for scale and production deployments)
+- Stores memories as vectors and allowing memories to be retrieved from natural language queries from AI.
+- Cross Encoder reranking to improve recall and precision of memory retrieval. 
+- Flexibile ranking (embedding and cross encoder) providers, run everything locally without calls to the cloud thanks to FastEmbed
+- Automatic linking of semantically similar memories, automating the creation of the knowledge graph. 
 
 For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 
@@ -82,13 +74,12 @@ uvx forgetful-ai
 uv tool install forgetful-ai
 forgetful
 ```
+Data stored in platform-appropriate locations (`~/.local/share/forgetful` on Linux/Mac, `AppData` on Windows).
 
 By default, runs with stdio transport for MCP clients. For HTTP:
 ```bash
 uvx forgetful-ai --transport http --port 8020
 ```
-
-Data stored in platform-appropriate locations (`~/.local/share/forgetful` on Linux, `AppData` on Windows).
 
 ### Option 2: From Source
 
@@ -102,7 +93,6 @@ uv sync
 # Run the server (uses SQLite by default)
 uv run main.py
 ```
-
 The server starts with stdio transport. For HTTP: `uv run main.py --transport http`
 
 ### Option 3: Docker Deployment (Production/Scale)
@@ -169,43 +159,129 @@ For detailed connection guides (Claude Code, Claude Desktop, other clients that 
 
 ---
 
-## Usage Example
+## Usage Examples
 
-### The Workflow
+Forgetful exposes tools through a **meta-tools pattern** - only 3 tools visible to your MCP client, with 42 tools accessible via `execute_forgetful_tool`. See [Complete Tool Reference](docs/tool_reference.md) for all tools.
 
-1. **Agent creates a memory** about an architecture decision:
-   ```
-   Tool: create_memory
-   Title: "CI/CD preference: GitHub Actions + Docker"
-   Content: "Prefer GitHub Actions for CI with Docker containerization..."
-   Context: "User and I went through setting up CI/CD for a recent solution they built"
-   Tags: ["preference", "cicd", "docker"]
-   Importance: 9
-   ```
+### Example 1: Project-Scoped Memory
 
-2. **Forgetful auto-links** to related memories (existing "Docker deployment patterns", "GitHub Actions setup")
+Create a memory linked to a project for better organization and scoped retrieval.
 
-3. **Later, agent queries**: "How do I handle deployments?"
-   ```
-   Tool: query_memory
-   Query: "deployment workflow"
-   ```
+```python
+# Create project for organizing related knowledge
+project = execute_forgetful_tool(
+    "create_project",
+    {
+        "name": "E-Commerce Platform Redesign",
+        "project_type": "work",
+        "status": "active"
+    }
+)
 
-4. **Forgetful retrieves**:
-   - Primary result: "CI/CD preference: GitHub Actions + Docker"
-   - Linked context (1-hop): "Docker deployment patterns", "GitHub Actions setup"
-   - Token-budgeted results protect LLM context window
+# Create memory linked to project
+memory = execute_forgetful_tool(
+    "create_memory",
+    {
+        "title": "Payment gateway: Stripe chosen over PayPal",
+        "content": "Selected Stripe for better API docs, lower fees, and built-in fraud detection. PayPal lacks webhooks for subscription management.",
+        "importance": 9,
+        "tags": ["payment", "stripe", "decision"],
+        "project_id": project["project_id"]
+    }
+)
 
-### Available MCP Tools
+# Later, query within project scope
+results = execute_forgetful_tool(
+    "query_memory",
+    {
+        "query": "payment processing implementation",
+        "project_id": project["project_id"]
+    }
+)
+# Returns: Stripe decision + auto-linked related memories
+```
 
-- `query_memory` – Semantic search across all memories
-- `create_memory` – Store atomic knowledge with auto-linking
-- `link_memories` – Manually connect related concepts
-- `create_project` – Organize memories by context/scope
-- `create_code_artifact` – Store code snippets with semantic links
-- `create_document` – Store long-form content (>400 words)
+### Example 2: Knowledge Graph with Entities
 
-For complete tool documentation, see [MCP Tools Reference](docs/connectivity_guide.md).
+Track people, organizations, and relationships - perfect for team and infrastructure management.
+
+```python
+# New engineer joins your company
+new_hire = execute_forgetful_tool(
+    "create_entity",
+    {
+        "name": "Jordan Taylor",
+        "entity_type": "Individual",
+        "description": "Backend Engineer - Payments Team",
+        "tags": ["engineering", "backend", "payments"]
+    }
+)
+
+# Get company entity (create if needed)
+company = execute_forgetful_tool(
+    "create_entity",
+    {
+        "name": "TechFlow Systems",
+        "entity_type": "Organization",
+        "description": "SaaS platform company"
+    }
+)
+
+# Create employment relationship
+execute_forgetful_tool(
+    "create_entity_relationship",
+    {
+        "from_entity_id": new_hire["entity_id"],
+        "to_entity_id": company["entity_id"],
+        "relationship_type": "works_for",
+        "metadata": {
+            "role": "Backend Engineer II",
+            "department": "Payments",
+            "start_date": "2025-01-20"
+        }
+    }
+)
+
+# Create memory about hiring
+hire_memory = execute_forgetful_tool(
+    "create_memory",
+    {
+        "title": "Jordan Taylor hired - payments focus",
+        "content": "Jordan joins to build Stripe integration and handle PCI compliance. Previous experience with payment systems at FinanceApp Corp.",
+        "importance": 7,
+        "tags": ["team", "hiring", "payments"]
+    }
+)
+
+# Link person to memory
+execute_forgetful_tool(
+    "link_entity_to_memory",
+    {
+        "entity_id": new_hire["entity_id"],
+        "memory_id": hire_memory["memory_id"]
+    }
+)
+
+# Query Jordan's related knowledge
+results = execute_forgetful_tool(
+    "query_memory",
+    {"query": "Jordan payment implementation"}
+)
+# Returns: Hiring memory + linked entity + relationship context
+```
+
+### Tool Categories
+
+Forgetful provides **42 tools** across **6 categories**:
+
+- **Memory Tools** (7) – create, query, update, link, mark obsolete
+- **Project Tools** (5) – organize knowledge by context/scope
+- **Entity Tools** (15) – track people, orgs, devices; build knowledge graphs
+- **Code Artifact Tools** (5) – store reusable code snippets
+- **Document Tools** (5) – store long-form content (>400 words)
+- **User Tools** (2) – profile and authentication
+
+For complete documentation with extensive examples, see [Complete Tool Reference](docs/tool_reference.md).
 
 ---
 
@@ -258,7 +334,6 @@ For deep dive on search architecture (dense → sparse → RRF → cross-encoder
 
 ### Key Settings (Optional)
 
-- `AUTH_ENABLED` – Enable authentication (default: `false`, not yet implemented)
 - `MEMORY_TOKEN_BUDGET` – Max tokens for query results (default: `8000`)
 - `EMBEDDING_MODEL` – Embedding model (default: `BAAI/bge-small-en-v1.5`)
 - `MEMORY_NUM_AUTO_LINK` – Auto-link count (default: `3`, set `0` to disable)
@@ -272,6 +347,7 @@ For all 40+ environment variables with detailed explanations, see [Configuration
 
 ### Guides
 
+- **[Complete Tool Reference](docs/tool_reference.md)** – All 42 tools with extensive examples
 - [Configuration Guide](docs/configuration.md) – All environment variables explained
 - [Connectivity Guide](docs/connectivity_guide.md) – Connect Claude and other MCP clients
 - [Search Documentation](docs/search.md) – Embedding pipeline and retrieval architecture

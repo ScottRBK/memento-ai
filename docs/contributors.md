@@ -44,7 +44,7 @@ These tests use in-memory stubs and run fast (~seconds). They form the bulk of o
 
 ### End-to-End Tests
 
-#### SQLite E2E Tests (Default)
+#### SQLite E2E Tests
 
 **Location**: `tests/e2e_sqlite/`
 
@@ -57,7 +57,9 @@ These tests use in-memory stubs and run fast (~seconds). They form the bulk of o
 pytest tests/e2e_sqlite/
 ```
 
-These tests run by default and use an in-memory SQLite database for test isolation. Fast execution (~30 seconds for 94 tests) with automatic cleanup.
+**CI Status**: ✅ Runs automatically in CI workflow on every push/PR
+
+These tests use an in-memory SQLite database for test isolation. Fast execution (~30 seconds for 94 tests) with automatic cleanup. They provide full-stack coverage without Docker dependencies, making them ideal for CI.
 
 #### PostgreSQL E2E Tests
 
@@ -76,7 +78,9 @@ docker compose up -d postgres
 pytest -m e2e
 ```
 
-These tests are marked with `@pytest.mark.e2e` and skipped by default. They validate the full application stack with PostgreSQL backend.
+**CI Status**: ⚠️ Only runs on push to `main` branch or manual workflow dispatch
+
+These tests are marked with `@pytest.mark.e2e` and validate the full application stack with PostgreSQL backend. They're heavier than SQLite E2E tests and reserved for main branch validation.
 
 ---
 ## Linting
@@ -95,21 +99,25 @@ uv tool run ruff check .
 
 **Steps**:
 1. Run integration tests (stubbed, no Docker)
-2. Run linting
+2. Run SQLite E2E tests (in-memory SQLite, full stack)
+3. Run linting
 
 **Status**: Blocks PR merge if fails ✅
 
-### `e2e.yml` - End-to-End Validation
+**Test Coverage**: Integration tests validate business logic with stubs. SQLite E2E tests validate the complete application stack including real database interactions, all without Docker dependencies.
+
+### `e2e.yml` - PostgreSQL E2E Validation
 
 **Triggers**: Push to `main` branch OR manual workflow dispatch
 
-**Purpose**: Validate with real PostgreSQL
+**Purpose**: Validate with real PostgreSQL database
 
 **Steps**:
-1. Start PostgreSQL service in GitHub Actions
-2. Run E2E tests
+1. Run PostgreSQL E2E tests (`tests/e2e/` with `-m e2e` marker)
 
 **Status**: Reports failures but doesn't block ⚠️
+
+**Test Coverage**: Validates full application stack with PostgreSQL backend. These are heavier tests reserved for main branch validation to ensure production database compatibility.
 
 ### `build.yml` - Docker Image Build
 

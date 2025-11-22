@@ -12,6 +12,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from pgvector.sqlalchemy import Vector
+from app.config.settings import settings
 
 
 def upgrade_postgres() -> None:
@@ -53,7 +54,7 @@ def upgrade_postgres() -> None:
     sa.Column('keywords', ARRAY(sa.String()), nullable=False),
     sa.Column('tags', ARRAY(sa.String()), nullable=False),
     sa.Column('importance', sa.Integer(), nullable=False),
-    sa.Column('embedding', Vector(384), nullable=False),
+    sa.Column('embedding', Vector(settings.EMBEDDING_DIMENSIONS), nullable=False),
     sa.Column('is_obsolete', sa.Boolean(), nullable=False),
     sa.Column('obsolete_reason', sa.Text(), nullable=True),
     sa.Column('superseded_by', sa.Integer(), nullable=True),

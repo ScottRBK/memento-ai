@@ -161,4 +161,3 @@ If Forgetful downloads models despite having them cached:
 
 For issues or questions:
 - GitHub Issues: https://github.com/scottrbk/forgetful/issues
-- Model Downloads: https://github.com/scottrbk/forgetful/releases (look for `fastembed-models.tar.gz`)

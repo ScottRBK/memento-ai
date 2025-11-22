@@ -27,8 +27,19 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
+      - name: Cache FastEmbed models
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/fastembed
+          key: fastembed-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            fastembed-
+
       - name: Run integration tests
         run: uv run pytest tests/integration/ -v
+
+      - name: Run SQLite E2E tests
+        run: uv run pytest tests/e2e_sqlite/ -v
 
       - name: Run linting
         run: uv tool run ruff check .
