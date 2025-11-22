@@ -98,10 +98,13 @@ class Settings(BaseSettings):
     # GOOGLE EMBEDDING PROVIDER CONFIG
     GOOGLE_AI_API_KEY: str = ""
 
-    # RERANKING 
+    # RERANKING
     RERANKING_ENABLED: bool = True
     RERANKING_PROVIDER: str = "FastEmbed"
     RERANKING_MODEL: str = "Xenova/ms-marco-MiniLM-L-12-v2"
+
+    # FASTEMBED CACHE CONFIGURATION
+    FASTEMBED_CACHE_DIR: str = str(_default_data_dir / "models" / "fastembed")
 
     """Pydantic Configuration"""
 

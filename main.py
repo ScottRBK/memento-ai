@@ -54,9 +54,7 @@ atexit.register(shutdown_logging)
 
 def _check_first_run_models():
     """Log message on first run when models need to be downloaded."""
-    from platformdirs import user_cache_dir
-
-    cache_dir = Path(user_cache_dir("fastembed"))
+    cache_dir = Path(settings.FASTEMBED_CACHE_DIR)
     if not cache_dir.exists() or not any(cache_dir.iterdir()):
         logger.info("First run detected - downloading embedding models. This may take a minute...")
         print("First run: Downloading embedding models (~180MB). This may take a minute...", file=sys.stderr)
@@ -72,7 +70,9 @@ else:
     
 reranker_adapter = None
 if settings.RERANKING_ENABLED:
-    reranker_adapter = FastEmbedCrossEncoderAdapter()
+    reranker_adapter = FastEmbedCrossEncoderAdapter(
+        cache_dir=settings.FASTEMBED_CACHE_DIR
+    )
 
 if settings.DATABASE == "Postgres":
     db_adapter = PostgresDatabaseAdapter()

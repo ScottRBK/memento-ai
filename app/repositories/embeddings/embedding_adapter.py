@@ -22,15 +22,20 @@ class FastEmbeddingAdapter(EmbeddingsAdapter):
     
     def __init__(self):
         logger.info("Initialising Fastembed model", extra={
-            "embedding_model": settings.EMBEDDING_MODEL
+            "embedding_model": settings.EMBEDDING_MODEL,
+            "cache_dir": settings.FASTEMBED_CACHE_DIR
         })
-        
+
         start_time = time.time()
-        self.model = TextEmbedding(settings.EMBEDDING_MODEL)
+        self.model = TextEmbedding(
+            model_name=settings.EMBEDDING_MODEL,
+            cache_dir=settings.FASTEMBED_CACHE_DIR
+        )
         elapsed = time.time() - start_time
 
         logger.info("FasteEmbed model loaded successfully", extra={
-            "elapsed_time": f"{elapsed:.2f}s"
+            "elapsed_time": f"{elapsed:.2f}s",
+            "cache_dir": settings.FASTEMBED_CACHE_DIR
         })
         
     async def generate_embedding(self, text: str) -> List[float]:
