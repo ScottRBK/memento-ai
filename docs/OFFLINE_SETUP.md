@@ -143,7 +143,7 @@ For completely air-gapped corporate environments:
 1. **On internet-connected machine**:
    ```bash
    # Download models from GitHub
-   wget https://github.com/scottrbk/forgetful-models/releases/download/v1.0.0/fastembed-models.tar.gz
+   wget https://github.com/ScottRBK/forgetful/releases/download/models-v1.0.0/fastembed-models-v1.0.0.tar.gz
    ```
 
 2. **Transfer file** via approved method (USB, internal network, etc.)
