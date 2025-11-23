@@ -18,6 +18,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY README.md ./
 
+# Copy alembic files (needed for hatch force-include during build)
+COPY alembic.ini ./
+COPY alembic ./alembic
+
 # Create app directory for _version.py (hatch-vcs build hook)
 RUN mkdir -p app
 
@@ -29,8 +33,6 @@ COPY main.py ./
 COPY app ./app
 COPY tests ./tests
 COPY pytest.ini ./
-COPY alembic.ini ./
-COPY alembic ./alembic
 
 # Expose port
 EXPOSE 8020
