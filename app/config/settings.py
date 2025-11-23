@@ -87,7 +87,6 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
-    DENSE_SEARCH_CANDIDATES: int = 50     # number of candidates to retrieve from the dense search
     
     # AZURE EMBEDDING PROVIDER CONFIG
     AZURE_ENDPOINT: str = ""
@@ -102,6 +101,7 @@ class Settings(BaseSettings):
     RERANKING_ENABLED: bool = True
     RERANKING_PROVIDER: str = "FastEmbed"
     RERANKING_MODEL: str = "Xenova/ms-marco-MiniLM-L-12-v2"
+    DENSE_SEARCH_CANDIDATES: int = 20 # number of candidates to retrieve from the dense search
 
     # FASTEMBED CACHE CONFIGURATION
     FASTEMBED_CACHE_DIR: str = str(_default_data_dir / "models" / "fastembed")
