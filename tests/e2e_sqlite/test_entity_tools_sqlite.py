@@ -23,6 +23,26 @@ async def test_create_entity_basic_e2e(mcp_client):
 
 
 @pytest.mark.asyncio
+async def test_create_entity_case_insensitive_type_e2e(mcp_client):
+    """Test entity_type is case-insensitive"""
+    # lowercase
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Test Lowercase', 'entity_type': 'individual', 'tags': []
+        }
+    })
+    assert result.data["entity_type"] == 'Individual'
+
+    # UPPERCASE
+    result2 = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Test Uppercase', 'entity_type': 'ORGANIZATION', 'tags': []
+        }
+    })
+    assert result2.data["entity_type"] == 'Organization'
+
+
+@pytest.mark.asyncio
 async def test_create_entity_with_custom_type_e2e(mcp_client):
     """Test creating entity with custom type"""
     result = await mcp_client.call_tool('execute_forgetful_tool', {

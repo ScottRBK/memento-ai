@@ -20,6 +20,15 @@ class EntityType(str, Enum):
     DEVICE = "Device"
     OTHER = "Other"
 
+    @classmethod
+    def _missing_(cls, value):
+        """Case-insensitive enum matching"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.lower() == value.lower():
+                    return member
+        return None
+
 
 class EntityCreate(BaseModel):
     """Request model for creating an entity
