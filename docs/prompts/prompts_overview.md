@@ -13,6 +13,7 @@ Three AI-agent optimized prompts for understanding codebases and managing projec
 | **[Rapid Scan](rapid_project_scan_prompt.md)** | Surface | Bug fixes, quick features, evaluation, initial orientation | Quick orientation map |
 | **[Comprehensive Understanding](comprehensive_project_understanding_prompt.md)** | Deep | Major refactoring, architectural changes, deep debugging | Understanding document |
 | **[KB Bootstrap](knowledge_base_bootstrap_prompt.md)** | KB Population | Documenting projects, enabling AI agents, institutional knowledge | Populated knowledge base |
+| **[Example System Prompt](example_system_prompt.md)** | Reference | Adding Forgetful context to CLAUDE.md or system prompts | Ready-to-copy prompt |
 
 ---
 
@@ -30,6 +31,8 @@ Three AI-agent optimized prompts for understanding codebases and managing projec
 | Build institutional knowledge | KB Bootstrap |
 | Quick orientation | Rapid Scan |
 | Evaluate project fit | Rapid Scan |
+| Add Forgetful to CLAUDE.md | Example System Prompt |
+| Configure AI agent for Forgetful | Example System Prompt |
 
 ---
 
@@ -56,6 +59,9 @@ Project: [owner/repo-name]
 Type: [web app / library / CLI / service]
 Size: [small / medium / large]
 ```
+
+**Example System Prompt:**
+Copy the contents directly into your CLAUDE.md file or system prompt configuration. No parameters needed—it provides behavioral guidance for AI agents using Forgetful.
 
 ---
 
