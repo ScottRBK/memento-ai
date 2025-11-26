@@ -134,6 +134,18 @@ def docker_services(request):
             raise
 
     try:
+        # Clean up any existing containers/volumes first to ensure fresh state
+        print("Cleaning up any existing containers and volumes...")
+        cleanup_cmd = ["docker", "compose", "-f", str(compose_file), "down", "-v", "--remove-orphans"]
+        subprocess.run(
+            cleanup_cmd,
+            env=env,
+            capture_output=True,
+            check=False,  # Don't fail if nothing to clean
+            cwd=str(project_root)
+        )
+        print("✓ Pre-test cleanup complete")
+
         # Build docker compose command
         compose_cmd = ["docker", "compose", "-f", str(compose_file)]
         if override_file:

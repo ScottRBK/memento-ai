@@ -624,11 +624,8 @@ class PostgresMemoryRepository:
                     source_id=source_id,
                     target_id=target_id
                 )
-                # Append the original target_id, not link.target_id
-                # (link.target_id may be swapped if source_id > target_id)
                 links_created.append(target_id)
             except (IntegrityError, NotFoundError):
-                # Skip duplicates and invalid target IDs
                 continue
 
         logger.info("Memory links created", extra={

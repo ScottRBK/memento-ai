@@ -624,12 +624,14 @@ async def test_get_recent_memories_basic_e2e(docker_services, mcp_server_url):
         import json
         memories = json.loads(recent_result.content[0].text)
         assert isinstance(memories, list)
-        assert len(memories) >= 3
+        assert len(memories) == 3
 
-        # Check that most recent memories are returned
+        # Check that most recent memories are returned (newest first)
         recent_ids = [m["id"] for m in memories]
-        # The last 3 created memories should be in the results
-        assert memory_ids[-1] in recent_ids or memory_ids[-2] in recent_ids or memory_ids[-3] in recent_ids
+        # The last 3 created memories should be the results (in reverse order)
+        assert memory_ids[-1] in recent_ids
+        assert memory_ids[-2] in recent_ids
+        assert memory_ids[-3] in recent_ids
 
 
 @pytest.mark.e2e
