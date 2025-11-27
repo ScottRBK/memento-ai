@@ -135,10 +135,38 @@ def register(mcp: FastMCP):
         ctx: Context
     ) -> Any:
         """
-        Execute any registered tool dynamically
+        Execute any registered tool dynamically. Forgetful is a semantic memory system for LLMs.
 
-        This is the primary execution mechanism - works identically to calling tools directly.
-        User context is automatically preserved through the ctx parameter.
+        ## Quick Start - One-Shot Examples
+
+        **Memory Operations:**
+        - Search: execute_forgetful_tool("query_memory", {"query": "...", "query_context": "why searching"})
+        - Create: execute_forgetful_tool("create_memory", {"title": "...", "content": "...", "importance": 7})
+        - Update: execute_forgetful_tool("update_memory", {"memory_id": 1, "content": "new content"})
+
+        **Project Organization:**
+        - List: execute_forgetful_tool("list_projects", {})
+        - Create: execute_forgetful_tool("create_project", {"name": "...", "description": "..."})
+
+        **Entities (people, orgs, devices):**
+        - Create: execute_forgetful_tool("create_entity", {"name": "...", "entity_type": "individual"})
+        - Link: execute_forgetful_tool("link_entity_to_memory", {"entity_id": 1, "memory_id": 1, "relationship": "owns"})
+
+        **Documents (long-form content >300 words):**
+        - Create: execute_forgetful_tool("create_document", {"title": "...", "content": "...", "document_type": "analysis"})
+
+        **Code Artifacts (reusable snippets):**
+        - Create: execute_forgetful_tool("create_code_artifact", {"title": "...", "code": "...", "language": "python"})
+
+        **Memory Linking:**
+        - Link: execute_forgetful_tool("link_memories", {"source_id": 1, "target_id": 2, "relationship": "relates_to"})
+
+        ## Tool Categories
+        memory | project | entity | document | code_artifact | linking | user
+
+        Use discover_forgetful_tools(category?) for complete tool list with full parameter details.
+
+        ---
 
         Args:
             tool_name: Name of the tool to execute
