@@ -1,5 +1,8 @@
 This section provides more detailed instructions on how to connect forgetful to various AI Agent applications.
-
+- [Claude Code](#claude-code) 
+- [Cursor](#cursor) 
+- [Codex](#codex) 
+- [Gemini CLI](#gemini-cli) 
 
 ## Claude Code
 ### STDIO Transport

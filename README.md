@@ -132,6 +132,11 @@ For all configuration options, see [Configuration Guide](docs/configuration.md).
 
 For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
 
+- [Claude Code](docs/connectivity_guide.md#claude-code) 
+- [Cursor](docs/connectivity_guide.md#cursor) 
+- [Codex](docs/connectivity_guide.md#codex) 
+- [Gemini CLI](docs/connectivity_guide.md#gemini-cli) 
+
 Add Forgetful to your MCP client configuration:
 
 **stdio transport (recommended for local use):**
