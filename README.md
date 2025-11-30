@@ -130,6 +130,8 @@ For all configuration options, see [Configuration Guide](docs/configuration.md).
 
 ### Connecting to An Agent
 
+For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
+
 Add Forgetful to your MCP client configuration:
 
 **stdio transport (recommended for local use):**
@@ -157,8 +159,6 @@ Add Forgetful to your MCP client configuration:
 }
 ```
 
-[!TIP]
-For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
 
 ---
 

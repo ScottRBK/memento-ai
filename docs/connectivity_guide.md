@@ -1,9 +1,7 @@
 This section provides more detailed instructions on how to connect forgetful to various AI Agent applications.
 
 
-<detail>
-<summary><b>Claude Code</b></summary>
-
+## Claude Code
 ### STDIO Transport
 ```bash
 claude mcp add --scope user forgetful uvx forgetful-ai
@@ -23,11 +21,7 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
 claude mcp add --transport http --scope user forgetful http://localhost:8020/mcp
 ```
 
-</detail>
-
-<detail>
-<summary><b>Cursor</b></summary>
-
+## Cursor
 Pasting the following configuration into your Cursor `~/.cursor/mcp.json` file is the recommended approach. You may also install in a specific project by creating `.cursor/mcp.json` in your project folder. See [Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol) for more info.
 
 
@@ -41,9 +35,7 @@ Pasting the following configuration into your Cursor `~/.cursor/mcp.json` file i
       "args": ["forgetful-ai"]
       }
     }
-  }
 }
-
 ```
 
 ### HTTP Transport
@@ -54,18 +46,13 @@ Pasting the following configuration into your Cursor `~/.cursor/mcp.json` file i
       "url": "http://localhost:8020/mcp"
       }
     }
-  }
 }
-
 ```
 
 [![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=forgetful_ai&config=eyJjb21tYW5kIjoidXZ4IGZvcmdldGZ1bC1haSJ9)
-</detail>
-
-<detail>
-<summary><b>Codex</b></summary>
 
 
+## Codex
 
 ### STDIO Transport
 
@@ -79,11 +66,9 @@ codex mcp add forgetful uvx forgetful-ai
 codex mcp add forgetful --url http://localhost:8020/mcp
 ```
 
-</detail>
 
 
-<detail>
-<summary><b>Gemini CLI</summary>
+## Gemini CLI
 
 ### STDIO Transport
 
@@ -97,4 +82,3 @@ gemini mcp add -t http forgetful http://localhost:8020/mcp
 ```
 
 
-</detail>
