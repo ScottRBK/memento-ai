@@ -5,6 +5,8 @@ Layered architecture:
  routes -> services -> protocols -> repositories/adapters 
 No pollution of service layer with integration/implementation details
 
+
+
 ## Testing Philosophy
 We focus on **integration and E2E tests** over unit tests. Tests should cover critical workflows without exhaustive edge case coverage.
 

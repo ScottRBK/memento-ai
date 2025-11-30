@@ -8,7 +8,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20Us-7289da?logo=discord&logoColor=white)](https://discord.gg/ngaUjKWkFJ)
 
 
-**Forgetful** is a storage and retrieval tool for AI Agents. Designed as a Model Context Protocol (MCP) server built using the FastMCP framework. Once connected to this service, MCP clients such as Coding Agents, Chat Bots or your own custom built Agents can store and retreive information from the same knowledge base. 
+**Forgetful** is a storage and retrieval tool for AI Agents. Designed as a Model Context Protocol (MCP) server built using the FastMCP framework. Once connected to this service, MCP clients such as Coding Agents, Chat Bots or your own custom built Agents can store and retrieve information from the same knowledge base. 
 
 ![Banner](/docs/images/layers.png)
 
@@ -29,33 +29,35 @@
 ---
 
 ## Overview
-A lot of us are using AI Agents now, especially in the realm of software development. The pace at which work and decisions are made can make it difficult for you to keep up from a notes and context persistance perspective. 
+A lot of us are using AI Agents now, especially in the realm of software development. The pace at which work and decisions are made can make it difficult for you to keep up from a notes and context persistence perspective. 
 
 So if you are following something like the [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) for example and you want to take your brain storming session you've just had with Claude on your desktop/mobile and use it for the basis of your next Claude Code session, then having a shared knowledge base across the two agents can help with this. 
 
 This is just one example use case to illustrate the point, more and more agentic applications are going to surface and the use cases for sharing data across them is going to increase. 
 
-Knowledge bases are going to become a key infrastructre component for your interacitons with AIs. There are many excellent knowledge base solutions available (many for free on github) and I would encourage you to check them out and find one that works for you (even if Forgetful doesn't) as I found from perosnal experience that interactions with my agents got easier and more rewarding once they knew more about me, my work and previous interactions that I had had with them or other AI systems. 
+Knowledge bases are going to become a key infrastructure component for your interactions with AIs. There are many excellent knowledge base solutions available (many for free on github) and I would encourage you to check them out and find one that works for you (even if Forgetful doesn't) as I found from personal experience that interactions with my agents got easier and more rewarding once they knew more about me, my work and previous interactions that I had had with them or other AI systems. 
 
-What makes **Forgetful** different from other Memory based MCP services is that it is a rather opinionated view on how AI Agents such store and retreive data.
+What makes **Forgetful** different from other Memory based MCP services is that it is a rather opinionated view on how AI Agents such store and retrieve data.
 
 **Forgetful** imposes the [Zettelkasten principle](https://en.wikipedia.org/wiki/Zettelkasten) when clients wish to record memories, that is each memory must be atomic (one concept per note). Along with the note (title and content), we also ask the client / agent to provide context around what it was doing when creating the note, along with keywords and tags. With this information we create semantic embeddings and store these to aid with later retrieval and in addition to this we also automatically link the memory to existing memories that have a particular similarity score, allowing for the automatic construction of a knowledge graph. 
 
-We find all this helps in ensuring that when the agent requires relevant information from the memory system later, the correct information is returned.
+In this sense **Forgetful** becomes a little bit like Obsidian for AI Agents, where the auto linking nudges them in building up a graph of the knowledge.
 
-In addiiton to just memories, **Forgetful** also has the concept of entities (think organisaiton, people, products), projects, documents and code artifacts. All of which can be associated with one or more memories. 
+We find, [as do others (A-MEM: Agentic Memory or LLM Agents)](https://arxiv.org/abs/2502.12110), all this helps in ensuring that when the agent requires relevant information from the memory system later, the correct information is returned.
+
+In addition to just memories, **Forgetful** also has the concept of entities (think organisation, people, products), projects, documents and code artifacts, all of which can be associated with one or more memories. 
 
 
 ![Architecture](docs/images/Forgetful%20Architecture.drawio_transparent.png)
 
 ## Features
-- Configure either **STDIO** or **HTTP** transport mechanisim (or stand up two services to support both)
+- Configure either **STDIO** or **HTTP** transport mechanism (or stand up two services to support both)
 - Multiple Authentication supported, flows see [FastMCP docs](https://github.com/jlowin/fastmcp/tree/main/docs/servers/auth) for full list
-- Meta Tool Discovery, only three tools exposed to client application to preserver context window.
+- Meta Tool Discovery, only three tools exposed to client application to preserve context window.
 - Flexible Storage– SQLite (default, zero-config) or PostgreSQL (for scale and production deployments)
 - Stores memories as vectors and allowing memories to be retrieved from natural language queries from AI.
 - Cross Encoder reranking to improve recall and precision of memory retrieval. 
-- Flexibile ranking (embedding and cross encoder) providers, run everything locally without calls to the cloud thanks to FastEmbed
+- Flexible ranking (embedding and cross encoder) providers, run everything locally without calls to the cloud thanks to FastEmbed
 - Automatic linking of semantically similar memories, automating the creation of the knowledge graph. 
 
 For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
@@ -155,6 +157,7 @@ Add Forgetful to your MCP client configuration:
 }
 ```
 
+[!TIP]
 For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
 
 ---
