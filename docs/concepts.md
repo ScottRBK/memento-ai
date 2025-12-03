@@ -12,6 +12,8 @@ Forgetful organizes knowledge into five building blocks. Understanding when to u
 
 Memories are the core of Forgetful. Each memory captures a single fact, decision, preference, or insight. Think of them as the nodes in your knowledge graph.
 
+**Important:** Memories are the only directly queryable type. Documents and Code Artifacts must be linked to memories to be discoverable through search.
+
 Good memories are:
 - **Easily titled** - if you can't summarize it in ~10 words, it's probably not atomic
 - **Self-contained** - understandable without needing to read other memories
