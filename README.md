@@ -355,6 +355,7 @@ For all 40+ environment variables with detailed explanations, see [Configuration
 
 ### Guides
 
+- **[Core Concepts](docs/concepts.md)** – Memories vs Entities vs Documents explained
 - **[Complete Tool Reference](docs/tool_reference.md)** – All 42 tools with extensive examples
 - [Configuration Guide](docs/configuration.md) – All environment variables explained
 - [Connectivity Guide](docs/connectivity_guide.md) – Connect Claude and other MCP clients
