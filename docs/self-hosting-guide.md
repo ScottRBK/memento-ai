@@ -2,32 +2,37 @@
 
 Deploy Forgetful on a Virtual Private Server for use with Claude Code, Cursor, and other MCP-compatible AI tools.
 
+## Prerequisites
+
+Before deploying Forgetful, ensure your VPS has:
+
+- **Docker & Docker Compose** installed
+- **Reverse proxy** (nginx, Caddy, Traefik) for HTTPS termination
+- **Firewall** configured to only expose necessary ports (SSH, HTTPS)
+
+Resources for VPS setup:
+- [Docker Installation Guide](https://docs.docker.com/engine/install/)
+- [Caddy Reverse Proxy](https://caddyserver.com/docs/quick-starts/reverse-proxy)
+- [nginx Reverse Proxy](https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/)
+
 ## Hardware Requirements
 
 Forgetful runs local ML models for embeddings and reranking by default. These are configurable (see [Configuration](./configuration.md)).
 
-| Workload | RAM | vCPU | Disk | Notes |
-|----------|-----|------|------|-------|
-| **Light** (SQLite, single user) | 1-2GB | 1 | 10GB SSD | May be slow during reranking |
-| **Regular** (PostgreSQL, multi-user) | 2-4GB | 2+ | 20GB+ SSD | Recommended for production |
+| Workload | RAM | vCPU | Disk |
+|----------|-----|------|------|
+| **Light** (SQLite, single user) | 1-2GB | 1 | 10GB SSD |
+| **Regular** (PostgreSQL, multi-user) | 2-4GB | 2+ | 20GB+ SSD |
 
-**To reduce resource usage**: Disable cross-encoder reranking with `RERANKING_ENABLED=false`. This falls back to pure vector similarity ranking. Cloud reranking providers are on the roadmap.
+**To reduce resource usage**: Set `RERANKING_ENABLED=false` to disable cross-encoder reranking. This falls back to pure vector similarity ranking. Cloud reranking providers are on the roadmap.
 
 ---
 
-## Quick Start
+## Deployment
 
-### Prerequisites
-- VPS with SSH access and Docker installed
-- Domain name (recommended for HTTPS)
-
-### Deploy with SQLite (Simplest)
+### SQLite (Simpler)
 
 ```bash
-# Install Docker if needed
-curl -fsSL https://get.docker.com | sh
-
-# Create deployment directory
 mkdir -p /opt/forgetful/data && cd /opt/forgetful
 
 # Download files
@@ -44,13 +49,9 @@ docker compose up -d
 curl http://localhost:8020/health
 ```
 
-### Deploy with PostgreSQL (Production)
+### PostgreSQL (Production)
 
 ```bash
-# Install Docker if needed
-curl -fsSL https://get.docker.com | sh
-
-# Create deployment directory
 mkdir -p /opt/forgetful && cd /opt/forgetful
 
 # Download files
@@ -63,85 +64,33 @@ nano .env
 # Start
 docker compose up -d
 
-# Verify both containers running
+# Verify
 docker compose ps
 curl http://localhost:8020/health
 ```
 
 ---
 
-## Reverse Proxy (HTTPS)
+## Configuration
 
-**Never expose Forgetful directly to the internet.** Use a reverse proxy.
+Key settings in `.env`:
 
-### Caddy (Recommended - Auto HTTPS)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE` | `Postgres` | `Postgres` or `SQLite` |
+| `POSTGRES_PASSWORD` | `forgetful` | **Change this!** |
+| `BIND_ADDRESS` | `127.0.0.1` | Keep as localhost; expose via reverse proxy |
+| `SERVER_PORT` | `8020` | Internal port for MCP endpoint |
+| `RERANKING_ENABLED` | `true` | Set `false` to reduce resource usage |
+| `DENSE_SEARCH_CANDIDATES` | `20` | Lower = faster reranking |
 
-```bash
-# Install Caddy
-apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
-apt update && apt install caddy
-```
+Secure your `.env` file: `chmod 600 /opt/forgetful/.env`
 
-Create `/etc/caddy/Caddyfile`:
-```caddyfile
-forgetful.yourdomain.com {
-    reverse_proxy localhost:8020
-}
-```
-
-```bash
-systemctl enable --now caddy
-```
-
-### nginx + Certbot
-
-```bash
-apt update && apt install -y nginx certbot python3-certbot-nginx
-```
-
-Create `/etc/nginx/sites-available/forgetful`:
-```nginx
-server {
-    listen 80;
-    server_name forgetful.yourdomain.com;
-
-    location / {
-        proxy_pass http://127.0.0.1:8020;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_buffering off;
-        proxy_read_timeout 300s;
-    }
-}
-```
-
-```bash
-ln -s /etc/nginx/sites-available/forgetful /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-certbot --nginx -d forgetful.yourdomain.com
-```
+For all options, see [Configuration Reference](./configuration.md).
 
 ---
 
-## Security
-
-### Firewall
-
-```bash
-apt install -y ufw
-ufw default deny incoming
-ufw default allow outgoing
-ufw allow 22/tcp   # SSH
-ufw allow 443/tcp  # HTTPS
-ufw enable
-```
-
-### Authentication
+## Authentication
 
 **Don't run without authentication in production.** Enable via `.env`:
 
@@ -161,12 +110,6 @@ FASTMCP_SERVER_AUTH_GITHUB_BASE_URL=https://forgetful.yourdomain.com
 
 See [FastMCP Auth Docs](https://fastmcp.wiki/en/servers/auth/authentication) for details.
 
-### Secure .env
-
-```bash
-chmod 600 /opt/forgetful/.env
-```
-
 ---
 
 ## Backups
@@ -181,31 +124,9 @@ sqlite3 /opt/forgetful/data/forgetful.db ".backup '/backups/forgetful-$(date +%Y
 docker exec forgetful-db pg_dump -U forgetful forgetful | gzip > /backups/forgetful-$(date +%Y%m%d).sql.gz
 ```
 
-### Automated Daily Backup
-
-Create `/etc/cron.daily/forgetful-backup`:
-```bash
-#!/bin/bash
-BACKUP_DIR=/backups/forgetful
-mkdir -p $BACKUP_DIR
-
-# PostgreSQL:
-docker exec forgetful-db pg_dump -U forgetful forgetful | gzip > $BACKUP_DIR/forgetful-$(date +%Y%m%d).sql.gz
-
-# SQLite:
-# sqlite3 /opt/forgetful/data/forgetful.db ".backup '$BACKUP_DIR/forgetful-$(date +%Y%m%d).db'"
-
-# Keep 7 days
-find $BACKUP_DIR -mtime +7 -delete
-```
-
-```bash
-chmod +x /etc/cron.daily/forgetful-backup
-```
-
 ---
 
-## Troubleshooting
+## Operations
 
 ```bash
 # Health check
@@ -220,19 +141,15 @@ docker stats
 # Restart
 docker compose restart
 
-# Upgrade to latest
+# Upgrade
 docker compose pull && docker compose up -d
 ```
-
-**High memory/CPU?** Consider:
-- `RERANKING_ENABLED=false` - Disables cross-encoder reranking (significant resource savings)
-- `DENSE_SEARCH_CANDIDATES=10` - Fewer candidates to rerank (default: 20)
 
 ---
 
 ## Connect Your AI Tools
 
-Add to your MCP client configuration:
+Point your reverse proxy to `localhost:8020`, then configure your MCP client:
 
 ```json
 {
@@ -245,12 +162,12 @@ Add to your MCP client configuration:
 }
 ```
 
-See [Connectivity Guide](./connectivity_guide.md) for detailed setup per client.
+See [Connectivity Guide](./connectivity_guide.md) for client-specific setup.
 
 ---
 
 ## Further Reading
 
-- [Configuration Reference](./configuration.md) - All environment variables
-- [Connectivity Guide](./connectivity_guide.md) - Client setup
-- [Offline Setup](./OFFLINE_SETUP.md) - Air-gapped deployments
+- [Configuration Reference](./configuration.md) – All environment variables
+- [Connectivity Guide](./connectivity_guide.md) – Client setup
+- [Offline Setup](./OFFLINE_SETUP.md) – Air-gapped deployments
