@@ -355,6 +355,35 @@ class MemoryService:
 
         return links_created
 
+    async def unlink_memories(
+            self,
+            user_id: UUID,
+            memory_id: int,
+            target_id: int,
+    ) -> bool:
+        """
+        Remove link between two memories.
+
+        Args:
+            user_id: User ID for isolation
+            memory_id: Source memory ID
+            target_id: Target memory ID to unlink
+
+        Returns:
+            True if link was removed, False if link didn't exist
+
+        Raises:
+            NotFoundError: If source memory doesn't exist
+        """
+        # Verify source memory exists (raises NotFoundError if not)
+        await self.get_memory(user_id=user_id, memory_id=memory_id)
+
+        return await self.memory_repo.unlink_memories(
+            user_id=user_id,
+            source_id=memory_id,
+            target_id=target_id
+        )
+
     async def _fetch_linked_memories(
             self,
             user_id,

@@ -371,9 +371,24 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}/links/{target_id}", methods=["DELETE"])
     async def delete_memory_link(request: Request) -> JSONResponse:
         """Remove a specific link between memories."""
-        # TODO: Need to add unlink_memories method to service/repository
-        # For now, return not implemented
-        return JSONResponse(
-            {"error": "Delete link not yet implemented"},
-            status_code=501
-        )
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        memory_id = int(request.path_params["memory_id"])
+        target_id = int(request.path_params["target_id"])
+
+        try:
+            success = await mcp.memory_service.unlink_memories(
+                user_id=user.id,
+                memory_id=memory_id,
+                target_id=target_id
+            )
+        except NotFoundError:
+            return JSONResponse({"error": "Memory not found"}, status_code=404)
+
+        if not success:
+            return JSONResponse({"error": "Link not found"}, status_code=404)
+
+        return JSONResponse({"success": True})

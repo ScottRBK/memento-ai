@@ -297,6 +297,40 @@ class MemoryToolAdapters:
 
         return {"linked_memory_ids": links_created}
 
+    async def unlink_memories(
+        self,
+        source_id: int,
+        target_id: int,
+        ctx: Context,
+    ) -> bool:
+        """Adapter for unlink_memories tool"""
+        logger.info(
+            "MCP Tool -> unlink_memories",
+            extra={
+                "source_id": source_id,
+                "target_id": target_id
+            }
+        )
+
+        user = await get_user_from_auth(ctx)
+
+        success = await self.memory_service.unlink_memories(
+            user_id=user.id,
+            memory_id=source_id,
+            target_id=target_id,
+        )
+
+        logger.info(
+            "MCP Tool - memories unlinked",
+            extra={
+                "source_id": source_id,
+                "target_id": target_id,
+                "success": success
+            }
+        )
+
+        return success
+
     async def get_memory(
         self,
         memory_id: int,
@@ -381,6 +415,7 @@ def create_memory_adapters(
         "query_memory": adapters.query_memory,
         "update_memory": adapters.update_memory,
         "link_memories": adapters.link_memories,
+        "unlink_memories": adapters.unlink_memories,
         "get_memory": adapters.get_memory,
         "mark_memory_obsolete": adapters.mark_memory_obsolete,
         "get_recent_memories": adapters.get_recent_memories,

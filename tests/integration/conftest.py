@@ -395,6 +395,32 @@ class InMemoryMemoryRepository(MemoryRepository):
 
         return paginated, total
 
+    async def unlink_memories(
+        self,
+        user_id: UUID,
+        source_id: int,
+        target_id: int,
+    ) -> bool:
+        """Remove bidirectional link between two memories"""
+        # Check if link exists
+        if source_id not in self._links or target_id not in self._links[source_id]:
+            return False
+
+        # Remove from link tracking
+        self._links[source_id].discard(target_id)
+        self._links[target_id].discard(source_id)
+
+        # Update linked_memory_ids in both memories
+        source = await self.get_memory_by_id(user_id, source_id)
+        target = await self.get_memory_by_id(user_id, target_id)
+
+        if source and target_id in source.linked_memory_ids:
+            source.linked_memory_ids.remove(target_id)
+        if target and source_id in target.linked_memory_ids:
+            target.linked_memory_ids.remove(source_id)
+
+        return True
+
 
 @pytest.fixture
 def mock_embeddings_adapter():

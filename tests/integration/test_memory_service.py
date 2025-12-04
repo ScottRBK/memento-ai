@@ -413,3 +413,98 @@ async def test_get_recent_memories_excludes_obsolete(test_memory_service):
     assert total == 1  # Only non-obsolete count
     assert recent[0].id == memory1.id
     assert recent[0].title == "Active Memory"
+
+
+@pytest.mark.asyncio
+async def test_unlink_memories_success(test_memory_service):
+    """Test that unlink_memories removes bidirectional links"""
+    user_id = uuid4()
+
+    # Create two dissimilar memories to avoid auto-linking
+    memory1_data = MemoryCreate(
+        title="Guitar Practice Schedule",
+        content="Practice scales and chords daily for 30 minutes",
+        context="Musical hobby routine",
+        keywords=["guitar", "music", "practice"],
+        tags=["hobby", "music"],
+        importance=7
+    )
+    memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
+
+    memory2_data = MemoryCreate(
+        title="SQL Query Optimization",
+        content="Use indexes and avoid SELECT * for better query performance",
+        context="Database performance tips",
+        keywords=["sql", "database", "performance"],
+        tags=["database", "optimization"],
+        importance=7
+    )
+    memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
+
+    # Link them
+    await test_memory_service.link_memories(
+        user_id=user_id,
+        memory_id=memory1.id,
+        related_ids=[memory2.id]
+    )
+
+    # Verify link exists
+    updated_memory1 = await test_memory_service.get_memory(user_id, memory1.id)
+    assert memory2.id in updated_memory1.linked_memory_ids
+
+    # Unlink them
+    success = await test_memory_service.unlink_memories(
+        user_id=user_id,
+        memory_id=memory1.id,
+        target_id=memory2.id
+    )
+
+    assert success is True
+
+    # Verify link is removed from both sides
+    final_memory1 = await test_memory_service.get_memory(user_id, memory1.id)
+    final_memory2 = await test_memory_service.get_memory(user_id, memory2.id)
+
+    assert memory2.id not in final_memory1.linked_memory_ids
+    assert memory1.id not in final_memory2.linked_memory_ids
+
+
+@pytest.mark.asyncio
+async def test_unlink_memories_not_found(test_memory_service):
+    """Test that unlink_memories returns False for non-existent link"""
+    user_id = uuid4()
+
+    # Create two memories with COMPLETELY different keywords to avoid auto-linking
+    # (stub uses keyword overlap for similarity)
+    memory1_data = MemoryCreate(
+        title="Quantum Entanglement Research",
+        content="Studying spooky action at a distance",
+        context="Physics research notes",
+        keywords=["quantum", "physics", "entanglement"],
+        tags=["science"],
+        importance=7
+    )
+    memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
+
+    memory2_data = MemoryCreate(
+        title="Medieval Castle Architecture",
+        content="Fortified structures from the middle ages",
+        context="Historical architecture",
+        keywords=["castle", "medieval", "architecture"],
+        tags=["history"],
+        importance=7
+    )
+    memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
+
+    # Verify they didn't auto-link (different keywords = no overlap)
+    refreshed_m1 = await test_memory_service.get_memory(user_id, memory1.id)
+    assert memory2.id not in refreshed_m1.linked_memory_ids, "Should not auto-link with different keywords"
+
+    # Try to unlink non-existent link
+    success = await test_memory_service.unlink_memories(
+        user_id=user_id,
+        memory_id=memory1.id,
+        target_id=memory2.id
+    )
+
+    assert success is False

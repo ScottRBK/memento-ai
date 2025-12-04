@@ -438,6 +438,37 @@ def register_memory_tools_metadata(
             "tags": ["memory", "linking", "relationships"],
         },
         {
+            "name": "unlink_memories",
+            "description": "Remove a bidirectional link between two memories",
+            "parameters": [
+                {
+                    "name": "source_id",
+                    "type": "int",
+                    "description": "Source memory ID",
+                    "required": True,
+                    "example": 42
+                },
+                {
+                    "name": "target_id",
+                    "type": "int",
+                    "description": "Target memory ID to unlink",
+                    "required": True,
+                    "example": 57
+                },
+                {
+                    "name": "ctx",
+                    "type": "Context",
+                    "description": "FastMCP Context (automatically injected)",
+                    "required": True,
+                },
+            ],
+            "returns": "Boolean indicating if link was removed (False if link didn't exist)",
+            "examples": [
+                'execute_forgetful_tool("unlink_memories", {"source_id": 42, "target_id": 57})',
+            ],
+            "tags": ["memory", "unlink", "graph", "linking"],
+        },
+        {
             "name": "get_memory",
             "description": "Retrieve complete memory details by ID",
             "parameters": [

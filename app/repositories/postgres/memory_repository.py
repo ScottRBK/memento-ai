@@ -636,6 +636,53 @@ class PostgresMemoryRepository:
 
         return links_created
 
+    async def unlink_memories(
+            self,
+            user_id: UUID,
+            source_id: int,
+            target_id: int,
+    ) -> bool:
+        """
+        Remove bidirectional link between two memories.
+
+        Args:
+            user_id: User ID for isolation
+            source_id: Source memory ID
+            target_id: Target memory ID to unlink
+
+        Returns:
+            True if link was removed, False if link didn't exist
+        """
+        from sqlalchemy import delete, or_, and_
+
+        async with self.db_adapter.session(user_id) as session:
+            # Delete both directions (source→target and target→source)
+            stmt = delete(MemoryLinkTable).where(
+                MemoryLinkTable.user_id == user_id,
+                or_(
+                    and_(
+                        MemoryLinkTable.source_id == source_id,
+                        MemoryLinkTable.target_id == target_id
+                    ),
+                    and_(
+                        MemoryLinkTable.source_id == target_id,
+                        MemoryLinkTable.target_id == source_id
+                    )
+                )
+            )
+            result = await session.execute(stmt)
+            await session.commit()
+
+            deleted = result.rowcount > 0
+            logger.info("Memory link removed", extra={
+                "user_id": user_id,
+                "source_id": source_id,
+                "target_id": target_id,
+                "deleted": deleted
+            })
+
+            return deleted
+
     async def get_recent_memories(
             self,
             user_id: UUID,

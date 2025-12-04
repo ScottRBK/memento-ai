@@ -37,7 +37,7 @@ Based on community feedback from @riffi:
 | Filters | All optional | Flexibility; pagination prevents memory dumps |
 | Obsolete handling | `include_obsolete=false` default | Clean results by default |
 | Link behavior | POST appends, DELETE removes | Non-destructive by default |
-| Auth (MVP) | Default user (no auth) | Fast iteration; auth as follow-up |
+| Auth | Bearer token via FastMCP providers | Supports all 15+ auth providers; 401 on invalid |
 
 ---
 
@@ -257,11 +257,12 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
         return await user_service.get_or_create_user(user=default_user)
 
     # Auth enabled - extract Bearer token from Authorization header
+    # RFC 6750: Bearer scheme is case-insensitive
     auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
+    if not auth_header.lower().startswith("bearer "):
         raise ValueError("Missing or invalid Authorization header")
 
-    token = auth_header[7:]  # Strip "Bearer " prefix
+    token = auth_header[7:]  # Strip "Bearer " prefix (length same regardless of case)
 
     # Validate token using configured auth provider (works with ANY provider)
     access_token = await mcp.auth.verify_token(token)
@@ -337,7 +338,10 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories", methods=["GET"])
     async def list_memories(request: Request) -> JSONResponse:
         """List memories with pagination, sorting, and filtering."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
 
         # Parse query params
         params = request.query_params
@@ -809,3 +813,5 @@ class TestMemoryAPI:
 5. **Strict Validation**: Query params validated with 400 errors for invalid values (not silent defaults)
 6. **Repository Layer**: Full pagination, sorting, tag filtering, and include_obsolete implemented at repository level
 7. **Dual Database**: Both SQLite and Postgres repositories updated with same interface (tuple return with total count)
+8. **RFC 6750 Compliance**: Bearer token scheme is case-insensitive per spec (accepts `bearer`, `Bearer`, `BEARER`)
+9. **Deterministic Ordering**: Added secondary sort by ID to prevent flaky pagination when timestamps match

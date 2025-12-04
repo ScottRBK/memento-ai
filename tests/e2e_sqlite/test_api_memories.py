@@ -398,10 +398,78 @@ class TestMemoryAPILinks:
         assert response.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_delete_link_not_implemented(self, http_client):
-        """DELETE /api/v1/memories/{id}/links/{target_id} returns 501."""
-        response = await http_client.delete("/api/v1/memories/1/links/2")
-        assert response.status_code == 501
+    async def test_delete_link_success(self, http_client):
+        """DELETE /api/v1/memories/{id}/links/{target_id} removes the link."""
+        # Create two memories with very different content to avoid auto-linking
+        m1 = await http_client.post("/api/v1/memories", json={
+            "title": "Mountain Hiking Adventures",
+            "content": "Exploring trails in the Rocky Mountains during summer.",
+            "context": "Outdoor adventure hobby",
+            "keywords": ["hiking", "mountains"],
+            "tags": ["outdoor"],
+            "importance": 7
+        })
+        m2 = await http_client.post("/api/v1/memories", json={
+            "title": "Pasta Carbonara Recipe",
+            "content": "Eggs, guanciale, pecorino romano, and black pepper.",
+            "context": "Italian cooking",
+            "keywords": ["cooking", "pasta"],
+            "tags": ["food"],
+            "importance": 7
+        })
+
+        m1_id = m1.json()["id"]
+        m2_id = m2.json()["id"]
+
+        # Create link
+        await http_client.post(
+            f"/api/v1/memories/{m1_id}/links",
+            json={"related_ids": [m2_id]}
+        )
+
+        # Verify link exists
+        get_response = await http_client.get(f"/api/v1/memories/{m1_id}")
+        assert m2_id in get_response.json()["linked_memory_ids"]
+
+        # Delete the link
+        response = await http_client.delete(f"/api/v1/memories/{m1_id}/links/{m2_id}")
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+        # Verify link is removed from both sides
+        m1_after = await http_client.get(f"/api/v1/memories/{m1_id}")
+        m2_after = await http_client.get(f"/api/v1/memories/{m2_id}")
+        assert m2_id not in m1_after.json()["linked_memory_ids"]
+        assert m1_id not in m2_after.json()["linked_memory_ids"]
+
+    @pytest.mark.asyncio
+    async def test_delete_link_not_found(self, http_client):
+        """DELETE /api/v1/memories/{id}/links/{target_id} returns 404 for non-existent link."""
+        # Create one memory - can't auto-link to itself
+        m1 = await http_client.post("/api/v1/memories", json={
+            "title": "Solo Memory For Unlink Test",
+            "content": "This memory exists alone with no links.",
+            "context": "Testing unlink not found",
+            "keywords": ["solo"],
+            "tags": ["test"],
+            "importance": 7
+        })
+        m1_id = m1.json()["id"]
+
+        # Use a very high non-existent memory ID that couldn't possibly exist
+        non_existent_target_id = 99999
+
+        # Try to delete link to non-existent memory
+        response = await http_client.delete(f"/api/v1/memories/{m1_id}/links/{non_existent_target_id}")
+        assert response.status_code == 404
+        assert "Link not found" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_delete_link_memory_not_found(self, http_client):
+        """DELETE /api/v1/memories/{id}/links/{target_id} returns 404 for non-existent memory."""
+        response = await http_client.delete("/api/v1/memories/99999/links/1")
+        assert response.status_code == 404
+        assert "Memory not found" in response.json()["error"]
 
 
 class TestMemoryAPIValidation:

@@ -100,4 +100,23 @@ class MemoryRepository(Protocol):
         """
         ...
 
+    async def unlink_memories(
+            self,
+            user_id: UUID,
+            source_id: int,
+            target_id: int,
+    ) -> bool:
+        """
+        Remove bidirectional link between two memories.
+
+        Args:
+            user_id: User ID for isolation
+            source_id: Source memory ID
+            target_id: Target memory ID to unlink
+
+        Returns:
+            True if link was removed, False if link didn't exist
+        """
+        ...
+
 
