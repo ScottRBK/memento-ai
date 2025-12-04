@@ -84,6 +84,13 @@ class TestDocumentAPIList:
         data = response.json()
         assert len(data["documents"]) >= 1
 
+    @pytest.mark.asyncio
+    async def test_list_documents_invalid_project_id(self, http_client):
+        """GET /api/v1/documents returns 400 for invalid project_id."""
+        response = await http_client.get("/api/v1/documents?project_id=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid project_id" in response.json()["error"]
+
 
 class TestDocumentAPICrud:
     """Test Document CRUD operations."""

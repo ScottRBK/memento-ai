@@ -60,6 +60,13 @@ class TestEntityAPIList:
         for entity in data["entities"]:
             assert entity["entity_type"] == "Organization"
 
+    @pytest.mark.asyncio
+    async def test_list_entities_invalid_entity_type(self, http_client):
+        """GET /api/v1/entities returns 400 for invalid entity_type."""
+        response = await http_client.get("/api/v1/entities?entity_type=invalid_type")
+        assert response.status_code == 400
+        assert "Invalid entity_type" in response.json()["error"]
+
 
 class TestEntityAPICrud:
     """Test Entity CRUD operations."""

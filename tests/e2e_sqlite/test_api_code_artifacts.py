@@ -84,6 +84,13 @@ class TestCodeArtifactAPIList:
         data = response.json()
         assert len(data["code_artifacts"]) >= 1
 
+    @pytest.mark.asyncio
+    async def test_list_code_artifacts_invalid_project_id(self, http_client):
+        """GET /api/v1/code-artifacts returns 400 for invalid project_id."""
+        response = await http_client.get("/api/v1/code-artifacts?project_id=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid project_id" in response.json()["error"]
+
 
 class TestCodeArtifactAPICrud:
     """Test Code Artifact CRUD operations."""

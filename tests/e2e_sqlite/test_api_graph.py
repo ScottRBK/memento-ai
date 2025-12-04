@@ -170,6 +170,20 @@ class TestGraphAPI:
         memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
         assert len(memory_nodes) <= 2
 
+    @pytest.mark.asyncio
+    async def test_get_graph_invalid_limit(self, http_client):
+        """GET /api/v1/graph returns 400 for invalid limit."""
+        response = await http_client.get("/api/v1/graph?limit=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid limit" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_get_graph_invalid_project_id(self, http_client):
+        """GET /api/v1/graph returns 400 for invalid project_id."""
+        response = await http_client.get("/api/v1/graph?project_id=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid project_id" in response.json()["error"]
+
 
 class TestMemorySubgraph:
     """Test GET /api/v1/graph/memory/{id} endpoint."""
@@ -308,3 +322,28 @@ class TestMemorySubgraph:
         node_ids = [n["id"] for n in data["nodes"]]
         assert f"memory_{mem1_id}" in node_ids
         assert f"memory_{mem2_id}" in node_ids
+
+    @pytest.mark.asyncio
+    async def test_get_memory_subgraph_invalid_memory_id(self, http_client):
+        """GET /api/v1/graph/memory/{id} returns 400 for invalid memory_id."""
+        response = await http_client.get("/api/v1/graph/memory/not_a_number")
+        assert response.status_code == 400
+        assert "Invalid memory_id" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_get_memory_subgraph_invalid_depth(self, http_client):
+        """GET /api/v1/graph/memory/{id} returns 400 for invalid depth."""
+        # First create a memory
+        mem_response = await http_client.post("/api/v1/memories", json={
+            "title": "Depth Validation Test",
+            "content": "Memory for testing depth validation",
+            "context": "Testing depth",
+            "keywords": ["depthTest"],
+            "tags": ["test"],
+            "importance": 7
+        })
+        memory_id = mem_response.json()["id"]
+
+        response = await http_client.get(f"/api/v1/graph/memory/{memory_id}?depth=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid depth" in response.json()["error"]

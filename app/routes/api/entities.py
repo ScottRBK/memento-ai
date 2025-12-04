@@ -45,7 +45,13 @@ def register(mcp: FastMCP):
         # Convert string to EntityType enum if provided
         entity_type = None
         if entity_type_str:
-            entity_type = EntityType(entity_type_str)
+            try:
+                entity_type = EntityType(entity_type_str)
+            except ValueError:
+                return JSONResponse(
+                    {"error": f"Invalid entity_type: {entity_type_str}. Valid values: Individual, Organization, Team, Device, Other"},
+                    status_code=400
+                )
 
         entities = await mcp.entity_service.list_entities(
             user_id=user.id,
@@ -167,7 +173,13 @@ def register(mcp: FastMCP):
         # Convert string to EntityType enum if provided
         entity_type = None
         if entity_type_str:
-            entity_type = EntityType(entity_type_str)
+            try:
+                entity_type = EntityType(entity_type_str)
+            except ValueError:
+                return JSONResponse(
+                    {"error": f"Invalid entity_type: {entity_type_str}. Valid values: Individual, Organization, Team, Device, Other"},
+                    status_code=400
+                )
 
         entities = await mcp.entity_service.search_entities(
             user_id=user.id,

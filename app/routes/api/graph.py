@@ -39,9 +39,27 @@ def register(mcp: FastMCP):
         params = request.query_params
         project_id_str = params.get("project_id")
         include_entities = params.get("include_entities", "true").lower() == "true"
-        limit = min(int(params.get("limit", 100)), 500)
+        limit_str = params.get("limit", "100")
 
-        project_ids = [int(project_id_str)] if project_id_str else None
+        # Validate limit parameter
+        try:
+            limit = min(int(limit_str), 500)
+        except ValueError:
+            return JSONResponse(
+                {"error": f"Invalid limit: {limit_str}. Must be an integer."},
+                status_code=400
+            )
+
+        # Validate project_id parameter
+        project_ids = None
+        if project_id_str:
+            try:
+                project_ids = [int(project_id_str)]
+            except ValueError:
+                return JSONResponse(
+                    {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
+                    status_code=400
+                )
 
         # Get memories
         memories, _ = await mcp.memory_service.get_recent_memories(
@@ -53,8 +71,9 @@ def register(mcp: FastMCP):
         nodes: List[Dict[str, Any]] = []
         edges: List[Dict[str, Any]] = []
         seen_memory_ids = set()
+        seen_edge_ids = set()
 
-        # Add memory nodes
+        # First pass: Add all memory nodes and collect IDs
         for memory in memories:
             seen_memory_ids.add(memory.id)
             nodes.append({
@@ -70,19 +89,26 @@ def register(mcp: FastMCP):
                 }
             })
 
-            # Add edges for memory links
+        # Second pass: Add edges for all memory links (independent of processing order)
+        for memory in memories:
             for linked_id in memory.linked_memory_ids:
-                # Only add edge if we haven't already added the reverse
-                edge_id = f"memory_{min(memory.id, linked_id)}_memory_{max(memory.id, linked_id)}"
+                # Only add edge if both memories are in the result set
                 if linked_id in seen_memory_ids:
-                    edges.append({
-                        "id": edge_id,
-                        "source": f"memory_{memory.id}",
-                        "target": f"memory_{linked_id}",
-                        "type": "memory_link"
-                    })
+                    # Use canonical edge ID to deduplicate bidirectional links
+                    edge_id = f"memory_{min(memory.id, linked_id)}_memory_{max(memory.id, linked_id)}"
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append({
+                            "id": edge_id,
+                            "source": f"memory_{memory.id}",
+                            "target": f"memory_{linked_id}",
+                            "type": "memory_link"
+                        })
 
         # Add entity nodes and edges if requested
+        # Note: EntitySummary from list_entities doesn't include memory_links,
+        # so we show all entities. Entity-memory edges would require fetching
+        # full entity details which is deferred for performance reasons.
         if include_entities:
             entities = await mcp.entity_service.list_entities(
                 user_id=user.id
@@ -100,20 +126,6 @@ def register(mcp: FastMCP):
                         "created_at": entity.created_at.isoformat() if entity.created_at else None
                     }
                 })
-
-                # Add edges for entity-memory links (only if full entity with memory_links)
-                if hasattr(entity, 'memory_links') and entity.memory_links:
-                    for memory_link in entity.memory_links:
-                        if memory_link.memory_id in seen_memory_ids:
-                            edges.append({
-                                "id": f"entity_{entity.id}_memory_{memory_link.memory_id}",
-                                "source": f"entity_{entity.id}",
-                                "target": f"memory_{memory_link.memory_id}",
-                                "type": "entity_memory_link",
-                                "data": {
-                                    "relationship": memory_link.relationship
-                                }
-                            })
 
         return JSONResponse({
             "nodes": nodes,
@@ -140,9 +152,26 @@ def register(mcp: FastMCP):
         except ValueError as e:
             return JSONResponse({"error": str(e)}, status_code=401)
 
-        memory_id = int(request.path_params["memory_id"])
+        # Validate memory_id path parameter
+        try:
+            memory_id = int(request.path_params["memory_id"])
+        except ValueError:
+            return JSONResponse(
+                {"error": f"Invalid memory_id: {request.path_params['memory_id']}. Must be an integer."},
+                status_code=400
+            )
+
         params = request.query_params
-        depth = min(int(params.get("depth", 1)), 3)
+        depth_str = params.get("depth", "1")
+
+        # Validate depth parameter
+        try:
+            depth = min(int(depth_str), 3)
+        except ValueError:
+            return JSONResponse(
+                {"error": f"Invalid depth: {depth_str}. Must be an integer."},
+                status_code=400
+            )
 
         # Get center memory
         try:

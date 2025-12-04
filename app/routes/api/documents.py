@@ -43,7 +43,15 @@ def register(mcp: FastMCP):
         document_type = params.get("document_type")
         tags_str = params.get("tags")
 
-        project_id = int(project_id_str) if project_id_str else None
+        project_id = None
+        if project_id_str:
+            try:
+                project_id = int(project_id_str)
+            except ValueError:
+                return JSONResponse(
+                    {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
+                    status_code=400
+                )
         tags = [t.strip() for t in tags_str.split(",")] if tags_str else None
 
         documents = await mcp.document_service.list_documents(
