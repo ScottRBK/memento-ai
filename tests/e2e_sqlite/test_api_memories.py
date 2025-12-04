@@ -402,3 +402,280 @@ class TestMemoryAPILinks:
         """DELETE /api/v1/memories/{id}/links/{target_id} returns 501."""
         response = await http_client.delete("/api/v1/memories/1/links/2")
         assert response.status_code == 501
+
+
+class TestMemoryAPIValidation:
+    """Test strict query parameter validation - returns 400 on invalid params."""
+
+    @pytest.mark.asyncio
+    async def test_list_invalid_limit_returns_400(self, http_client):
+        """GET /api/v1/memories?limit=abc returns 400."""
+        response = await http_client.get("/api/v1/memories?limit=abc")
+        assert response.status_code == 400
+        assert "limit" in response.json()["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_list_invalid_offset_returns_400(self, http_client):
+        """GET /api/v1/memories?offset=xyz returns 400."""
+        response = await http_client.get("/api/v1/memories?offset=xyz")
+        assert response.status_code == 400
+        assert "offset" in response.json()["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_list_negative_offset_returns_400(self, http_client):
+        """GET /api/v1/memories?offset=-5 returns 400."""
+        response = await http_client.get("/api/v1/memories?offset=-5")
+        assert response.status_code == 400
+        assert "offset" in response.json()["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_list_limit_zero_returns_400(self, http_client):
+        """GET /api/v1/memories?limit=0 returns 400."""
+        response = await http_client.get("/api/v1/memories?limit=0")
+        assert response.status_code == 400
+        assert "limit" in response.json()["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_list_limit_over_max_returns_400(self, http_client):
+        """GET /api/v1/memories?limit=999 returns 400."""
+        response = await http_client.get("/api/v1/memories?limit=999")
+        assert response.status_code == 400
+        assert "limit" in response.json()["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_list_invalid_sort_by_returns_400(self, http_client):
+        """GET /api/v1/memories?sort_by=invalid returns 400."""
+        response = await http_client.get("/api/v1/memories?sort_by=invalid")
+        assert response.status_code == 400
+        assert "sort_by" in response.json()["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_list_invalid_sort_order_returns_400(self, http_client):
+        """GET /api/v1/memories?sort_order=random returns 400."""
+        response = await http_client.get("/api/v1/memories?sort_order=random")
+        assert response.status_code == 400
+        assert "sort_order" in response.json()["error"].lower()
+
+
+class TestMemoryAPIIncludeObsolete:
+    """Test include_obsolete parameter actually works."""
+
+    @pytest.mark.asyncio
+    async def test_include_obsolete_returns_deleted(self, http_client):
+        """GET with include_obsolete=true returns soft-deleted memories."""
+        # Create a memory
+        payload = {
+            "title": "Memory to Mark Obsolete",
+            "content": "This will be soft deleted.",
+            "context": "Testing include_obsolete",
+            "keywords": ["obsolete"],
+            "tags": ["test"],
+            "importance": 7
+        }
+        create_response = await http_client.post("/api/v1/memories", json=payload)
+        assert create_response.status_code == 201
+        memory_id = create_response.json()["id"]
+
+        # Delete the memory (soft delete)
+        await http_client.request(
+            "DELETE",
+            f"/api/v1/memories/{memory_id}",
+            json={"reason": "Testing obsolete"}
+        )
+
+        # Without include_obsolete, should NOT see the memory
+        response = await http_client.get("/api/v1/memories")
+        memory_ids = [m["id"] for m in response.json()["memories"]]
+        assert memory_id not in memory_ids
+
+        # With include_obsolete=true, SHOULD see the memory
+        response = await http_client.get("/api/v1/memories?include_obsolete=true")
+        memory_ids = [m["id"] for m in response.json()["memories"]]
+        assert memory_id in memory_ids
+
+
+class TestMemoryAPIPagination:
+    """Test pagination total count and offset work correctly."""
+
+    @pytest.mark.asyncio
+    async def test_pagination_total_reflects_full_count(self, http_client):
+        """GET with limit=2 shows total=5 (not total=2) when 5 memories exist."""
+        # Create 5 memories
+        for i in range(5):
+            payload = {
+                "title": f"Pagination Total Test {i}",
+                "content": f"Content {i}",
+                "context": "Pagination total test",
+                "keywords": ["pagination"],
+                "tags": ["pagination-test"],
+                "importance": 7
+            }
+            await http_client.post("/api/v1/memories", json=payload)
+
+        # Request with limit=2
+        response = await http_client.get("/api/v1/memories?limit=2&tags=pagination-test")
+        data = response.json()
+
+        assert len(data["memories"]) == 2
+        assert data["total"] == 5  # Total should be full count, not limited count
+        assert data["limit"] == 2
+        assert data["offset"] == 0
+
+    @pytest.mark.asyncio
+    async def test_pagination_offset_works(self, http_client):
+        """GET with offset=2 skips first 2 memories."""
+        # Create 5 memories with unique identifiers
+        created_ids = []
+        for i in range(5):
+            payload = {
+                "title": f"Offset Test Memory {i}",
+                "content": f"Content for offset test {i}",
+                "context": "Offset pagination test",
+                "keywords": ["offset-test"],
+                "tags": ["offset-test"],
+                "importance": 7
+            }
+            resp = await http_client.post("/api/v1/memories", json=payload)
+            created_ids.append(resp.json()["id"])
+
+        # Get first page (no offset)
+        first_page = await http_client.get("/api/v1/memories?limit=2&offset=0&tags=offset-test")
+        first_page_ids = [m["id"] for m in first_page.json()["memories"]]
+
+        # Get second page (offset=2)
+        second_page = await http_client.get("/api/v1/memories?limit=2&offset=2&tags=offset-test")
+        second_page_ids = [m["id"] for m in second_page.json()["memories"]]
+
+        # Pages should have no overlap
+        assert not set(first_page_ids).intersection(set(second_page_ids))
+        assert len(first_page_ids) == 2
+        assert len(second_page_ids) == 2
+
+
+class TestMemoryAPISorting:
+    """Test sorting by different fields and orders."""
+
+    @pytest.mark.asyncio
+    async def test_sort_by_importance_desc(self, http_client):
+        """GET with sort_by=importance&sort_order=desc returns highest first."""
+        # Create memories with different importance levels
+        for importance in [3, 9, 5]:
+            payload = {
+                "title": f"Importance {importance} Memory",
+                "content": f"Memory with importance {importance}",
+                "context": "Sort by importance test",
+                "keywords": ["sort"],
+                "tags": ["sort-importance"],
+                "importance": importance
+            }
+            await http_client.post("/api/v1/memories", json=payload)
+
+        # Sort by importance descending
+        response = await http_client.get(
+            "/api/v1/memories?sort_by=importance&sort_order=desc&tags=sort-importance"
+        )
+        memories = response.json()["memories"]
+
+        # Should be sorted high to low
+        importances = [m["importance"] for m in memories]
+        assert importances == sorted(importances, reverse=True)
+        assert importances[0] == 9  # Highest first
+
+    @pytest.mark.asyncio
+    async def test_sort_by_importance_asc(self, http_client):
+        """GET with sort_by=importance&sort_order=asc returns lowest first."""
+        # Create memories with different importance levels
+        for importance in [8, 2, 6]:
+            payload = {
+                "title": f"Asc Importance {importance}",
+                "content": f"Memory with importance {importance}",
+                "context": "Sort by importance asc test",
+                "keywords": ["sort"],
+                "tags": ["sort-importance-asc"],
+                "importance": importance
+            }
+            await http_client.post("/api/v1/memories", json=payload)
+
+        # Sort by importance ascending
+        response = await http_client.get(
+            "/api/v1/memories?sort_by=importance&sort_order=asc&tags=sort-importance-asc"
+        )
+        memories = response.json()["memories"]
+
+        # Should be sorted low to high
+        importances = [m["importance"] for m in memories]
+        assert importances == sorted(importances)
+        assert importances[0] == 2  # Lowest first
+
+
+class TestMemoryAPITagFilter:
+    """Test tag filtering with OR logic."""
+
+    @pytest.mark.asyncio
+    async def test_filter_by_single_tag(self, http_client):
+        """GET with tags=alpha returns only memories with that tag."""
+        # Create memories with different tags
+        await http_client.post("/api/v1/memories", json={
+            "title": "Alpha Only",
+            "content": "Has alpha tag",
+            "context": "Tag filter test",
+            "keywords": ["tag"],
+            "tags": ["alpha", "unique-tag-test"],
+            "importance": 7
+        })
+        await http_client.post("/api/v1/memories", json={
+            "title": "Beta Only",
+            "content": "Has beta tag",
+            "context": "Tag filter test",
+            "keywords": ["tag"],
+            "tags": ["beta", "unique-tag-test"],
+            "importance": 7
+        })
+
+        # Filter by alpha tag
+        response = await http_client.get("/api/v1/memories?tags=alpha")
+        memories = response.json()["memories"]
+
+        # Should only include alpha-tagged memory
+        titles = [m["title"] for m in memories]
+        assert "Alpha Only" in titles
+        assert "Beta Only" not in titles
+
+    @pytest.mark.asyncio
+    async def test_filter_by_multiple_tags_or_logic(self, http_client):
+        """GET with tags=tagA,tagB returns memories with ANY of those tags."""
+        # Create memories with different tags
+        await http_client.post("/api/v1/memories", json={
+            "title": "Has TagA",
+            "content": "Has tagA",
+            "context": "Multi-tag filter test",
+            "keywords": ["multi"],
+            "tags": ["tagA", "multi-tag-test"],
+            "importance": 7
+        })
+        await http_client.post("/api/v1/memories", json={
+            "title": "Has TagB",
+            "content": "Has tagB",
+            "context": "Multi-tag filter test",
+            "keywords": ["multi"],
+            "tags": ["tagB", "multi-tag-test"],
+            "importance": 7
+        })
+        await http_client.post("/api/v1/memories", json={
+            "title": "Has TagC",
+            "content": "Has tagC only",
+            "context": "Multi-tag filter test",
+            "keywords": ["multi"],
+            "tags": ["tagC", "multi-tag-test"],
+            "importance": 7
+        })
+
+        # Filter by tagA,tagB (OR logic)
+        response = await http_client.get("/api/v1/memories?tags=tagA,tagB")
+        memories = response.json()["memories"]
+        titles = [m["title"] for m in memories]
+
+        # Should include tagA and tagB memories, but not tagC
+        assert "Has TagA" in titles
+        assert "Has TagB" in titles
+        assert "Has TagC" not in titles

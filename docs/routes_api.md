@@ -1,8 +1,29 @@
-# REST API Routes Implementation Plan
+# REST API Routes Implementation
 
 ## Overview
 
 This document outlines the implementation of REST API endpoints for Forgetful, serving as the foundation for a future Web UI with graph visualization and search capabilities (GitHub Issue #3).
+
+## Implementation Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 1: Memory Endpoints | ✅ Complete | 9 endpoints, 32 tests passing |
+| Phase 2: Entity Endpoints | 🔲 Planned | - |
+| Phase 3: Other Resources | 🔲 Planned | Projects, Documents, Code Artifacts |
+| Phase 4: Graph Endpoints | 🔲 Planned | For visualization UI |
+| Phase 5: Authentication | 🔲 Planned | HTTP Bearer token support |
+
+### Files Created/Modified (Phase 1)
+
+| File | Status | Description |
+|------|--------|-------------|
+| `app/middleware/auth.py` | ✅ Modified | Added `get_user_from_request()` |
+| `app/models/memory_models.py` | ✅ Modified | Added `MemoryListResponse` |
+| `app/routes/api/memories.py` | ✅ Created | All 9 endpoints |
+| `main.py` | ✅ Modified | Registered memories routes |
+| `tests/e2e_sqlite/conftest.py` | ✅ Modified | Added `http_client` fixture |
+| `tests/e2e_sqlite/test_api_memories.py` | ✅ Created | 32 E2E tests |
 
 ## Design Decisions
 
@@ -24,30 +45,37 @@ Based on community feedback from @riffi:
 
 ### Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/memories` | List memories (paginated) |
-| `GET` | `/api/v1/memories/{id}` | Get single memory |
-| `POST` | `/api/v1/memories` | Create memory |
-| `PUT` | `/api/v1/memories/{id}` | Update memory |
-| `DELETE` | `/api/v1/memories/{id}` | Mark obsolete (soft delete) |
-| `POST` | `/api/v1/memories/search` | Semantic search |
-| `POST` | `/api/v1/memories/{id}/links` | Link memories |
-| `GET` | `/api/v1/memories/{id}/links` | Get linked memories |
-| `DELETE` | `/api/v1/memories/{id}/links/{target_id}` | Remove specific link |
+| Method | Endpoint | Description | Status |
+|--------|----------|-------------|--------|
+| `GET` | `/api/v1/memories` | List memories (paginated) | ✅ |
+| `GET` | `/api/v1/memories/{id}` | Get single memory | ✅ |
+| `POST` | `/api/v1/memories` | Create memory | ✅ |
+| `PUT` | `/api/v1/memories/{id}` | Update memory | ✅ |
+| `DELETE` | `/api/v1/memories/{id}` | Mark obsolete (soft delete) | ✅ |
+| `POST` | `/api/v1/memories/search` | Semantic search | ✅ |
+| `POST` | `/api/v1/memories/{id}/links` | Link memories | ✅ |
+| `GET` | `/api/v1/memories/{id}/links` | Get linked memories | ✅ |
+| `DELETE` | `/api/v1/memories/{id}/links/{target_id}` | Remove specific link | ⚠️ 501 |
+
+> **Note:** Delete link endpoint returns 501 Not Implemented - requires `unlink_memories` method in service/repository.
 
 ### Query Parameters for GET /api/v1/memories
 
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `limit` | int | 20 | Max results per page (1-100) |
-| `offset` | int | 0 | Skip N results |
-| `sort_by` | string | `created_at` | Sort field: `created_at`, `updated_at` |
-| `sort_order` | string | `desc` | Sort direction: `asc`, `desc` |
-| `project_id` | int | null | Filter by project (optional) |
-| `importance_min` | int | null | Minimum importance 1-10 (optional) |
-| `tags` | string | null | Comma-separated tags (optional) |
-| `include_obsolete` | bool | false | Include obsolete memories |
+| Param | Type | Default | Description | Status |
+|-------|------|---------|-------------|--------|
+| `limit` | int | 20 | Max results per page (1-100) | ✅ |
+| `offset` | int | 0 | Skip N results | ✅ |
+| `sort_by` | string | `created_at` | Sort field: `created_at`, `updated_at`, `importance` | ✅ |
+| `sort_order` | string | `desc` | Sort direction: `asc`, `desc` | ✅ |
+| `project_id` | int | null | Filter by project (optional) | ✅ |
+| `importance_min` | int | null | Minimum importance 1-10 (optional) | ✅ |
+| `tags` | string | null | Comma-separated tags, OR logic (optional) | ✅ |
+| `include_obsolete` | bool | false | Include soft-deleted memories | ✅ |
+
+> **Validation Notes:**
+> - Invalid params (non-integer limit/offset, invalid sort_by/sort_order) return 400 error
+> - `limit` must be 1-100, `offset` must be non-negative
+> - `tags` uses OR logic (returns memories matching ANY specified tag)
 
 ### Request/Response Bodies
 
@@ -684,24 +712,27 @@ class TestMemoryAPI:
 
 ## Implementation Order
 
-1. **Add auth helper** (`app/middleware/auth.py`)
-   - Add `get_user_from_request()` function
+1. ✅ **Add auth helper** (`app/middleware/auth.py`)
+   - Added `get_user_from_request()` function
 
-2. **Add response model** (`app/models/memory_models.py`)
-   - Add `MemoryListResponse` class
+2. ✅ **Add response model** (`app/models/memory_models.py`)
+   - Added `MemoryListResponse` class
 
-3. **Create routes** (`app/routes/api/memories.py`)
-   - Implement all 9 endpoints
+3. ✅ **Create routes** (`app/routes/api/memories.py`)
+   - Implemented all 9 endpoints with `NotFoundError` handling
 
-4. **Register routes** (`main.py`)
-   - Import and register memories routes
+4. ✅ **Register routes** (`main.py`)
+   - Imported and registered memories routes
 
-5. **Add E2E tests** (`tests/e2e_sqlite/test_api_memories.py`)
-   - Comprehensive test coverage
+5. ✅ **Add E2E tests** (`tests/e2e_sqlite/test_api_memories.py`)
+   - 32 comprehensive tests covering all endpoints and edge cases
+   - Added `http_client` fixture to `conftest.py`
+   - Includes validation, sorting, tag filtering, pagination, and include_obsolete tests
 
-6. **Run tests**
+6. ✅ **Run tests**
    ```bash
    uv run pytest tests/e2e_sqlite/test_api_memories.py -v
+   # Result: 32 passed
    ```
 
 ---
@@ -734,3 +765,13 @@ class TestMemoryAPI:
 - MVP uses default user (no auth) for fast iteration
 - Follows existing `health.py` pattern for route registration
 - Tests use in-memory SQLite for isolation and speed
+
+## Implementation Learnings (Phase 1)
+
+1. **Exception Handling**: Routes catch `NotFoundError` from repository layer and return proper 404 responses
+2. **HTTP Testing**: Created `http_client` fixture using `httpx.AsyncClient` with `ASGITransport` for testing custom routes
+3. **Auto-linking**: When testing link creation, auto-linking may have already created the link during memory creation
+4. **FastMCP HTTP App**: Use `mcp.http_app()` (not deprecated `sse_app()`) for ASGI transport
+5. **Strict Validation**: Query params validated with 400 errors for invalid values (not silent defaults)
+6. **Repository Layer**: Full pagination, sorting, tag filtering, and include_obsolete implemented at repository level
+7. **Dual Database**: Both SQLite and Postgres repositories updated with same interface (tuple return with total count)

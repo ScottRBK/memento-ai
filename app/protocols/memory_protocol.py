@@ -74,8 +74,30 @@ class MemoryRepository(Protocol):
             self,
             user_id: UUID,
             limit: int,
-            project_ids: List[int] | None = None
-    ) -> List[Memory]:
+            offset: int = 0,
+            project_ids: List[int] | None = None,
+            include_obsolete: bool = False,
+            sort_by: str = "created_at",
+            sort_order: str = "desc",
+            tags: List[str] | None = None,
+    ) -> tuple[List[Memory], int]:
+        """
+        Get memories with pagination, sorting, and filtering.
+
+        Args:
+            user_id: User ID
+            limit: Max results to return
+            offset: Skip N results for pagination
+            project_ids: Filter by project (optional)
+            include_obsolete: Include soft-deleted memories
+            sort_by: Sort field - created_at, updated_at, importance
+            sort_order: Sort direction - asc, desc
+            tags: Filter by ANY of these tags (OR logic)
+
+        Returns:
+            Tuple of (memories, total_count) where total_count is
+            the count BEFORE limit/offset applied (for pagination)
+        """
         ...
 
 

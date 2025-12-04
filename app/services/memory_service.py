@@ -288,23 +288,38 @@ class MemoryService:
             self,
             user_id: UUID,
             limit: int = 10,
-            project_ids: List[int] | None = None
-    ) -> List[Memory]:
+            offset: int = 0,
+            project_ids: List[int] | None = None,
+            include_obsolete: bool = False,
+            sort_by: str = "created_at",
+            sort_order: str = "desc",
+            tags: List[str] | None = None,
+    ) -> tuple[List[Memory], int]:
         """
-        Retrieve most recent memories sorted by creation timestamp
+        Retrieve memories with pagination, sorting, and filtering.
 
         Args:
             user_id: User ID
             limit: Maximum number of memories to return
+            offset: Skip N results for pagination
             project_ids: Optional filter to only retrieve memories from specific projects
+            include_obsolete: Include soft-deleted memories (default False)
+            sort_by: Sort field - created_at, updated_at, importance
+            sort_order: Sort direction - asc, desc
+            tags: Filter by ANY of these tags (OR logic)
 
         Returns:
-            List of Memory objects sorted by created_at DESC (newest first)
+            Tuple of (memories, total_count) where total_count is count before pagination
         """
         return await self.memory_repo.get_recent_memories(
             user_id=user_id,
             limit=limit,
-            project_ids=project_ids
+            offset=offset,
+            project_ids=project_ids,
+            include_obsolete=include_obsolete,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            tags=tags,
         )
 
     async def link_memories(

@@ -353,23 +353,47 @@ class InMemoryMemoryRepository(MemoryRepository):
         self,
         user_id: UUID,
         limit: int,
-        project_ids: List[int] | None = None
-    ) -> List[Memory]:
-        """Get most recent memories sorted by creation timestamp"""
+        offset: int = 0,
+        project_ids: List[int] | None = None,
+        include_obsolete: bool = False,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        tags: List[str] | None = None,
+    ) -> tuple[List[Memory], int]:
+        """Get memories with pagination, sorting, and filtering"""
         user_memories = self._memories.get(user_id, {})
         memories = list(user_memories.values())
 
-        # Filter out obsolete memories
-        memories = [m for m in memories if not m.is_obsolete]
+        # Filter obsolete memories unless include_obsolete is True
+        if not include_obsolete:
+            memories = [m for m in memories if not m.is_obsolete]
 
         # Apply project filter if provided
         if project_ids:
             memories = [m for m in memories if any(pid in m.project_ids for pid in project_ids)]
 
-        # Sort by created_at descending (newest first)
-        memories.sort(key=lambda m: m.created_at, reverse=True)
+        # Apply tag filter (OR logic)
+        if tags:
+            tag_set = set(tags)
+            memories = [m for m in memories if m.tags and tag_set.intersection(m.tags)]
 
-        return memories[:limit]
+        # Dynamic sorting
+        sort_key_map = {
+            "created_at": lambda m: m.created_at,
+            "updated_at": lambda m: m.updated_at,
+            "importance": lambda m: m.importance,
+        }
+        sort_key = sort_key_map.get(sort_by, sort_key_map["created_at"])
+        reverse = sort_order == "desc"
+        memories.sort(key=sort_key, reverse=reverse)
+
+        # Get total count before pagination
+        total = len(memories)
+
+        # Apply pagination
+        paginated = memories[offset:offset + limit]
+
+        return paginated, total
 
 
 @pytest.fixture

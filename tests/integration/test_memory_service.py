@@ -311,9 +311,10 @@ async def test_get_recent_memories_basic(test_memory_service):
         await asyncio.sleep(0.01)  # Small delay to ensure different timestamps
 
     # Get recent memories (should be in reverse creation order)
-    recent = await test_memory_service.get_recent_memories(user_id, limit=3)
+    recent, total = await test_memory_service.get_recent_memories(user_id, limit=3)
 
     assert len(recent) == 3
+    assert total == 5  # Total count before pagination
     # Most recent should be first (Memory 4, then 3, then 2)
     assert recent[0].title == "Memory 4"
     assert recent[1].title == "Memory 3"
@@ -360,13 +361,14 @@ async def test_get_recent_memories_with_project_filter(test_memory_service):
     memory3, _ = await test_memory_service.create_memory(user_id, memory3_data)
 
     # Get recent memories for project 1 only
-    recent_project_a = await test_memory_service.get_recent_memories(
+    recent_project_a, total = await test_memory_service.get_recent_memories(
         user_id,
         limit=10,
         project_ids=[1]
     )
 
     assert len(recent_project_a) == 2
+    assert total == 2  # Total count for filtered results
     # Should only have Project A memories
     assert all("Project A" in m.title for m in recent_project_a)
 
@@ -405,8 +407,9 @@ async def test_get_recent_memories_excludes_obsolete(test_memory_service):
     )
 
     # Get recent memories - should only return active one
-    recent = await test_memory_service.get_recent_memories(user_id, limit=10)
+    recent, total = await test_memory_service.get_recent_memories(user_id, limit=10)
 
     assert len(recent) == 1
+    assert total == 1  # Only non-obsolete count
     assert recent[0].id == memory1.id
     assert recent[0].title == "Active Memory"

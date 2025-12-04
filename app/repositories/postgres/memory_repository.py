@@ -640,19 +640,51 @@ class PostgresMemoryRepository:
             self,
             user_id: UUID,
             limit: int,
-            project_ids: List[int] | None = None
-    ) -> List[Memory]:
+            offset: int = 0,
+            project_ids: List[int] | None = None,
+            include_obsolete: bool = False,
+            sort_by: str = "created_at",
+            sort_order: str = "desc",
+            tags: List[str] | None = None,
+    ) -> tuple[List[Memory], int]:
         """
-        Get most recent memories sorted by creation timestamp
+        Get memories with pagination, sorting, and filtering.
 
         Args:
             user_id: User ID for ownership filtering
             limit: Maximum number of memories to return
+            offset: Skip N results for pagination
             project_ids: Optional filter to only retrieve memories from specific projects
+            include_obsolete: Include soft-deleted memories (default False)
+            sort_by: Sort field - created_at, updated_at, importance
+            sort_order: Sort direction - asc, desc
+            tags: Filter by ANY of these tags (OR logic)
 
         Returns:
-            List of Memory objects sorted by created_at DESC (newest first)
+            Tuple of (memories, total_count) where total_count is count before pagination
         """
+        from sqlalchemy import func
+
+        # Build base conditions
+        conditions = [MemoryTable.user_id == user_id]
+
+        # Conditional obsolete filter
+        if not include_obsolete:
+            conditions.append(MemoryTable.is_obsolete.is_(False))
+
+        # Tag filter using Postgres ARRAY overlap
+        if tags:
+            conditions.append(MemoryTable.tags.overlap(tags))
+
+        # Project filter
+        if project_ids:
+            project_filter = select(memory_project_association.c.memory_id).where(
+                memory_project_association.c.memory_id == MemoryTable.id,
+                memory_project_association.c.project_id.in_(project_ids)
+            ).exists()
+            conditions.append(project_filter)
+
+        # Build main query with eager loading
         stmt = (
             select(MemoryTable)
             .options(
@@ -661,35 +693,47 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.code_artifacts),
                 selectinload(MemoryTable.documents)
             )
-            .where(
-                MemoryTable.user_id == user_id,
-                MemoryTable.is_obsolete.is_(False)
-            )
+            .where(*conditions)
         )
 
-        # Apply project filter if provided
-        if project_ids:
-            project_filter = select(memory_project_association.c.memory_id).where(
-                memory_project_association.c.memory_id == MemoryTable.id,
-                memory_project_association.c.project_id.in_(project_ids)
-            ).exists()
-            stmt = stmt.where(project_filter)
+        # Dynamic sorting
+        sort_column_map = {
+            "created_at": MemoryTable.created_at,
+            "updated_at": MemoryTable.updated_at,
+            "importance": MemoryTable.importance
+        }
+        sort_column = sort_column_map.get(sort_by, MemoryTable.created_at)
+        order = sort_column.desc() if sort_order == "desc" else sort_column.asc()
+        stmt = stmt.order_by(order)
 
-        # Order by creation date descending and limit results
-        stmt = stmt.order_by(MemoryTable.created_at.desc()).limit(limit)
+        # Apply pagination
+        stmt = stmt.offset(offset).limit(limit)
+
+        # Build count query (same conditions, no limit/offset)
+        count_stmt = select(func.count()).select_from(MemoryTable).where(*conditions)
 
         async with self.db_adapter.session(user_id) as session:
+            # Execute count query
+            total = await session.scalar(count_stmt)
+
+            # Execute main query
             result = await session.execute(stmt)
             memories = result.scalars().all()
 
             logger.info("Retrieved recent memories", extra={
                 "user_id": user_id,
                 "count": len(memories),
+                "total": total,
                 "limit": limit,
-                "project_filtered": project_ids is not None
+                "offset": offset,
+                "project_filtered": project_ids is not None,
+                "include_obsolete": include_obsolete,
+                "sort_by": sort_by,
+                "sort_order": sort_order,
+                "tags_filter": tags
             })
 
-            return [Memory.model_validate(m) for m in memories]
+            return [Memory.model_validate(m) for m in memories], total
 
     async def _link_projects(
             self,

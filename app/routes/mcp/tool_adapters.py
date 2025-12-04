@@ -360,7 +360,8 @@ class MemoryToolAdapters:
 
         user = await get_user_from_auth(ctx)
 
-        memories = await self.memory_service.get_recent_memories(
+        # Service returns (memories, total_count) tuple; MCP tool only needs memories
+        memories, _ = await self.memory_service.get_recent_memories(
             user_id=user.id,
             limit=limit,
             project_ids=project_ids

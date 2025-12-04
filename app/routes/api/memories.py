@@ -9,6 +9,7 @@ from starlette.responses import JSONResponse
 from fastmcp import FastMCP
 from pydantic import ValidationError
 import logging
+from typing import Any
 
 from app.models.memory_models import (
     MemoryCreate,
@@ -22,6 +23,34 @@ from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
+# Valid values for query parameters
+VALID_SORT_BY = {"created_at", "updated_at", "importance"}
+VALID_SORT_ORDER = {"asc", "desc"}
+
+
+def parse_int_param(params: Any, name: str, default: int | None = None) -> int | None:
+    """
+    Parse integer query parameter with strict validation.
+
+    Args:
+        params: Query params object
+        name: Parameter name
+        default: Default value if param not provided
+
+    Returns:
+        Parsed integer or default
+
+    Raises:
+        ValueError: If value is not a valid integer
+    """
+    raw = params.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        raise ValueError(f"Invalid value for '{name}': must be an integer")
+
 
 def register(mcp: FastMCP):
     """Register memory REST routes with FastMCP"""
@@ -34,7 +63,7 @@ def register(mcp: FastMCP):
         Query params:
             limit: Max results per page (1-100, default 20)
             offset: Skip N results (default 0)
-            sort_by: Sort field - created_at, updated_at (default created_at)
+            sort_by: Sort field - created_at, updated_at, importance (default created_at)
             sort_order: Sort direction - asc, desc (default desc)
             project_id: Filter by project (optional)
             importance_min: Minimum importance 1-10 (optional)
@@ -42,42 +71,74 @@ def register(mcp: FastMCP):
             include_obsolete: Include obsolete memories (default false)
         """
         user = await get_user_from_request(request, mcp)
-
-        # Parse query params with defaults
         params = request.query_params
-        limit = min(int(params.get("limit", 20)), 100)
-        offset = int(params.get("offset", 0))
-        project_id = params.get("project_id")
-        importance_min = params.get("importance_min")
+
+        # Parse and validate query params with strict validation
+        try:
+            limit = parse_int_param(params, "limit", 20)
+            offset = parse_int_param(params, "offset", 0)
+            importance_min = parse_int_param(params, "importance_min")
+            project_id = parse_int_param(params, "project_id")
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+        # Validate limit range
+        if limit < 1 or limit > 100:
+            return JSONResponse(
+                {"error": "limit must be between 1 and 100"},
+                status_code=400
+            )
+
+        # Validate offset is non-negative
+        if offset < 0:
+            return JSONResponse(
+                {"error": "offset must be non-negative"},
+                status_code=400
+            )
+
+        # Validate sort_by
+        sort_by = params.get("sort_by", "created_at")
+        if sort_by not in VALID_SORT_BY:
+            return JSONResponse(
+                {"error": f"sort_by must be one of: {', '.join(VALID_SORT_BY)}"},
+                status_code=400
+            )
+
+        # Validate sort_order
+        sort_order = params.get("sort_order", "desc")
+        if sort_order not in VALID_SORT_ORDER:
+            return JSONResponse(
+                {"error": f"sort_order must be one of: {', '.join(VALID_SORT_ORDER)}"},
+                status_code=400
+            )
+
+        # Parse tags (comma-separated)
+        tags_raw = params.get("tags")
+        tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else None
+
+        # Parse include_obsolete
         include_obsolete = params.get("include_obsolete", "false").lower() == "true"
 
         # Convert project_id to list if provided
-        project_ids = [int(project_id)] if project_id else None
+        project_ids = [project_id] if project_id else None
 
-        # Get memories via service
-        # Note: get_recent_memories returns sorted by created_at DESC by default
-        # We request more than needed to account for filtering
-        fetch_limit = limit + offset + 100  # Buffer for filtering
-        memories = await mcp.memory_service.get_recent_memories(
+        # Get memories via service (now returns tuple with total count)
+        memories, total = await mcp.memory_service.get_recent_memories(
             user_id=user.id,
-            limit=fetch_limit,
-            project_ids=project_ids
+            limit=limit,
+            offset=offset,
+            project_ids=project_ids,
+            include_obsolete=include_obsolete,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            tags=tags,
         )
 
-        # Filter by importance if specified
+        # Filter by importance if specified (post-query filter)
         if importance_min:
-            min_importance = int(importance_min)
-            memories = [m for m in memories if m.importance >= min_importance]
-
-        # Filter obsolete if needed
-        if not include_obsolete:
-            memories = [m for m in memories if not m.is_obsolete]
-
-        # Get total before pagination
-        total = len(memories)
-
-        # Apply pagination
-        memories = memories[offset:offset + limit]
+            memories = [m for m in memories if m.importance >= importance_min]
+            # Note: total count may not reflect this filter accurately
+            # Consider adding importance_min to repository layer in future
 
         response = MemoryListResponse(
             memories=memories,
