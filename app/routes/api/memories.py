@@ -70,7 +70,11 @@ def register(mcp: FastMCP):
             tags: Comma-separated tags (optional)
             include_obsolete: Include obsolete memories (default false)
         """
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         params = request.query_params
 
         # Parse and validate query params with strict validation
@@ -152,7 +156,11 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}", methods=["GET"])
     async def get_memory(request: Request) -> JSONResponse:
         """Get a single memory by ID."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         memory_id = int(request.path_params["memory_id"])
 
         try:
@@ -171,7 +179,10 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories", methods=["POST"])
     async def create_memory(request: Request) -> JSONResponse:
         """Create a new memory."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
 
         try:
             body = await request.json()
@@ -201,7 +212,11 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}", methods=["PUT"])
     async def update_memory(request: Request) -> JSONResponse:
         """Update an existing memory."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         memory_id = int(request.path_params["memory_id"])
 
         try:
@@ -229,7 +244,11 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}", methods=["DELETE"])
     async def delete_memory(request: Request) -> JSONResponse:
         """Mark a memory as obsolete (soft delete)."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         memory_id = int(request.path_params["memory_id"])
 
         try:
@@ -255,7 +274,10 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/search", methods=["POST"])
     async def search_memories(request: Request) -> JSONResponse:
         """Semantic search across memories."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
 
         try:
             body = await request.json()
@@ -275,7 +297,11 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}/links", methods=["POST"])
     async def link_memories(request: Request) -> JSONResponse:
         """Link memories together (appends to existing links)."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         memory_id = int(request.path_params["memory_id"])
 
         try:
@@ -301,7 +327,11 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}/links", methods=["GET"])
     async def get_memory_links(request: Request) -> JSONResponse:
         """Get memories linked to this memory."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         memory_id = int(request.path_params["memory_id"])
 
         params = request.query_params

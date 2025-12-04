@@ -12,7 +12,7 @@ This document outlines the implementation of REST API endpoints for Forgetful, s
 | Phase 2: Entity Endpoints | 🔲 Planned | - |
 | Phase 3: Other Resources | 🔲 Planned | Projects, Documents, Code Artifacts |
 | Phase 4: Graph Endpoints | 🔲 Planned | For visualization UI |
-| Phase 5: Authentication | 🔲 Planned | HTTP Bearer token support |
+| Phase 5: Authentication | ✅ Complete | HTTP Bearer token support via FastMCP auth providers |
 
 ### Files Created/Modified (Phase 1)
 
@@ -232,7 +232,7 @@ tests/
 
 ### 1. Auth Helper (app/middleware/auth.py)
 
-Add `get_user_from_request` for HTTP routes:
+The `get_user_from_request` function handles HTTP authentication:
 
 ```python
 from starlette.requests import Request
@@ -242,23 +242,55 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
     """
     Get user for HTTP routes (non-MCP endpoints).
 
-    MVP: Uses default user when FASTMCP_SERVER_AUTH is not set.
-    Future: Extract and validate Bearer token from Authorization header.
+    Uses the same auth provider as MCP routes via mcp.auth.verify_token(),
+    supporting all FastMCP auth providers (JWT, OAuth2, GitHub, Google, Azure, etc.).
+
+    Raises:
+        ValueError: If auth is enabled but token is missing, invalid, or lacks required claims
     """
     user_service: UserService = mcp.user_service
 
-    auth_provider = os.getenv("FASTMCP_SERVER_AUTH")
-    if not auth_provider:
+    # Check if auth is configured via mcp.auth
+    if not mcp.auth:
         # No auth configured - use default user
-        default_user = UserCreate(
-            external_id=settings.DEFAULT_USER_ID,
-            name=settings.DEFAULT_USER_NAME,
-            email=settings.DEFAULT_USER_EMAIL
-        )
+        default_user = UserCreate(...)
         return await user_service.get_or_create_user(user=default_user)
 
-    # TODO: Implement token validation for authenticated mode
-    raise NotImplementedError("HTTP auth with FASTMCP_SERVER_AUTH not yet implemented")
+    # Auth enabled - extract Bearer token from Authorization header
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise ValueError("Missing or invalid Authorization header")
+
+    token = auth_header[7:]  # Strip "Bearer " prefix
+
+    # Validate token using configured auth provider (works with ANY provider)
+    access_token = await mcp.auth.verify_token(token)
+    if access_token is None:
+        raise ValueError("Invalid or expired token")
+
+    # Extract claims and provision user (same pattern as MCP auth)
+    claims = access_token.claims
+    sub = claims.get("sub")
+    if not sub:
+        raise ValueError("Token missing 'sub' claim")
+
+    name = claims.get("name") or claims.get("preferred_username") or claims.get("login") or f"User {sub}"
+    email = claims.get("email") or f"{sub}@oauth.local"
+
+    user_data = UserCreate(external_id=sub, name=name, email=email)
+    return await user_service.get_or_create_user(user=user_data)
+```
+
+Route handlers catch `ValueError` and return 401:
+
+```python
+@mcp.custom_route("/api/v1/memories", methods=["GET"])
+async def list_memories(request: Request) -> JSONResponse:
+    try:
+        user = await get_user_from_request(request, mcp)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=401)
+    # ... rest of handler
 ```
 
 ### 2. Response Model (app/models/memory_models.py)
@@ -753,9 +785,11 @@ class TestMemoryAPI:
 - `/api/v1/graph` (nodes + edges)
 - Power visualization UI
 
-### Phase 5: Authentication
-- Implement `get_user_from_request` with token validation
-- Support `FASTMCP_SERVER_AUTH` for HTTP routes
+### Phase 5: Authentication ✅
+- Implemented `get_user_from_request` with `mcp.auth.verify_token()`
+- Supports all FastMCP auth providers (JWT, OAuth2, GitHub, Google, Azure, etc.)
+- Returns 401 Unauthorized for missing/invalid tokens
+- E2E tests with `StaticTokenVerifier`
 
 ---
 

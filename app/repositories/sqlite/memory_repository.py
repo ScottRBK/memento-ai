@@ -731,7 +731,6 @@ class SqliteMemoryRepository:
             Tuple of (memories, total_count) where total_count is count before pagination
         """
         from app.repositories.sqlite.sqlite_tables import memory_project_association
-        from sqlalchemy import func
 
         # Build base query with eager loading
         stmt = (
@@ -765,7 +764,9 @@ class SqliteMemoryRepository:
         }
         sort_column = sort_column_map.get(sort_by, MemoryTable.created_at)
         order = sort_column.desc() if sort_order == "desc" else sort_column.asc()
-        stmt = stmt.order_by(order)
+        # Tie-break on id to keep ordering deterministic when timestamps are equal
+        id_tiebreak = MemoryTable.id.desc() if sort_order == "desc" else MemoryTable.id.asc()
+        stmt = stmt.order_by(order, id_tiebreak)
 
         async with self.db_adapter.session(user_id) as session:
             # Execute main query

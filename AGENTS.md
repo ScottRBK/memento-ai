@@ -40,3 +40,4 @@ These tests use an in-memory SQLite database for test isolation. Fast execution 
 docker compose up -d postgres
 uv run pytest -m e2e
 ```
+**Remember**: rebuild docker image if testing changes in e2e

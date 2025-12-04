@@ -704,7 +704,9 @@ class PostgresMemoryRepository:
         }
         sort_column = sort_column_map.get(sort_by, MemoryTable.created_at)
         order = sort_column.desc() if sort_order == "desc" else sort_column.asc()
-        stmt = stmt.order_by(order)
+        # Add deterministic tie-breaker so identical timestamps still return newest IDs first
+        id_tiebreak = MemoryTable.id.desc() if sort_order == "desc" else MemoryTable.id.asc()
+        stmt = stmt.order_by(order, id_tiebreak)
 
         # Apply pagination
         stmt = stmt.offset(offset).limit(limit)
@@ -804,4 +806,3 @@ class PostgresMemoryRepository:
     async def _generate_embeddings(self, text: str) -> List[float]:
         return await self.embedding_adapter.generate_embedding(text=text)
     
-

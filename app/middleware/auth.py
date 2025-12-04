@@ -84,8 +84,8 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
     This is the HTTP equivalent of get_user_from_auth() for MCP tools.
     Used by REST API endpoints that receive Starlette Request instead of FastMCP Context.
 
-    MVP: Uses default user when FASTMCP_SERVER_AUTH is not set.
-    Future: Extract and validate Bearer token from Authorization header.
+    Uses the same auth provider as MCP routes via mcp.auth.verify_token(),
+    supporting all FastMCP auth providers (JWT, OAuth2, GitHub, Google, Azure, etc.).
 
     Args:
         request: Starlette Request object from HTTP route
@@ -93,14 +93,16 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
 
     Returns:
         User: full user model with internal ids and metadata
+
+    Raises:
+        ValueError: If auth is enabled but token is missing, invalid, or lacks required claims
     """
     user_service: UserService = mcp.user_service
 
-    auth_provider = os.getenv("FASTMCP_SERVER_AUTH")
-
-    if not auth_provider:
+    # Check if auth is configured via mcp.auth (more reliable than env var)
+    if not mcp.auth:
         # No auth configured - use default user
-        logger.debug("HTTP auth disabled (FASTMCP_SERVER_AUTH not set) - using default user")
+        logger.debug("HTTP auth disabled (mcp.auth not configured) - using default user")
         default_user = UserCreate(
             external_id=settings.DEFAULT_USER_ID,
             name=settings.DEFAULT_USER_NAME,
@@ -108,7 +110,31 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
         )
         return await user_service.get_or_create_user(user=default_user)
 
-    # TODO: Implement token validation for authenticated mode
-    # Should extract Bearer token from request.headers["Authorization"]
-    # and validate against the configured auth provider
-    raise NotImplementedError("HTTP auth with FASTMCP_SERVER_AUTH not yet implemented")
+    # Auth is configured - extract Bearer token from Authorization header
+    # RFC 6750: Bearer scheme is case-insensitive
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        raise ValueError("Missing or invalid Authorization header")
+
+    token = auth_header[7:]  # Strip "Bearer " prefix (length is same regardless of case)
+
+    # Validate token using configured auth provider (works with ANY provider)
+    logger.debug(f"Validating Bearer token via {type(mcp.auth).__name__}")
+    access_token = await mcp.auth.verify_token(token)
+
+    if access_token is None:
+        raise ValueError("Invalid or expired token")
+
+    # Extract claims and provision user (same pattern as MCP auth)
+    claims = access_token.claims
+    logger.debug(f"Token claims received: {json.dumps(claims, indent=2, default=str)}")
+
+    sub = claims.get("sub")
+    if not sub:
+        raise ValueError("Token missing 'sub' claim")
+
+    name = claims.get("name") or claims.get("preferred_username") or claims.get("login") or f"User {sub}"
+    email = claims.get("email") or f"{sub}@oauth.local"
+
+    user_data = UserCreate(external_id=sub, name=name, email=email)
+    return await user_service.get_or_create_user(user=user_data)
