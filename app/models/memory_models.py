@@ -190,6 +190,14 @@ class MemoryCreateResponse(BaseModel):
         default_factory=list,
         description="Summaries of similar memories that were auto-linked for review"
     )
+
+
+class MemoryListResponse(BaseModel):
+    """Paginated list of memories for REST API"""
+    memories: List[Memory]
+    total: int = Field(..., description="Total count of memories matching filters")
+    limit: int = Field(..., description="Maximum results per page")
+    offset: int = Field(..., description="Number of results skipped")
     
 class MemoryQueryRequest(BaseModel):
     """Request model for querying memories"""

@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.config.settings import settings
-from app.routes.api import health
+from app.routes.api import health, memories
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
@@ -214,6 +214,7 @@ async def root(request: Request) -> JSONResponse:
 
 
 health.register(mcp)
+memories.register(mcp)
 
 meta_tools.register(mcp)
 

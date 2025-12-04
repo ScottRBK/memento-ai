@@ -35,7 +35,7 @@ from app.services.entity_service import EntityService
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.api import health
+from app.routes.api import health, memories
 
 
 @pytest.fixture(scope="module")
@@ -168,6 +168,7 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
 
         # Register routes
         health.register(mcp)
+        memories.register(mcp)
         meta_tools.register(mcp)
 
         yield mcp
@@ -207,3 +208,29 @@ async def mcp_client(sqlite_app):
     # Create stdio transport for in-process testing
     async with Client(sqlite_app) as client:
         yield client
+
+
+@pytest.fixture
+async def http_client(sqlite_app):
+    """
+    Provide HTTP client for testing REST API routes.
+
+    This fixture creates an httpx.AsyncClient connected to the FastMCP app
+    via ASGI transport, allowing direct HTTP requests to custom routes
+    without starting an HTTP server.
+
+    Usage in tests:
+        async def test_api_endpoint(http_client):
+            response = await http_client.get("/api/v1/memories")
+            assert response.status_code == 200
+    """
+    from httpx import AsyncClient, ASGITransport
+    from fastmcp import Client
+
+    # First, initialize the app by creating MCP client (runs lifespan)
+    async with Client(sqlite_app) as _:
+        # Create HTTP client using ASGI transport with http_app
+        asgi_app = sqlite_app.http_app()
+        transport = ASGITransport(app=asgi_app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            yield client

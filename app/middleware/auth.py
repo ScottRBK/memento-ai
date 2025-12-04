@@ -3,8 +3,9 @@ Authentication Middleware helpers for integrating with FastMCP and FastAPI
 """
 import os
 import json
-from fastmcp import Context
+from fastmcp import Context, FastMCP
 from fastmcp.server.dependencies import get_access_token, AccessToken
+from starlette.requests import Request
 
 from app.services.user_service import UserService
 from app.models.user_models import User, UserCreate
@@ -74,3 +75,40 @@ async def get_user_from_auth(ctx: Context) -> User:
         email=email
     )
     return await user_service.get_or_create_user(user=user)
+
+
+async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
+    """
+    Get user for HTTP routes (non-MCP endpoints).
+
+    This is the HTTP equivalent of get_user_from_auth() for MCP tools.
+    Used by REST API endpoints that receive Starlette Request instead of FastMCP Context.
+
+    MVP: Uses default user when FASTMCP_SERVER_AUTH is not set.
+    Future: Extract and validate Bearer token from Authorization header.
+
+    Args:
+        request: Starlette Request object from HTTP route
+        mcp: FastMCP instance with attached services
+
+    Returns:
+        User: full user model with internal ids and metadata
+    """
+    user_service: UserService = mcp.user_service
+
+    auth_provider = os.getenv("FASTMCP_SERVER_AUTH")
+
+    if not auth_provider:
+        # No auth configured - use default user
+        logger.debug("HTTP auth disabled (FASTMCP_SERVER_AUTH not set) - using default user")
+        default_user = UserCreate(
+            external_id=settings.DEFAULT_USER_ID,
+            name=settings.DEFAULT_USER_NAME,
+            email=settings.DEFAULT_USER_EMAIL
+        )
+        return await user_service.get_or_create_user(user=default_user)
+
+    # TODO: Implement token validation for authenticated mode
+    # Should extract Bearer token from request.headers["Authorization"]
+    # and validate against the configured auth provider
+    raise NotImplementedError("HTTP auth with FASTMCP_SERVER_AUTH not yet implemented")
