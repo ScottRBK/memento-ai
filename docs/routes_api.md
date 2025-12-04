@@ -8,7 +8,7 @@ This document outlines the implementation of REST API endpoints for Forgetful, s
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| Phase 1: Memory Endpoints | ✅ Complete | 9 endpoints, 32 tests passing |
+| Phase 1: Memory Endpoints | ✅ Complete | 9 endpoints, 34 tests passing |
 | Phase 2: Entity Endpoints | 🔲 Planned | - |
 | Phase 3: Other Resources | 🔲 Planned | Projects, Documents, Code Artifacts |
 | Phase 4: Graph Endpoints | 🔲 Planned | For visualization UI |
@@ -55,9 +55,7 @@ Based on community feedback from @riffi:
 | `POST` | `/api/v1/memories/search` | Semantic search | ✅ |
 | `POST` | `/api/v1/memories/{id}/links` | Link memories | ✅ |
 | `GET` | `/api/v1/memories/{id}/links` | Get linked memories | ✅ |
-| `DELETE` | `/api/v1/memories/{id}/links/{target_id}` | Remove specific link | ⚠️ 501 |
-
-> **Note:** Delete link endpoint returns 501 Not Implemented - requires `unlink_memories` method in service/repository.
+| `DELETE` | `/api/v1/memories/{id}/links/{target_id}` | Remove specific link | ✅ |
 
 ### Query Parameters for GET /api/v1/memories
 
@@ -552,16 +550,27 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/memories/{memory_id}/links/{target_id}", methods=["DELETE"])
     async def delete_memory_link(request: Request) -> JSONResponse:
         """Remove a specific link between memories."""
-        user = await get_user_from_request(request, mcp)
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
         memory_id = int(request.path_params["memory_id"])
         target_id = int(request.path_params["target_id"])
 
-        # TODO: Need to add unlink_memories method to service/repository
-        # For now, return not implemented
-        return JSONResponse(
-            {"error": "Delete link not yet implemented"},
-            status_code=501
-        )
+        try:
+            success = await mcp.memory_service.unlink_memories(
+                user_id=user.id,
+                memory_id=memory_id,
+                target_id=target_id
+            )
+        except NotFoundError:
+            return JSONResponse({"error": "Memory not found"}, status_code=404)
+
+        if not success:
+            return JSONResponse({"error": "Link not found"}, status_code=404)
+
+        return JSONResponse({"success": True})
 ```
 
 ### 4. Registration (main.py)
@@ -761,14 +770,14 @@ class TestMemoryAPI:
    - Imported and registered memories routes
 
 5. ✅ **Add E2E tests** (`tests/e2e_sqlite/test_api_memories.py`)
-   - 32 comprehensive tests covering all endpoints and edge cases
+   - 34 comprehensive tests covering all endpoints and edge cases
    - Added `http_client` fixture to `conftest.py`
    - Includes validation, sorting, tag filtering, pagination, and include_obsolete tests
 
 6. ✅ **Run tests**
    ```bash
    uv run pytest tests/e2e_sqlite/test_api_memories.py -v
-   # Result: 32 passed
+   # Result: 34 passed
    ```
 
 ---
@@ -815,3 +824,5 @@ class TestMemoryAPI:
 7. **Dual Database**: Both SQLite and Postgres repositories updated with same interface (tuple return with total count)
 8. **RFC 6750 Compliance**: Bearer token scheme is case-insensitive per spec (accepts `bearer`, `Bearer`, `BEARER`)
 9. **Deterministic Ordering**: Added secondary sort by ID to prevent flaky pagination when timestamps match
+10. **Unlink Memories**: Implemented bidirectional link removal via `unlink_memories` service method - returns `True` if link existed and was removed, `False` if link didn't exist
+11. **Tuple Unpacking**: Service methods returning tuples (e.g., `get_recent_memories` returns `(memories, total_count)`) must be unpacked in MCP tools and REST routes
