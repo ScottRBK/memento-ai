@@ -302,7 +302,7 @@ class MemoryToolAdapters:
         source_id: int,
         target_id: int,
         ctx: Context,
-    ) -> bool:
+    ) -> dict:
         """Adapter for unlink_memories tool"""
         logger.info(
             "MCP Tool -> unlink_memories",
@@ -329,7 +329,7 @@ class MemoryToolAdapters:
             }
         )
 
-        return success
+        return {"success": success}
 
     async def get_memory(
         self,

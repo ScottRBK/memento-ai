@@ -462,7 +462,7 @@ def register_memory_tools_metadata(
                     "required": True,
                 },
             ],
-            "returns": "Boolean indicating if link was removed (False if link didn't exist)",
+            "returns": "Dict with 'success' boolean (True if link was removed, False if link didn't exist)",
             "examples": [
                 'execute_forgetful_tool("unlink_memories", {"source_id": 42, "target_id": 57})',
             ],

@@ -301,3 +301,109 @@ async def test_link_memories_invalid_source_id_e2e(docker_services,
             error_message = str(e)
             assert 'not found' in error_message.lower(
                 ) or 'validation_error' in error_message.lower()
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_unlink_memories_basic_e2e(docker_services, mcp_server_url):
+    """Test unlinking memories removes bidirectional links"""
+    async with Client(mcp_server_url) as client:
+        # Create two dissimilar memories
+        result1 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Functional Programming Concepts', 'content':
+            'Pure functions and immutability are core FP principles',
+            'context': 'Testing unlink - dissimilar memory 1',
+            'keywords': ['functional', 'immutability', 'pure'], 'tags': [
+            'programming', 'fp'], 'importance': 7}})
+        assert result1.data is not None
+        memory1_id = result1.data["id"]
+
+        result2 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Mediterranean Cooking Tips', 'content':
+            'Olive oil and fresh herbs are essential ingredients',
+            'context': 'Testing unlink - dissimilar memory 2',
+            'keywords': ['cooking', 'mediterranean', 'herbs'], 'tags': [
+            'food', 'recipes'], 'importance': 7}})
+        assert result2.data is not None
+        memory2_id = result2.data["id"]
+
+        # Link them
+        link_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'link_memories', 'arguments': {'memory_id':
+            memory1_id, 'related_ids': [memory2_id]}})
+        assert link_result.data is not None
+        assert memory2_id in link_result.data["linked_memory_ids"]
+
+        # Verify link exists in memory1
+        query_result1 = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'Functional Programming Concepts', 'query_context':
+            'verifying link exists before unlink', 'k': 10,
+            'include_links': False}})
+        found_memory1 = None
+        for memory in query_result1.data["primary_memories"]:
+            if memory["id"] == memory1_id:
+                found_memory1 = memory
+                break
+        assert found_memory1 is not None
+        assert memory2_id in found_memory1["linked_memory_ids"], 'Link should exist before unlink'
+
+        # Unlink the memories
+        unlink_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'unlink_memories', 'arguments': {'source_id':
+            memory1_id, 'target_id': memory2_id}})
+        assert unlink_result.data is not None
+        assert unlink_result.data["success"] is True, 'Unlink should return success=True for existing link'
+
+        # Verify link is removed from memory1
+        query_result1_after = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'Functional Programming Concepts', 'query_context':
+            'verifying link removed after unlink', 'k': 10,
+            'include_links': False}})
+        found_memory1_after = None
+        for memory in query_result1_after.data["primary_memories"]:
+            if memory["id"] == memory1_id:
+                found_memory1_after = memory
+                break
+        assert found_memory1_after is not None
+        assert memory2_id not in found_memory1_after["linked_memory_ids"], 'Link should be removed from memory1'
+
+        # Verify link is also removed from memory2 (bidirectional)
+        query_result2_after = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory', 'arguments': {'query':
+            'Mediterranean Cooking Tips', 'query_context':
+            'verifying bidirectional link removal', 'k': 10,
+            'include_links': False}})
+        found_memory2_after = None
+        for memory in query_result2_after.data["primary_memories"]:
+            if memory["id"] == memory2_id:
+                found_memory2_after = memory
+                break
+        assert found_memory2_after is not None
+        assert memory1_id not in found_memory2_after["linked_memory_ids"], 'Link should be removed from memory2'
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_unlink_memories_not_found_e2e(docker_services, mcp_server_url):
+    """Test unlinking non-existent link returns False"""
+    async with Client(mcp_server_url) as client:
+        # Create one memory
+        result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {'title':
+            'Solo Memory For Unlink Test', 'content':
+            'This memory has no links to remove',
+            'context': 'Testing unlink not found',
+            'keywords': ['solo', 'test'], 'tags': ['test'], 'importance': 7}})
+        assert result.data is not None
+        memory_id = result.data["id"]
+
+        # Try to unlink from non-existent memory
+        unlink_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'unlink_memories', 'arguments': {'source_id':
+            memory_id, 'target_id': 999999}})
+        assert unlink_result.data is not None
+        assert unlink_result.data["success"] is False, 'Unlink should return success=False for non-existent link'
