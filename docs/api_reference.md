@@ -1,18 +1,47 @@
 # REST API Reference
 
-Forgetful exposes a REST API for web UI integration and external access. All endpoints require authentication via HTTP Bearer token.
+Forgetful exposes a REST API for web UI integration and external access.
 
 **Base URL:** `http://localhost:8020/api/v1`
 
 ## Authentication
 
-All API requests require a Bearer token in the Authorization header:
+The REST API uses the **same authentication provider** as MCP routes. This means:
+
+- If you've configured OAuth2/OIDC for MCP, the same tokens work for REST
+- If auth is disabled (`FASTMCP_SERVER_AUTH` not set), REST endpoints use a default user
+- All FastMCP auth providers are supported (JWT, OAuth2, GitHub, Google, Azure, etc.)
+
+### When Auth is Enabled
+
+Include a Bearer token in the Authorization header:
 
 ```
-Authorization: Bearer <your-api-key>
+Authorization: Bearer <your-oauth-token>
 ```
 
-Configure the API key via environment variable `API_KEY` or in your config file.
+The token is validated using `mcp.auth.verify_token()` - the same mechanism used for MCP tool authentication. User identity is extracted from the token's `sub` claim.
+
+### When Auth is Disabled (Default)
+
+If `FASTMCP_SERVER_AUTH` is not set, all requests use a default user. No Authorization header is required.
+
+### Configuration
+
+Authentication is configured via FastMCP environment variables:
+
+```bash
+# Example: GitHub OAuth
+FASTMCP_SERVER_AUTH=github
+GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
+
+# Example: Bearer token (simple API key)
+FASTMCP_SERVER_AUTH=bearer
+FASTMCP_SERVER_AUTH_SECRET=your-secret-key
+```
+
+See [FastMCP Auth Documentation](https://fastmcp.wiki/en/servers/auth/authentication) for all supported providers and configuration options.
 
 ## Common Response Codes
 
