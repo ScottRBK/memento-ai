@@ -38,7 +38,18 @@ Three AI-agent optimized prompts for understanding codebases and managing projec
 
 ## Usage
 
-Copy-paste the prompt file contents into your AI agent conversation, then specify:
+Most agentic coding tools offer hotkeys/commands for reusing prompts, that's why I think it might be better to just list some suggestions and then people can tailor these and wire these up on their individual agents. I do concede that this does add a bit of setup friction, especially if you are setting up multiple agents. the MCP protocol actually supports a /prompt command, however it relies on the agent consuming the tool to have logic baked into to actually call it. 
+
+Here are some documents for setting up commands on some of the various coding agents:
+
+[Claude Code](https://claude.ai/public/artifacts/e2725e41-cca5-48e5-9c15-6eab92012e75)
+
+[Open Code](https://opencode.ai/docs/commands/)
+
+[Codex](https://developers.openai.com/codex/guides/slash-commands/#create-your-own-slash-commands-with-custom-prompts)
+
+
+Alternatively if your application does not have command based prompts, then you can copy-paste the prompt file contents into your AI agent conversation, then specify:
 
 **Rapid Scan:**
 ```
