@@ -731,7 +731,7 @@ class DocumentToolAdapters:
             content=content,
             document_type=document_type,
             filename=filename,
-            tags=tags,
+            tags=tags or [],
             project_id=project_id,
         )
 

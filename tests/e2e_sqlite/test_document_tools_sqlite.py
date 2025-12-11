@@ -219,3 +219,20 @@ async def test_get_document_not_found_e2e(mcp_client):
         assert False, 'Expected error for non-existent document'
     except Exception as e:
         assert 'not found' in str(e).lower()
+
+
+@pytest.mark.asyncio
+async def test_create_document_without_tags_e2e(mcp_client):
+    """Test creating document without providing tags parameter (GitHub issue #4)"""
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_document',
+        'arguments': {
+            'title': 'No Tags Document',
+            'description': 'Document created without tags parameter',
+            'content': 'This document omits the tags field entirely.',
+        },
+    })
+    assert result.data is not None
+    assert result.data["id"] is not None
+    assert result.data["title"] == 'No Tags Document'
+    assert result.data["tags"] == []  # Should default to empty list
