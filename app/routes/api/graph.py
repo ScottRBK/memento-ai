@@ -106,15 +106,14 @@ def register(mcp: FastMCP):
                         })
 
         # Add entity nodes and edges if requested
-        # Note: EntitySummary from list_entities doesn't include memory_links,
-        # so we show all entities. Entity-memory edges would require fetching
-        # full entity details which is deferred for performance reasons.
+        seen_entity_ids = set()
         if include_entities:
             entities = await mcp.entity_service.list_entities(
                 user_id=user.id
             )
 
             for entity in entities:
+                seen_entity_ids.add(entity.id)
                 nodes.append({
                     "id": f"entity_{entity.id}",
                     "type": "entity",
@@ -127,13 +126,69 @@ def register(mcp: FastMCP):
                     }
                 })
 
+            # Add entity-relationship edges (with deduplication for bidirectional display)
+            entity_relationships = await mcp.entity_service.get_all_entity_relationships(
+                user_id=user.id
+            )
+
+            for rel in entity_relationships:
+                # Only add edge if both entities are in result set
+                if rel.source_entity_id in seen_entity_ids and rel.target_entity_id in seen_entity_ids:
+                    # Canonical edge ID for deduplication (bidirectional visualization)
+                    min_id = min(rel.source_entity_id, rel.target_entity_id)
+                    max_id = max(rel.source_entity_id, rel.target_entity_id)
+                    edge_id = f"entity_{min_id}_entity_{max_id}"
+
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append({
+                            "id": edge_id,
+                            "source": f"entity_{rel.source_entity_id}",
+                            "target": f"entity_{rel.target_entity_id}",
+                            "type": "entity_relationship",
+                            "data": {
+                                "relationship_type": rel.relationship_type,
+                                "strength": rel.strength,
+                                "confidence": rel.confidence,
+                                "metadata": rel.metadata
+                            }
+                        })
+
+            # Add entity-memory edges
+            entity_memory_links = await mcp.entity_service.get_all_entity_memory_links(
+                user_id=user.id
+            )
+
+            for entity_id, mem_id in entity_memory_links:
+                # Only add edge if both entity and memory are in result set
+                if entity_id in seen_entity_ids and mem_id in seen_memory_ids:
+                    # Entity always first for consistent edge ID format
+                    edge_id = f"entity_{entity_id}_memory_{mem_id}"
+
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append({
+                            "id": edge_id,
+                            "source": f"entity_{entity_id}",
+                            "target": f"memory_{mem_id}",
+                            "type": "entity_memory"
+                        })
+
+        # Count edges by type for meta
+        memory_link_count = len([e for e in edges if e["type"] == "memory_link"])
+        entity_relationship_count = len([e for e in edges if e["type"] == "entity_relationship"])
+        entity_memory_count = len([e for e in edges if e["type"] == "entity_memory"])
+
         return JSONResponse({
             "nodes": nodes,
             "edges": edges,
             "meta": {
                 "memory_count": len([n for n in nodes if n["type"] == "memory"]),
                 "entity_count": len([n for n in nodes if n["type"] == "entity"]),
-                "edge_count": len(edges)
+                "edge_count": len(edges),
+                "memory_link_count": memory_link_count,
+                "entity_relationship_count": entity_relationship_count,
+                "entity_memory_count": entity_memory_count
             }
         })
 
@@ -229,6 +284,7 @@ def register(mcp: FastMCP):
         await add_memory_node(center_memory, 0)
 
         # Add edges between already-seen memories
+        seen_edge_ids = set()
         for memory_id_val in seen_memory_ids:
             memory = await mcp.memory_service.get_memory(
                 user_id=user.id,
@@ -238,7 +294,8 @@ def register(mcp: FastMCP):
                 for linked_id in memory.linked_memory_ids:
                     if linked_id in seen_memory_ids:
                         edge_id = f"memory_{min(memory_id_val, linked_id)}_memory_{max(memory_id_val, linked_id)}"
-                        if not any(e["id"] == edge_id for e in edges):
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
                             edges.append({
                                 "id": edge_id,
                                 "source": f"memory_{memory_id_val}",
@@ -246,13 +303,95 @@ def register(mcp: FastMCP):
                                 "type": "memory_link"
                             })
 
+        # Add entities linked to memories in subgraph
+        seen_entity_ids = set()
+        entity_memory_links = await mcp.entity_service.get_all_entity_memory_links(
+            user_id=user.id
+        )
+
+        # Identify entities linked to subgraph memories
+        relevant_entity_ids = set()
+        for entity_id, mem_id in entity_memory_links:
+            if mem_id in seen_memory_ids:
+                relevant_entity_ids.add(entity_id)
+
+        # Add entity nodes for relevant entities
+        for entity_id in relevant_entity_ids:
+            entity = await mcp.entity_service.get_entity(
+                user_id=user.id,
+                entity_id=entity_id
+            )
+            if entity:
+                seen_entity_ids.add(entity.id)
+                nodes.append({
+                    "id": f"entity_{entity.id}",
+                    "type": "entity",
+                    "label": entity.name,
+                    "data": {
+                        "id": entity.id,
+                        "name": entity.name,
+                        "entity_type": entity.entity_type.value if hasattr(entity.entity_type, 'value') else entity.entity_type,
+                        "created_at": entity.created_at.isoformat() if entity.created_at else None
+                    }
+                })
+
+        # Add entity-memory edges
+        for entity_id, mem_id in entity_memory_links:
+            if entity_id in seen_entity_ids and mem_id in seen_memory_ids:
+                edge_id = f"entity_{entity_id}_memory_{mem_id}"
+                if edge_id not in seen_edge_ids:
+                    seen_edge_ids.add(edge_id)
+                    edges.append({
+                        "id": edge_id,
+                        "source": f"entity_{entity_id}",
+                        "target": f"memory_{mem_id}",
+                        "type": "entity_memory"
+                    })
+
+        # Add entity-entity relationships for entities in subgraph
+        entity_relationships = await mcp.entity_service.get_all_entity_relationships(
+            user_id=user.id
+        )
+
+        for rel in entity_relationships:
+            if rel.source_entity_id in seen_entity_ids and rel.target_entity_id in seen_entity_ids:
+                min_id = min(rel.source_entity_id, rel.target_entity_id)
+                max_id = max(rel.source_entity_id, rel.target_entity_id)
+                edge_id = f"entity_{min_id}_entity_{max_id}"
+
+                if edge_id not in seen_edge_ids:
+                    seen_edge_ids.add(edge_id)
+                    edges.append({
+                        "id": edge_id,
+                        "source": f"entity_{rel.source_entity_id}",
+                        "target": f"entity_{rel.target_entity_id}",
+                        "type": "entity_relationship",
+                        "data": {
+                            "relationship_type": rel.relationship_type,
+                            "strength": rel.strength,
+                            "confidence": rel.confidence,
+                            "metadata": rel.metadata
+                        }
+                    })
+
+        # Count by type
+        memory_count = len([n for n in nodes if n["type"] == "memory"])
+        entity_count = len([n for n in nodes if n["type"] == "entity"])
+        memory_link_count = len([e for e in edges if e["type"] == "memory_link"])
+        entity_relationship_count = len([e for e in edges if e["type"] == "entity_relationship"])
+        entity_memory_count = len([e for e in edges if e["type"] == "entity_memory"])
+
         return JSONResponse({
             "nodes": nodes,
             "edges": edges,
             "center_memory_id": memory_id,
             "meta": {
-                "memory_count": len(nodes),
+                "memory_count": memory_count,
+                "entity_count": entity_count,
                 "edge_count": len(edges),
+                "memory_link_count": memory_link_count,
+                "entity_relationship_count": entity_relationship_count,
+                "entity_memory_count": entity_memory_count,
                 "depth": depth
             }
         })

@@ -275,3 +275,35 @@ class EntityRepository(Protocol):
             True if deleted, False if not found or not owned by user
         """
         ...
+
+    # Graph visualization operations
+
+    async def get_all_entity_relationships(
+        self,
+        user_id: UUID
+    ) -> List[EntityRelationship]:
+        """Get all entity relationships for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of all EntityRelationship owned by user
+            Includes source_entity_id, target_entity_id, relationship_type,
+            strength, confidence, and metadata
+        """
+        ...
+
+    async def get_all_entity_memory_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-memory associations for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, memory_id) tuples representing all links
+        """
+        ...

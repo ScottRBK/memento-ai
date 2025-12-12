@@ -12,7 +12,8 @@ from app.repositories.postgres.postgres_tables import (
     EntitiesTable,
     EntityRelationshipsTable,
     MemoryTable,
-    ProjectsTable
+    ProjectsTable,
+    memory_entity_association
 )
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.models.entity_models import (
@@ -829,6 +830,100 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "relationship_id": relationship_id,
+                    "error": str(e)
+                }
+            )
+            raise
+
+    # Graph visualization operations
+
+    async def get_all_entity_relationships(
+        self,
+        user_id: UUID
+    ) -> List[EntityRelationship]:
+        """Get all entity relationships for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of all EntityRelationship owned by user
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                stmt = select(EntityRelationshipsTable).where(
+                    EntityRelationshipsTable.user_id == user_id
+                ).order_by(EntityRelationshipsTable.created_at.desc())
+
+                result = await session.execute(stmt)
+                relationships = result.scalars().all()
+
+                return [
+                    EntityRelationship(
+                        id=r.id,
+                        source_entity_id=r.source_entity_id,
+                        target_entity_id=r.target_entity_id,
+                        relationship_type=r.relationship_type,
+                        strength=r.strength,
+                        confidence=r.confidence,
+                        metadata=r.relationship_metadata,
+                        created_at=r.created_at,
+                        updated_at=r.updated_at
+                    )
+                    for r in relationships
+                ]
+
+        except Exception as e:
+            logger.error(
+                "Failed to get all entity relationships",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "error": str(e)
+                }
+            )
+            raise
+
+    async def get_all_entity_memory_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-memory associations for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, memory_id) tuples representing all links
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                # Query the association table with ownership verification
+                stmt = select(
+                    memory_entity_association.c.entity_id,
+                    memory_entity_association.c.memory_id
+                ).select_from(
+                    memory_entity_association
+                ).join(
+                    EntitiesTable,
+                    EntitiesTable.id == memory_entity_association.c.entity_id
+                ).join(
+                    MemoryTable,
+                    MemoryTable.id == memory_entity_association.c.memory_id
+                ).where(
+                    EntitiesTable.user_id == user_id,
+                    MemoryTable.user_id == user_id
+                )
+
+                result = await session.execute(stmt)
+                return [(row.entity_id, row.memory_id) for row in result]
+
+        except Exception as e:
+            logger.error(
+                "Failed to get all entity-memory links",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
                     "error": str(e)
                 }
             )

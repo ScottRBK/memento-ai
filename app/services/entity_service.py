@@ -594,3 +594,67 @@ class EntityService:
             )
 
         return success
+
+    # Graph visualization operations
+
+    async def get_all_entity_relationships(
+        self,
+        user_id: UUID
+    ) -> List[EntityRelationship]:
+        """Get all entity relationships for graph visualization
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of all EntityRelationship owned by user
+        """
+        logger.info(
+            "getting all entity relationships for graph",
+            extra={"user_id": str(user_id)}
+        )
+
+        relationships = await self.entity_repo.get_all_entity_relationships(
+            user_id=user_id
+        )
+
+        logger.info(
+            "entity relationships retrieved for graph",
+            extra={
+                "count": len(relationships),
+                "user_id": str(user_id)
+            }
+        )
+
+        return relationships
+
+    async def get_all_entity_memory_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-memory links for graph visualization
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, memory_id) tuples
+        """
+        logger.info(
+            "getting all entity-memory links for graph",
+            extra={"user_id": str(user_id)}
+        )
+
+        links = await self.entity_repo.get_all_entity_memory_links(
+            user_id=user_id
+        )
+
+        logger.info(
+            "entity-memory links retrieved for graph",
+            extra={
+                "count": len(links),
+                "user_id": str(user_id)
+            }
+        )
+
+        return links
