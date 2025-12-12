@@ -137,34 +137,35 @@ def register(mcp: FastMCP):
         """
         Execute any registered tool dynamically. Forgetful is a semantic memory system for LLMs.
 
-        ## Quick Start - One-Shot Examples
+        ## Quick Start - One-Shot Examples (all required params shown)
 
         **Memory Operations:**
-        - Search: execute_forgetful_tool("query_memory", {"query": "...", "query_context": "why searching"})
-        - Create: execute_forgetful_tool("create_memory", {"title": "...", "content": "...", "importance": 7})
+        - Search: execute_forgetful_tool("query_memory", {"query": "search terms", "query_context": "why searching"})
+        - Create: execute_forgetful_tool("create_memory", {"title": "Short title", "content": "Memory content (<2000 chars)", "context": "Why this matters", "keywords": ["kw1", "kw2"], "tags": ["tag1"], "importance": 7, "project_ids": [1]})
         - Update: execute_forgetful_tool("update_memory", {"memory_id": 1, "content": "new content"})
+        - Get: execute_forgetful_tool("get_memory", {"memory_id": 1})
+        - Link: execute_forgetful_tool("link_memories", {"memory_id": 1, "related_ids": [2, 3]})
 
         **Project Organization:**
         - List: execute_forgetful_tool("list_projects", {})
-        - Create: execute_forgetful_tool("create_project", {"name": "...", "description": "..."})
+        - Create: execute_forgetful_tool("create_project", {"name": "Project Name", "description": "What this project is about", "project_type": "development"})
+        - Get: execute_forgetful_tool("get_project", {"project_id": 1})
+        - Query: execute_forgetful_tool("query_project_memories", {"project_id": 1, "query": "search terms", "query_context": "why searching"})
 
         **Entities (people, orgs, devices):**
-        - Create: execute_forgetful_tool("create_entity", {"name": "...", "entity_type": "individual"})
-        - Link: execute_forgetful_tool("link_entity_to_memory", {"entity_id": 1, "memory_id": 1, "relationship": "owns"})
+        - Create: execute_forgetful_tool("create_entity", {"name": "Sarah Chen", "entity_type": "Individual", "notes": "Backend developer"})
+        - Link to memory: execute_forgetful_tool("link_entity_to_memory", {"entity_id": 1, "memory_id": 1})
 
         **Documents (long-form content >300 words):**
-        - Create: execute_forgetful_tool("create_document", {"title": "...", "content": "...", "document_type": "analysis"})
+        - Create: execute_forgetful_tool("create_document", {"title": "Doc Title", "description": "Brief summary", "content": "Long content...", "document_type": "text", "project_id": 1})
 
         **Code Artifacts (reusable snippets):**
-        - Create: execute_forgetful_tool("create_code_artifact", {"title": "...", "code": "...", "language": "python"})
-
-        **Memory Linking:**
-        - Link: execute_forgetful_tool("link_memories", {"source_id": 1, "target_id": 2, "relationship": "relates_to"})
+        - Create: execute_forgetful_tool("create_code_artifact", {"title": "Snippet Title", "description": "What this does", "code": "def example(): pass", "language": "python", "project_id": 1})
 
         ## Tool Categories
         memory | project | entity | document | code_artifact | linking | user
 
-        Use discover_forgetful_tools(category?) for complete tool list with full parameter details.
+        Use discover_forgetful_tools(category?) for full parameter details and optional params.
 
         ---
 
