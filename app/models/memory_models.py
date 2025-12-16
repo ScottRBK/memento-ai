@@ -63,24 +63,20 @@ class MemoryCreate(BaseModel):
         description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
     )
 
-    field_validator("keywords", "tags")
+    @field_validator("keywords", "tags")
     @classmethod
     def validate_lists(cls, v, info):
         """Ensure the list doesn't contain empty strings and respect max count"""
-
-        if v is None:
-            return []
-        
         cleaned = [item.strip() for item in v if item.strip()]
-        
+
         field_name = info.field_name
         max_count = settings.MEMORY_KEYWORDS_MAX_COUNT if field_name == "keywords" else settings.MEMORY_TAGS_MAX_COUNT
 
         if len(cleaned) > max_count:
             raise ValueError(f"Too many {field_name} ({len(cleaned)}, max {max_count})")
-        
+
         return cleaned
-        
+
 class MemoryUpdate(BaseModel):
     """Request model for updating a memory"""
     title: str | None = Field(
@@ -131,22 +127,21 @@ class MemoryUpdate(BaseModel):
     )
 
 
-    field_validator("keywords", "tags")
+    @field_validator("keywords", "tags")
     @classmethod
     def validate_lists(cls, v, info):
         """Ensure the list doesn't contain empty strings and respect max count"""
-
         if v is None:
-            return []
-        
+            return None  # Keep None for optional fields in update model
+
         cleaned = [item.strip() for item in v if item.strip()]
-        
+
         field_name = info.field_name
         max_count = settings.MEMORY_KEYWORDS_MAX_COUNT if field_name == "keywords" else settings.MEMORY_TAGS_MAX_COUNT
 
         if len(cleaned) > max_count:
             raise ValueError(f"Too many {field_name} ({len(cleaned)}, max {max_count})")
-        
+
         return cleaned
     
 class Memory(MemoryCreate):
