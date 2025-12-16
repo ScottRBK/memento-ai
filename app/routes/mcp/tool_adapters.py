@@ -861,6 +861,7 @@ class EntityToolAdapters:
         custom_type: str | None = None,
         notes: str | None = None,
         tags: List[str] | None = None,
+        aka: List[str] | None = None,
         project_ids: List[int] | None = None,
     ) -> Entity:
         """Adapter for create_entity tool"""
@@ -873,6 +874,7 @@ class EntityToolAdapters:
             custom_type=custom_type,
             notes=notes,
             tags=tags,
+            aka=aka,
             project_ids=project_ids,
         )
         entity_data = EntityCreate(**entity_dict)
@@ -963,6 +965,7 @@ class EntityToolAdapters:
         custom_type: str | None = None,
         notes: str | None = None,
         tags: List[str] | None = None,
+        aka: List[str] | None = None,
         project_ids: List[int] | None = None
     ) -> Entity:
         """Adapter for update_entity tool"""
@@ -974,6 +977,7 @@ class EntityToolAdapters:
             custom_type=custom_type,
             notes=notes,
             tags=tags,
+            aka=aka,
             project_ids=project_ids,
         )
 

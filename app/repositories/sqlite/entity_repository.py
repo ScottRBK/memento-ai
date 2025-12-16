@@ -69,7 +69,8 @@ class SqliteEntityRepository:
                     entity_type=entity_data.entity_type.value,  # Convert enum to string
                     custom_type=entity_data.custom_type,
                     notes=entity_data.notes,
-                    tags=entity_data.tags
+                    tags=entity_data.tags,
+                    aka=entity_data.aka
                 )
 
                 # Handle project associations (many-to-many)
@@ -234,11 +235,15 @@ class SqliteEntityRepository:
         """
         try:
             async with self.db_adapter.session(user_id) as session:
-                # Build query with name search (LIKE is case-insensitive in SQLite by default)
+                # Build query with name + AKA search (LIKE is case-insensitive in SQLite by default)
                 search_pattern = f"%{search_query}%"
                 stmt = select(EntitiesTable).where(
                     EntitiesTable.user_id == str(user_id),
-                    EntitiesTable.name.like(search_pattern)
+                    or_(
+                        EntitiesTable.name.like(search_pattern),
+                        # Search in AKA JSON array
+                        func.json_extract(EntitiesTable.aka, '$').like(search_pattern)
+                    )
                 )
 
                 # Apply optional filters

@@ -518,6 +518,7 @@ class EntitiesTable(Base):
     custom_type: Mapped[str] = mapped_column(String(100), nullable=True)  # Used when entity_type is "Other"
     notes: Mapped[str] = mapped_column(Text, nullable=True)
     tags: Mapped[List[str]] = mapped_column(JSON, nullable=False)  # ARRAY -> JSON
+    aka: Mapped[List[str]] = mapped_column(JSON, nullable=False, default=list)  # Alternative names/aliases
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

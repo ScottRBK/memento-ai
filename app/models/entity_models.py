@@ -67,6 +67,11 @@ class EntityCreate(BaseModel):
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['engineering', 'leadership'], ['ai', 'startup'])"
     )
+    aka: List[str] = Field(
+        default_factory=list,
+        max_length=settings.ENTITY_AKA_MAX_COUNT,
+        description="Alternative names/aliases for this entity (e.g., ['Johnny', 'J.S.'] for 'John Smith', ['MSFT'] for 'Microsoft')"
+    )
     project_ids: List[int] | None = Field(
         default=None,
         description="Optional project IDs for immediate association with projects"
@@ -99,6 +104,21 @@ class EntityCreate(BaseModel):
 
         if len(cleaned) > settings.ENTITY_TAGS_MAX_COUNT:
             raise ValueError(f"Maximum {settings.ENTITY_TAGS_MAX_COUNT} tags allowed")
+
+        return cleaned
+
+    @field_validator("aka")
+    @classmethod
+    def validate_aka(cls, v):
+        """Validate and clean alternative names"""
+        if not v:
+            return []
+
+        # Strip whitespace and remove empty strings
+        cleaned = [name.strip() for name in v if name and name.strip()]
+
+        if len(cleaned) > settings.ENTITY_AKA_MAX_COUNT:
+            raise ValueError(f"Maximum {settings.ENTITY_AKA_MAX_COUNT} alternative names allowed")
 
         return cleaned
 
@@ -151,6 +171,11 @@ class EntityUpdate(BaseModel):
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
         description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
     )
+    aka: List[str] | None = Field(
+        default=None,
+        max_length=settings.ENTITY_AKA_MAX_COUNT,
+        description="New alternative names (replaces existing). Unchanged if null. Empty list [] clears."
+    )
     project_ids: List[int] | None = Field(
         default=None,
         description="New project associations (replaces existing). Unchanged if null. Empty list [] clears associations."
@@ -188,6 +213,25 @@ class EntityUpdate(BaseModel):
 
         if len(cleaned) > settings.ENTITY_TAGS_MAX_COUNT:
             raise ValueError(f"Maximum {settings.ENTITY_TAGS_MAX_COUNT} tags allowed")
+
+        return cleaned
+
+    @field_validator("aka")
+    @classmethod
+    def validate_aka(cls, v):
+        """Validate and clean alternative names"""
+        if v is None:
+            return None
+
+        # Empty list is valid (clears aka)
+        if not v:
+            return []
+
+        # Strip whitespace and remove empty strings
+        cleaned = [name.strip() for name in v if name and name.strip()]
+
+        if len(cleaned) > settings.ENTITY_AKA_MAX_COUNT:
+            raise ValueError(f"Maximum {settings.ENTITY_AKA_MAX_COUNT} alternative names allowed")
 
         return cleaned
 
@@ -259,6 +303,10 @@ class EntitySummary(BaseModel):
     tags: List[str] = Field(
         ...,
         description="Tags for categorization"
+    )
+    aka: List[str] = Field(
+        ...,
+        description="Alternative names/aliases"
     )
     project_ids: List[int] | None = Field(
         default=None,

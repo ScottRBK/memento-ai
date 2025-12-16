@@ -822,3 +822,115 @@ async def test_update_entity_clear_all_projects_e2e(mcp_client):
     })
 
     assert len(update_result.data["project_ids"]) == 0
+
+
+# Entity AKA (Also Known As) E2E Tests
+
+
+@pytest.mark.asyncio
+async def test_create_entity_with_aka_e2e(mcp_client):
+    """Test creating entity with alternative names via MCP tool"""
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'John Smith E2E',
+            'entity_type': 'Individual',
+            'notes': 'Person with aliases',
+            'tags': ['aka-e2e-test'],
+            'aka': ['Johnny', 'J.S.', 'John S.']
+        }
+    })
+
+    assert result.data is not None
+    assert result.data["id"] is not None
+    assert result.data["name"] == 'John Smith E2E'
+    assert result.data["aka"] == ['Johnny', 'J.S.', 'John S.']
+    assert len(result.data["aka"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_update_entity_aka_e2e(mcp_client):
+    """Test updating entity's alternative names via MCP tool"""
+    # Create entity with initial aka
+    create_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Microsoft E2E',
+            'entity_type': 'Organization',
+            'tags': ['update-aka-e2e'],
+            'aka': ['MSFT']
+        }
+    })
+    entity_id = create_result.data["id"]
+
+    assert create_result.data["aka"] == ['MSFT']
+
+    # Update aka
+    update_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'update_entity', 'arguments': {
+            'entity_id': entity_id,
+            'aka': ['MSFT', 'Microsoft', 'MS']
+        }
+    })
+
+    assert update_result.data["aka"] == ['MSFT', 'Microsoft', 'MS']
+    assert len(update_result.data["aka"]) == 3
+    assert update_result.data["name"] == 'Microsoft E2E'  # Unchanged
+
+
+@pytest.mark.asyncio
+async def test_search_entities_by_aka_e2e(mcp_client):
+    """Test searching entities by alternative name via MCP tool"""
+    # Create entity with aka
+    await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Apple Inc E2E',
+            'entity_type': 'Organization',
+            'tags': ['search-aka-e2e'],
+            'aka': ['AAPL', 'Apple']
+        }
+    })
+
+    # Search by aka
+    import json
+    search_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'search_entities', 'arguments': {
+            'query': 'AAPL'
+        }
+    })
+
+    assert search_result.content is not None
+    result_data = json.loads(search_result.content[0].text)
+    entities = result_data['entities']
+
+    # Filter to our test entity
+    test_entities = [e for e in entities if 'search-aka-e2e' in e['tags']]
+    assert len(test_entities) >= 1
+    assert test_entities[0]['name'] == 'Apple Inc E2E'
+
+
+@pytest.mark.asyncio
+async def test_search_entities_by_aka_case_insensitive_e2e(mcp_client):
+    """Test that entity AKA search is case-insensitive"""
+    # Create entity with uppercase aka
+    await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Case Test Entity E2E',
+            'entity_type': 'Organization',
+            'tags': ['case-aka-e2e'],
+            'aka': ['UPPERCASE', 'MixedCase']
+        }
+    })
+
+    # Search with lowercase should find it
+    import json
+    search_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'search_entities', 'arguments': {
+            'query': 'uppercase'
+        }
+    })
+
+    assert search_result.content is not None
+    result_data = json.loads(search_result.content[0].text)
+    entities = result_data['entities']
+
+    test_entities = [e for e in entities if 'case-aka-e2e' in e['tags']]
+    assert len(test_entities) >= 1

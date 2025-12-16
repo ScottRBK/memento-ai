@@ -37,6 +37,7 @@ def register(mcp: FastMCP):
         custom_type: str = None,
         notes: str = None,
         tags: List[str] = None,
+        aka: List[str] = None,
         project_ids: List[int] = None,
     ) -> Entity:
         """
@@ -65,14 +66,16 @@ def register(mcp: FastMCP):
             name="Sarah Chen",
             entity_type="Individual",
             notes="Lead backend developer specializing in microservices architecture",
-            tags=["engineering", "backend", "microservices"]
+            tags=["engineering", "backend", "microservices"],
+            aka=["Sarah", "S.C."]
         )
 
         create_entity(
             name="TechFlow Systems",
             entity_type="Organization",
             notes="Cloud infrastructure and managed services provider",
-            tags=["cloud", "infrastructure", "saas"]
+            tags=["cloud", "infrastructure", "saas"],
+            aka=["TechFlow", "TFS"]
         )
 
         create_entity(
@@ -96,6 +99,7 @@ def register(mcp: FastMCP):
             custom_type: Required when entity_type is "Other" - specify custom type
             notes: Additional context about this entity (bio, description, purpose)
             tags: Optional tags for discovery and categorization (max 10)
+            aka: Optional alternative names/aliases for this entity (max 10). Searchable via search_entities.
             project_ids: Optional project IDs for immediate association with multiple projects
             ctx: Context (automatically injected by FastMCP)
 
@@ -117,6 +121,7 @@ def register(mcp: FastMCP):
                 custom_type=custom_type,
                 notes=notes,
                 tags=tags or [],
+                aka=aka or [],
                 project_ids=project_ids
             )
         except (ValidationError, ValueError) as e:
@@ -259,16 +264,17 @@ def register(mcp: FastMCP):
         limit: int = 20
     ) -> dict:
         """
-        Search entities by name using text matching.
+        Search entities by name or alternative names (aka) using text matching.
 
-        WHEN: Looking for specific entities by name. Examples:
-        - "Find entities named Sarah"
+        WHEN: Looking for specific entities by name or alias. Examples:
+        - "Find entities named Sarah" (matches name or aka)
         - "Search for organizations containing 'Tech'"
+        - "Find entity with alias 'MSFT'" (finds Microsoft via aka)
         - "Find all entities with 'server' in name"
 
-        BEHAVIOR: Case-insensitive text search on entity name field. Returns lightweight
-        entity summaries (excludes notes to save tokens). Results sorted by creation date
-        (newest first). Use get_entity for full details including notes.
+        BEHAVIOR: Case-insensitive text search on entity name AND aka (alternative names).
+        Returns lightweight entity summaries (excludes notes to save tokens). Results sorted
+        by creation date (newest first). Use get_entity for full details including notes.
 
         NOT-USE: Listing all entities (use list_entities), semantic/meaning-based search
         (not available for entities), searching memories (use query_memory).
@@ -279,7 +285,7 @@ def register(mcp: FastMCP):
         - limit: Maximum results (1-100, default 20)
 
         Args:
-            query: Text to search for in entity name (required)
+            query: Text to search for in entity name or alternative names (required)
             entity_type: Optional filter by entity type
             tags: Optional filter by tags (returns entities with ANY matching tag)
             limit: Maximum number of results (1-100, default 20)
@@ -340,6 +346,7 @@ def register(mcp: FastMCP):
         custom_type: str = None,
         notes: str = None,
         tags: List[str] = None,
+        aka: List[str] = None,
         project_ids: List[int] = None
     ) -> Entity:
         """
@@ -348,12 +355,13 @@ def register(mcp: FastMCP):
         WHEN: Modifying entity information after creation. Common scenarios:
         - Adding/updating notes
         - Changing tags
+        - Adding/updating alternative names (aka)
         - Updating entity type
         - Changing project associations
 
         BEHAVIOR: Only provided arguments are updated. Null/omitted arguments leave
         the field unchanged. Empty string ("") clears optional text fields.
-        Empty list [] clears project associations.
+        Empty list [] clears tags, aka, or project associations.
         Returns updated entity with new timestamps.
 
         Args:
@@ -363,6 +371,7 @@ def register(mcp: FastMCP):
             custom_type: New custom type when entity_type is "Other"
             notes: New notes (unchanged if omitted, clears if empty string)
             tags: New tags (unchanged if omitted, replaces existing if provided)
+            aka: New alternative names (unchanged if omitted, replaces existing if provided, clears if empty list)
             project_ids: New project associations (unchanged if omitted, replaces existing if provided, clears if empty list)
             ctx: Context (automatically injected)
 
@@ -386,6 +395,7 @@ def register(mcp: FastMCP):
             custom_type=custom_type,
             notes=notes,
             tags=tags,
+            aka=aka,
             project_ids=project_ids
         )
 

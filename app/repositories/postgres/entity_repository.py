@@ -5,7 +5,7 @@ from uuid import UUID
 from datetime import datetime, timezone
 from typing import List
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 
 from app.repositories.postgres.postgres_tables import (
@@ -69,7 +69,8 @@ class PostgresEntityRepository:
                     entity_type=entity_data.entity_type.value,  # Convert enum to string
                     custom_type=entity_data.custom_type,
                     notes=entity_data.notes,
-                    tags=entity_data.tags
+                    tags=entity_data.tags,
+                    aka=entity_data.aka
                 )
 
                 # Handle project associations (many-to-many)
@@ -229,11 +230,15 @@ class PostgresEntityRepository:
         """
         try:
             async with self.db_adapter.session(user_id) as session:
-                # Build query with name search
+                # Build query with name + AKA search
                 search_pattern = f"%{search_query}%"
                 stmt = select(EntitiesTable).where(
                     EntitiesTable.user_id == user_id,
-                    EntitiesTable.name.ilike(search_pattern)
+                    or_(
+                        EntitiesTable.name.ilike(search_pattern),
+                        # Search in AKA array - convert to string and search
+                        func.array_to_string(EntitiesTable.aka, ' ').ilike(search_pattern)
+                    )
                 )
 
                 # Apply optional filters

@@ -778,6 +778,7 @@ class InMemoryEntityRepository(EntityRepository):
             custom_type=entity_data.custom_type,
             notes=entity_data.notes,
             tags=entity_data.tags,
+            aka=entity_data.aka,
             project_ids=entity_data.project_ids or [],
             created_at=now,
             updated_at=now
@@ -817,13 +818,24 @@ class InMemoryEntityRepository(EntityRepository):
         tags: List[str] | None = None,
         limit: int = 20
     ) -> List[EntitySummary]:
-        """Search entities by name using case-insensitive text matching"""
+        """Search entities by name or aka using case-insensitive text matching"""
         user_entities = self._entities.get(user_id, {})
         entities = list(user_entities.values())
 
-        # Filter by name (case-insensitive search)
+        # Filter by name OR aka (case-insensitive search)
         search_lower = search_query.lower()
-        entities = [e for e in entities if search_lower in e.name.lower()]
+
+        def matches_search(entity):
+            # Check name
+            if search_lower in entity.name.lower():
+                return True
+            # Check aka list
+            for alias in entity.aka:
+                if search_lower in alias.lower():
+                    return True
+            return False
+
+        entities = [e for e in entities if matches_search(e)]
 
         # Apply optional filters
         if entity_type:

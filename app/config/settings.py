@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     ENTITY_TYPE_MAX_LENGTH: int = 100            # For custom entity types
     ENTITY_NOTES_MAX_LENGTH: int = 4000          # Reasonable cap for text field
     ENTITY_TAGS_MAX_COUNT: int = 10              # For categorization
+    ENTITY_AKA_MAX_COUNT: int = 10               # Maximum alternative names per entity
     ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH: int = 100  # e.g., "works_at", "owns", "manages"
 
     # Search Configuration

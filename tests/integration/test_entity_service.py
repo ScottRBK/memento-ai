@@ -692,3 +692,178 @@ async def test_update_entity_clear_all_projects(test_entity_service):
     updated = await test_entity_service.update_entity(user_id, created.id, update_data)
 
     assert len(updated.project_ids) == 0
+
+
+# Entity AKA (Also Known As) Tests
+
+
+@pytest.mark.asyncio
+async def test_create_entity_with_aka(test_entity_service):
+    """Test creating entity with alternative names"""
+    user_id = uuid4()
+
+    entity_data = EntityCreate(
+        name="John Smith",
+        entity_type=EntityType.INDIVIDUAL,
+        notes="A person with multiple nicknames",
+        tags=["employee"],
+        aka=["Johnny", "J.S.", "John S."]
+    )
+
+    entity = await test_entity_service.create_entity(user_id, entity_data)
+
+    assert entity.id is not None
+    assert entity.name == "John Smith"
+    assert entity.aka == ["Johnny", "J.S.", "John S."]
+    assert len(entity.aka) == 3
+
+
+@pytest.mark.asyncio
+async def test_create_entity_without_aka(test_entity_service):
+    """Test that entity without aka has empty list"""
+    user_id = uuid4()
+
+    entity_data = EntityCreate(
+        name="No Aliases Entity",
+        entity_type=EntityType.ORGANIZATION,
+        tags=[]
+    )
+
+    entity = await test_entity_service.create_entity(user_id, entity_data)
+
+    assert entity.id is not None
+    assert entity.aka == []
+
+
+@pytest.mark.asyncio
+async def test_update_entity_aka(test_entity_service):
+    """Test updating entity's alternative names"""
+    user_id = uuid4()
+
+    # Create with initial aka
+    entity_data = EntityCreate(
+        name="Microsoft Corporation",
+        entity_type=EntityType.ORGANIZATION,
+        tags=["tech"],
+        aka=["MSFT"]
+    )
+    created = await test_entity_service.create_entity(user_id, entity_data)
+
+    assert created.aka == ["MSFT"]
+
+    # Update aka
+    update_data = EntityUpdate(aka=["MSFT", "Microsoft", "MS"])
+    updated = await test_entity_service.update_entity(user_id, created.id, update_data)
+
+    assert updated.aka == ["MSFT", "Microsoft", "MS"]
+    assert len(updated.aka) == 3
+    assert updated.name == "Microsoft Corporation"  # Unchanged
+
+
+@pytest.mark.asyncio
+async def test_update_entity_clear_aka(test_entity_service):
+    """Test clearing all alternative names"""
+    user_id = uuid4()
+
+    # Create with aka
+    entity_data = EntityCreate(
+        name="Test Entity",
+        entity_type=EntityType.ORGANIZATION,
+        tags=[],
+        aka=["Alias1", "Alias2"]
+    )
+    created = await test_entity_service.create_entity(user_id, entity_data)
+
+    assert len(created.aka) == 2
+
+    # Clear aka
+    update_data = EntityUpdate(aka=[])
+    updated = await test_entity_service.update_entity(user_id, created.id, update_data)
+
+    assert updated.aka == []
+
+
+@pytest.mark.asyncio
+async def test_search_entities_by_aka(test_entity_service):
+    """Test searching entities by alternative name"""
+    user_id = uuid4()
+
+    # Create entity with aka
+    await test_entity_service.create_entity(
+        user_id,
+        EntityCreate(
+            name="Microsoft Corporation",
+            entity_type=EntityType.ORGANIZATION,
+            tags=["aka-search-test"],
+            aka=["MSFT", "Microsoft"]
+        )
+    )
+
+    # Search by aka - should find the entity
+    results = await test_entity_service.search_entities(user_id, "MSFT")
+
+    assert len(results) >= 1
+    matching = [e for e in results if "aka-search-test" in e.tags]
+    assert len(matching) == 1
+    assert matching[0].name == "Microsoft Corporation"
+
+
+@pytest.mark.asyncio
+async def test_search_entities_by_partial_aka(test_entity_service):
+    """Test searching entities by partial match in alternative names"""
+    user_id = uuid4()
+
+    # Create entity with aka
+    await test_entity_service.create_entity(
+        user_id,
+        EntityCreate(
+            name="John Smith",
+            entity_type=EntityType.INDIVIDUAL,
+            tags=["partial-aka-test"],
+            aka=["Johnny", "J.S."]
+        )
+    )
+
+    # Search by partial aka match
+    results = await test_entity_service.search_entities(user_id, "john")
+
+    assert len(results) >= 1
+    matching = [e for e in results if "partial-aka-test" in e.tags]
+    assert len(matching) == 1
+
+
+@pytest.mark.asyncio
+async def test_search_entities_name_and_aka(test_entity_service):
+    """Test that search finds entities by both name and aka"""
+    user_id = uuid4()
+
+    # Create entity found by name
+    await test_entity_service.create_entity(
+        user_id,
+        EntityCreate(
+            name="Tech Corp",
+            entity_type=EntityType.ORGANIZATION,
+            tags=["name-aka-test"],
+            aka=["TC"]
+        )
+    )
+
+    # Create entity found by aka
+    await test_entity_service.create_entity(
+        user_id,
+        EntityCreate(
+            name="Other Inc",
+            entity_type=EntityType.ORGANIZATION,
+            tags=["name-aka-test"],
+            aka=["Tech Alias"]
+        )
+    )
+
+    # Search for "tech" - should find both (one by name, one by aka)
+    results = await test_entity_service.search_entities(user_id, "tech")
+
+    matching = [e for e in results if "name-aka-test" in e.tags]
+    assert len(matching) == 2
+    names = {e.name for e in matching}
+    assert "Tech Corp" in names
+    assert "Other Inc" in names

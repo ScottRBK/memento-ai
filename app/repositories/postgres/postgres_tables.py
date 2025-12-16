@@ -506,6 +506,7 @@ class EntitiesTable(Base):
     custom_type: Mapped[str] = mapped_column(String(100), nullable=True)  # Used when entity_type is "Other"
     notes: Mapped[str] = mapped_column(Text, nullable=True)
     tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+    aka: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False, default=list)  # Alternative names/aliases
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -569,6 +570,7 @@ class EntitiesTable(Base):
         Index("ix_entities_user_id", "user_id"),
         Index("ix_entities_entity_type", "entity_type"),
         Index("ix_entities_tags", "tags", postgresql_using="gin"),
+        Index("ix_entities_aka", "aka", postgresql_using="gin"),
         Index("ix_entities_name", "name"),
     )
 
