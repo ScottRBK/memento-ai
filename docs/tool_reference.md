@@ -761,6 +761,7 @@ Create an entity representing a real-world thing.
 - `entity_type` (required): Type (`Organization`, `Individual`, `Team`, `Device`, `Other`)
 - `description` (optional): Entity description
 - `tags` (optional): Categorization tags
+- `aka` (optional): Alternative names/aliases (max 10). Searchable via `search_entities`.
 - `project_id` (optional): Link to project
 - `custom_type` (optional): Custom type name (required if entity_type is `Other`)
 - `metadata` (optional): Additional JSON metadata
@@ -770,7 +771,7 @@ Create an entity representing a real-world thing.
 
 **Example:**
 ```python
-# Create a person
+# Create a person with aliases
 person = execute_forgetful_tool(
     "create_entity",
     {
@@ -778,19 +779,21 @@ person = execute_forgetful_tool(
         "entity_type": "Individual",
         "description": "Senior Backend Engineer, specializes in distributed systems",
         "tags": ["engineering", "backend", "distributed-systems"],
+        "aka": ["Sarah", "S.C."],  # Alternative names for search
         "metadata": {"start_date": "2024-03-15", "location": "San Francisco"}
     }
 )
-# Returns: {"entity_id": 42, "name": "Sarah Chen", ...}
+# Returns: {"entity_id": 42, "name": "Sarah Chen", "aka": ["Sarah", "S.C."], ...}
 
-# Create an organization
+# Create an organization with stock ticker alias
 org = execute_forgetful_tool(
     "create_entity",
     {
         "name": "TechFlow Systems",
         "entity_type": "Organization",
         "description": "SaaS platform for workflow automation",
-        "tags": ["company", "saas", "b2b"]
+        "tags": ["company", "saas", "b2b"],
+        "aka": ["TechFlow", "TFS"]  # Can search by "TFS" to find this
     }
 )
 # Returns: {"entity_id": 43, ...}
@@ -803,6 +806,7 @@ server = execute_forgetful_tool(
         "entity_type": "Device",
         "description": "Redis cluster primary node - production",
         "tags": ["infrastructure", "cache", "production", "redis"],
+        "aka": ["redis-primary", "cache-01"],
         "metadata": {"ip": "10.0.1.50", "region": "us-west-2"}
     }
 )
@@ -832,22 +836,32 @@ team = execute_forgetful_tool(
 
 #### `search_entities`
 
-Search entities by name (case-insensitive text matching).
+Search entities by name or alternative names (aka). Case-insensitive text matching.
 
 **Parameters:**
-- `name` (required): Search term (partial match supported)
+- `query` (required): Search term (matches name or any aka, partial match supported)
+- `entity_type` (optional): Filter by entity type
+- `tags` (optional): Filter by tags
+- `limit` (optional): Maximum results (1-100, default 20)
 
 **Returns:**
-- List of entities matching the search term
+- List of entities matching the search term (via name or aka)
 
 **Example:**
 ```python
 # Find entities with "Chen" in the name
 results = execute_forgetful_tool(
     "search_entities",
-    {"name": "Chen"}
+    {"query": "Chen"}
 )
-# Returns: [{"entity_id": 42, "name": "Sarah Chen", ...}, ...]
+# Returns: [{"entity_id": 42, "name": "Sarah Chen", "aka": ["Sarah", "S.C."], ...}, ...]
+
+# Search by alias - finds "TechFlow Systems" via its "TFS" alias
+results = execute_forgetful_tool(
+    "search_entities",
+    {"query": "TFS"}
+)
+# Returns: [{"entity_id": 43, "name": "TechFlow Systems", "aka": ["TechFlow", "TFS"], ...}]
 ```
 
 #### `get_entity`
@@ -867,22 +881,25 @@ entity = execute_forgetful_tool("get_entity", {"entity_id": 42})
 
 #### `update_entity`
 
-Update entity (PATCH semantics).
+Update entity (PATCH semantics - only provided fields changed).
 
 **Parameters:**
 - `entity_id` (required): Entity ID
-- `name`, `description`, `tags`, `metadata` (all optional)
+- `name`, `description`, `tags`, `aka`, `metadata` (all optional)
+- `aka`: Replaces existing aliases. Empty list `[]` clears all aliases.
 
 **Returns:**
 - Updated entity object
 
 **Example:**
 ```python
+# Update description and add aliases
 execute_forgetful_tool(
     "update_entity",
     {
         "entity_id": 42,
         "description": "Principal Backend Engineer, Tech Lead for distributed systems",
+        "aka": ["Sarah", "S.C.", "Chen"],  # Replaces existing aka list
         "metadata": {"promotion_date": "2025-01-01", "title": "Principal Engineer"}
     }
 )
@@ -1148,7 +1165,8 @@ engineer = execute_forgetful_tool(
         "name": "Alex Kim",
         "entity_type": "Individual",
         "description": "Senior Full-Stack Engineer",
-        "tags": ["engineering", "fullstack"]
+        "tags": ["engineering", "fullstack"],
+        "aka": ["Alex", "A.K."]
     }
 )
 
@@ -1185,14 +1203,15 @@ new_hire = execute_forgetful_tool(
         "entity_type": "Individual",
         "description": "Backend Engineer - Payments Team",
         "tags": ["engineering", "backend", "payments"],
+        "aka": ["Jordan", "J.T."],
         "metadata": {"start_date": "2025-01-20", "location": "Remote"}
     }
 )
 
-# 2. Get company entity (assuming it exists)
+# 2. Get company entity (assuming it exists) - can search by name or alias
 company = execute_forgetful_tool(
     "search_entities",
-    {"name": "TechFlow"}
+    {"query": "TechFlow"}
 )
 company_id = company[0]["entity_id"]
 
@@ -1253,10 +1272,10 @@ for memory in payment_memories:
 **Context:** Redis server failed, you resolved it and want to document for future reference.
 
 ```python
-# 1. Get the server entity
+# 1. Get the server entity (can also search by alias like "redis-primary")
 server = execute_forgetful_tool(
     "search_entities",
-    {"name": "Cache Server 01"}
+    {"query": "Cache Server 01"}
 )
 server_id = server[0]["entity_id"]
 
