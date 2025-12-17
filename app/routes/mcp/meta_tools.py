@@ -153,7 +153,8 @@ def register(mcp: FastMCP):
         - Query: execute_forgetful_tool("query_project_memories", {"project_id": 1, "query": "search terms", "query_context": "why searching"})
 
         **Entities (people, orgs, devices):**
-        - Create: execute_forgetful_tool("create_entity", {"name": "Sarah Chen", "entity_type": "Individual", "notes": "Backend developer"})
+        - Create: execute_forgetful_tool("create_entity", {"name": "Sarah Chen", "entity_type": "Individual", "notes": "Backend developer", "aka": ["Sarah", "S.C."]})
+        - Search: execute_forgetful_tool("search_entities", {"query": "Sarah"})  # Searches name AND aka
         - Link to memory: execute_forgetful_tool("link_entity_to_memory", {"entity_id": 1, "memory_id": 1})
 
         **Documents (long-form content >300 words):**

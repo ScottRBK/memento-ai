@@ -987,11 +987,12 @@ def register_entity_tools_metadata(
                 {"name": "custom_type", "type": "Optional[str]", "description": "Custom type if 'other' is selected", "required": False, "default": None, "example": "ai-company"},
                 {"name": "notes", "type": "Optional[str]", "description": "Additional notes", "required": False, "default": None, "example": "AI safety and research company"},
                 {"name": "tags", "type": "Optional[List[str]]", "description": "Tags for categorization", "required": False, "default": None, "example": ["ai", "research"]},
+                {"name": "aka", "type": "Optional[List[str]]", "description": "Alternative names/aliases (searchable via search_entities)", "required": False, "default": None, "example": ["Claude AI", "Anthropic AI"]},
                 {"name": "project_ids", "type": "Optional[List[int]]", "description": "Link to projects (list of project IDs)", "required": False, "default": None, "example": [1, 2]},
             ],
             "returns": "Entity with id and timestamps",
             "examples": [
-                'execute_forgetful_tool("create_entity", {"name": "Anthropic", "entity_type": "organization"})',
+                'execute_forgetful_tool("create_entity", {"name": "Anthropic", "entity_type": "organization", "aka": ["Claude AI"]})',
             ],
             "tags": ["entity", "create", "knowledge-graph"],
         },
@@ -1026,9 +1027,9 @@ def register_entity_tools_metadata(
         },
         {
             "name": "search_entities",
-            "description": "Search entities by name using text matching (case-insensitive)",
+            "description": "Search entities by name or alternative names (aka) using text matching (case-insensitive)",
             "parameters": [
-                {"name": "query", "type": "str", "description": "Text to search for in entity name", "required": True, "example": "tech"},
+                {"name": "query", "type": "str", "description": "Text to search for in entity name or aka (alternative names)", "required": True, "example": "tech"},
                 {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
                 {"name": "entity_type", "type": "Optional[str]", "description": "Filter by entity type", "required": False, "default": None, "example": "Organization"},
                 {"name": "tags", "type": "Optional[List[str]]", "description": "Filter by tags (returns entities with ANY of these)", "required": False, "default": None, "example": ["startup"]},
@@ -1037,9 +1038,9 @@ def register_entity_tools_metadata(
             "returns": "Dictionary with entities list, total_count, search_query, and filters",
             "examples": [
                 'execute_forgetful_tool("search_entities", {"query": "tech"})',
-                'execute_forgetful_tool("search_entities", {"query": "server", "entity_type": "Device", "limit": 10})',
+                'execute_forgetful_tool("search_entities", {"query": "MSFT"})',  # Finds entity with aka=["MSFT", "Microsoft"]
             ],
-            "tags": ["entity", "search", "query", "text"],
+            "tags": ["entity", "search", "query", "text", "aka"],
         },
         {
             "name": "update_entity",
@@ -1052,11 +1053,12 @@ def register_entity_tools_metadata(
                 {"name": "custom_type", "type": "Optional[str]", "description": "New custom type", "required": False, "default": None, "example": "custom"},
                 {"name": "notes", "type": "Optional[str]", "description": "New notes", "required": False, "default": None, "example": "Updated notes"},
                 {"name": "tags", "type": "Optional[List[str]]", "description": "New tags (replaces existing)", "required": False, "default": None, "example": ["updated"]},
+                {"name": "aka", "type": "Optional[List[str]]", "description": "New alternative names (replaces existing, empty list [] clears)", "required": False, "default": None, "example": ["Alias1", "Alias2"]},
                 {"name": "project_ids", "type": "Optional[List[int]]", "description": "New project links (list of project IDs, replaces existing)", "required": False, "default": None, "example": [2, 3]},
             ],
             "returns": "Updated Entity object",
             "examples": [
-                'execute_forgetful_tool("update_entity", {"entity_id": 1, "notes": "Updated information"})',
+                'execute_forgetful_tool("update_entity", {"entity_id": 1, "aka": ["NewAlias", "AnotherName"]})',
             ],
             "tags": ["entity", "update", "patch"],
         },
