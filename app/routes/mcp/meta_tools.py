@@ -163,6 +163,13 @@ def register(mcp: FastMCP):
         **Code Artifacts (reusable snippets):**
         - Create: execute_forgetful_tool("create_code_artifact", {"title": "Snippet Title", "description": "What this does", "code": "def example(): pass", "language": "python", "project_id": 1})
 
+        ## Linking Best Practices
+        **Always link related items for discoverability:**
+        - When creating documents, link atomic memories: `create_memory(..., document_ids=[doc_id])`
+        - When creating code artifacts, link to memories: `create_memory(..., code_artifact_ids=[artifact_id])`
+        - Link memories to each other: `link_memories(memory_id=1, related_ids=[2, 3])`
+        - Link entities to memories: `link_entity_to_memory(entity_id=1, memory_id=1)`
+
         ## Tool Categories
         memory | project | entity | document | code_artifact | linking | user
 
