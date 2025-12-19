@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # OAuth Storage Configuration
     OAUTH_STORAGE_PATH: str = str(_default_data_dir / "oauth")  # Platform-specific path for OAuth tokens
 
+    # Token Cache Configuration (for HTTP/REST auth performance)
+    TOKEN_CACHE_ENABLED: bool = True           # Enable/disable token caching
+    TOKEN_CACHE_TTL_SECONDS: int = 300         # 5 minutes default
+    TOKEN_CACHE_MAX_SIZE: int = 1000           # Maximum cached tokens
+
     # Memory Configuration
     MEMORY_TITLE_MAX_LENGTH: int = 200      # Must be "easily titled" - scannable
     MEMORY_CONTENT_MAX_LENGTH: int = 2000   # ~300-400 words - single concept

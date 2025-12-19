@@ -168,6 +168,18 @@ async def lifespan(app):
     mcp.entity_service = entity_service
     logger.info("Services initialized and attached to FastMCP instance")
 
+    # Initialize token cache for HTTP auth performance
+    if settings.TOKEN_CACHE_ENABLED:
+        from app.middleware.auth import TokenCache
+        mcp.token_cache = TokenCache(
+            ttl_seconds=settings.TOKEN_CACHE_TTL_SECONDS,
+            max_size=settings.TOKEN_CACHE_MAX_SIZE
+        )
+        logger.info(f"Token cache initialized (TTL: {settings.TOKEN_CACHE_TTL_SECONDS}s, max: {settings.TOKEN_CACHE_MAX_SIZE})")
+    else:
+        mcp.token_cache = None
+        logger.info("Token cache disabled")
+
     registry = ToolRegistry()
     mcp.registry = registry
     logger.info("Registry created and attached to FastMCP instance")
