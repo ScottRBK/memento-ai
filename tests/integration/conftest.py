@@ -795,8 +795,14 @@ class InMemoryEntityRepository(EntityRepository):
         return user_entities.get(entity_id)
 
     async def list_entities(
-        self, user_id: UUID, project_ids: List[int] | None = None, entity_type: EntityType | None = None, tags: List[str] | None = None
-    ) -> List[EntitySummary]:
+        self,
+        user_id: UUID,
+        project_ids: List[int] | None = None,
+        entity_type: EntityType | None = None,
+        tags: List[str] | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[List[EntitySummary], int]:
         user_entities = self._entities.get(user_id, {})
         entities = list(user_entities.values())
 
@@ -807,8 +813,16 @@ class InMemoryEntityRepository(EntityRepository):
         if tags:
             entities = [e for e in entities if any(t in e.tags for t in tags)]
 
-        entities.sort(key=lambda e: e.created_at, reverse=True)
-        return [EntitySummary.model_validate(e) for e in entities]
+        # Sort by created_at (newest first), then by id for deterministic ordering
+        entities.sort(key=lambda e: (e.created_at, e.id), reverse=True)
+
+        # Get total before pagination
+        total = len(entities)
+
+        # Apply pagination
+        paginated = entities[offset:offset + limit]
+
+        return [EntitySummary.model_validate(e) for e in paginated], total
 
     async def search_entities(
         self,

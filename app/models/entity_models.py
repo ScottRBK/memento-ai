@@ -324,6 +324,30 @@ class EntitySummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class EntityListResponse(BaseModel):
+    """Paginated list of entities for REST API
+
+    Used by GET /api/v1/entities endpoint for returning
+    paginated entity results with total count metadata.
+    """
+    entities: List[EntitySummary] = Field(
+        ...,
+        description="List of entity summaries for the current page"
+    )
+    total: int = Field(
+        ...,
+        description="Total count of entities matching filters (before pagination)"
+    )
+    limit: int = Field(
+        ...,
+        description="Maximum results per page"
+    )
+    offset: int = Field(
+        ...,
+        description="Number of results skipped"
+    )
+
+
 # Entity Relationship Models
 
 class EntityRelationshipCreate(BaseModel):

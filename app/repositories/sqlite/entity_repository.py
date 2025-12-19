@@ -153,54 +153,92 @@ class SqliteEntityRepository:
         user_id: UUID,
         project_ids: List[int] | None = None,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None
-    ) -> List[EntitySummary]:
-        """List entities with optional filtering
+        tags: List[str] | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[List[EntitySummary], int]:
+        """List entities with optional filtering and pagination
 
         Args:
             user_id: User ID for ownership filtering
             project_ids: Optional filter by project IDs (returns entities linked to ANY of these projects)
             entity_type: Optional filter by entity type
             tags: Optional filter by tags (returns entities with ANY of these tags)
+            limit: Maximum number of entities to return (default 20)
+            offset: Number of entities to skip (default 0)
 
         Returns:
-            List of EntitySummary (lightweight, excludes notes)
+            Tuple of (entities, total_count) where:
+            - entities: List of EntitySummary (lightweight, excludes notes)
+            - total_count: Total matching entities before pagination
         """
+        from sqlalchemy import func as sql_func
+
         try:
             async with self.db_adapter.session(user_id) as session:
-                # Build query with filters and eager load projects
-                stmt = select(EntitiesTable).options(
-                    selectinload(EntitiesTable.projects)
-                ).where(
-                    EntitiesTable.user_id == str(user_id)
-                )
-
-                if project_ids is not None:
-                    # Filter entities that have any of the specified project IDs
-                    # Use join to the association table
-                    stmt = stmt.join(EntitiesTable.projects).where(
-                        ProjectsTable.id.in_(project_ids)
-                    )
+                # Build base conditions
+                conditions = [EntitiesTable.user_id == str(user_id)]
 
                 if entity_type:
-                    stmt = stmt.where(EntitiesTable.entity_type == entity_type.value)
+                    conditions.append(EntitiesTable.entity_type == entity_type.value)
 
                 if tags:
                     # SQLite JSON array search - finds entities with ANY of the provided tags
-                    # Check if any provided tag exists in the JSON array
                     tag_conditions = [
                         func.json_extract(EntitiesTable.tags, '$').like(f'%"{tag}"%')
                         for tag in tags
                     ]
-                    stmt = stmt.where(or_(*tag_conditions))
+                    conditions.append(or_(*tag_conditions))
 
-                # Order by creation date (newest first)
-                stmt = stmt.order_by(EntitiesTable.created_at.desc())
+                # Build main query with filters and eager load projects
+                stmt = select(EntitiesTable).options(
+                    selectinload(EntitiesTable.projects)
+                ).where(*conditions)
 
+                if project_ids is not None:
+                    # Filter entities that have any of the specified project IDs
+                    stmt = stmt.join(EntitiesTable.projects).where(
+                        ProjectsTable.id.in_(project_ids)
+                    )
+
+                # Order by creation date (newest first), then by ID for deterministic ordering
+                stmt = stmt.order_by(
+                    EntitiesTable.created_at.desc(),
+                    EntitiesTable.id.desc()
+                )
+
+                # Apply SQL-level pagination
+                stmt = stmt.offset(offset).limit(limit)
+
+                # Build count query with same conditions
+                count_stmt = select(sql_func.count(sql_func.distinct(EntitiesTable.id))).where(*conditions)
+                if project_ids is not None:
+                    count_stmt = count_stmt.join(EntitiesTable.projects).where(
+                        ProjectsTable.id.in_(project_ids)
+                    )
+
+                # Execute count query first
+                total = await session.scalar(count_stmt)
+
+                # Execute main query
                 result = await session.execute(stmt)
                 entities = result.unique().scalars().all()
 
-                return [EntitySummary.model_validate(e) for e in entities]
+                logger.info(
+                    "Listed entities",
+                    extra={
+                        "user_id": str(user_id),
+                        "count": len(entities),
+                        "total": total,
+                        "limit": limit,
+                        "offset": offset,
+                        "project_filtered": project_ids is not None,
+                        "entity_type": entity_type.value if entity_type else None,
+                        "tags_filter": tags
+                    }
+                )
+
+                return [EntitySummary.model_validate(e) for e in entities], total or 0
 
         except Exception as e:
             logger.error(

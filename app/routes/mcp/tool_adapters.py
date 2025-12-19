@@ -914,14 +914,16 @@ class EntityToolAdapters:
         # Convert string to enum if provided
         entity_type_enum = EntityType(entity_type) if entity_type else None
 
-        result = await self.entity_service.list_entities(
+        # MCP adapter returns all entities (no pagination params exposed)
+        entities, total = await self.entity_service.list_entities(
             user_id=user.id,
             project_ids=project_ids,
             entity_type=entity_type_enum,
             tags=tags,
+            limit=10000  # High limit to return all entities for MCP
         )
 
-        return {"entities": result, "total_count": len(result)}
+        return {"entities": entities, "total_count": total}
 
     async def search_entities(
         self,

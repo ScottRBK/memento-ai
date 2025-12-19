@@ -10,17 +10,43 @@ from fastmcp import FastMCP
 from pydantic import ValidationError
 import logging
 
+from typing import Any
+
 from app.models.entity_models import (
     EntityCreate,
     EntityUpdate,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
     EntityType,
+    EntityListResponse,
 )
 from app.middleware.auth import get_user_from_request
 from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
+
+
+def parse_int_param(params: Any, name: str, default: int | None = None) -> int | None:
+    """Parse integer query parameter with strict validation.
+
+    Args:
+        params: Query parameters object
+        name: Parameter name to extract
+        default: Default value if parameter not provided
+
+    Returns:
+        Parsed integer value or default
+
+    Raises:
+        ValueError: If value is not a valid integer
+    """
+    raw = params.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        raise ValueError(f"Invalid value for '{name}': must be an integer")
 
 
 def register(mcp: FastMCP):
@@ -29,10 +55,12 @@ def register(mcp: FastMCP):
     @mcp.custom_route("/api/v1/entities", methods=["GET"])
     async def list_entities(request: Request) -> JSONResponse:
         """
-        List entities with optional filtering.
+        List entities with optional filtering and pagination.
 
         Query params:
             entity_type: Filter by type (individual, organization, team, device, other)
+            limit: Maximum results per page (1-100, default 20)
+            offset: Number of results to skip (default 0)
         """
         try:
             user = await get_user_from_request(request, mcp)
@@ -40,6 +68,28 @@ def register(mcp: FastMCP):
             return JSONResponse({"error": str(e)}, status_code=401)
 
         params = request.query_params
+
+        # Parse and validate pagination parameters
+        try:
+            limit = parse_int_param(params, "limit", 20)
+            offset = parse_int_param(params, "offset", 0)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+        # Validate limit range
+        if limit < 1 or limit > 100:
+            return JSONResponse(
+                {"error": "limit must be between 1 and 100"},
+                status_code=400
+            )
+
+        # Validate offset is non-negative
+        if offset < 0:
+            return JSONResponse(
+                {"error": "offset must be non-negative"},
+                status_code=400
+            )
+
         entity_type_str = params.get("entity_type")
 
         # Convert string to EntityType enum if provided
@@ -53,15 +103,21 @@ def register(mcp: FastMCP):
                     status_code=400
                 )
 
-        entities = await mcp.entity_service.list_entities(
+        entities, total = await mcp.entity_service.list_entities(
             user_id=user.id,
-            entity_type=entity_type
+            entity_type=entity_type,
+            limit=limit,
+            offset=offset
         )
 
-        return JSONResponse({
-            "entities": [e.model_dump(mode="json") for e in entities],
-            "total": len(entities)
-        })
+        response = EntityListResponse(
+            entities=entities,
+            total=total,
+            limit=limit,
+            offset=offset
+        )
+
+        return JSONResponse(response.model_dump(mode="json"))
 
     @mcp.custom_route("/api/v1/entities/{entity_id}", methods=["GET"])
     async def get_entity(request: Request) -> JSONResponse:

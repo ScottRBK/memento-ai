@@ -87,9 +87,10 @@ async def test_list_entities(test_entity_service):
         await test_entity_service.create_entity(user_id, entity_data)
 
     # List
-    entities = await test_entity_service.list_entities(user_id)
+    entities, total = await test_entity_service.list_entities(user_id)
 
     assert len(entities) == 3
+    assert total == 3
 
 
 @pytest.mark.asyncio
@@ -108,9 +109,10 @@ async def test_list_entities_filter_by_type(test_entity_service):
     )
 
     # Filter by organization
-    orgs = await test_entity_service.list_entities(user_id, entity_type=EntityType.ORGANIZATION)
+    orgs, total = await test_entity_service.list_entities(user_id, entity_type=EntityType.ORGANIZATION)
 
     assert len(orgs) == 1
+    assert total == 1
     assert orgs[0].entity_type == EntityType.ORGANIZATION
 
 
@@ -130,9 +132,10 @@ async def test_list_entities_filter_by_tags(test_entity_service):
     )
 
     # Filter by engineering tag
-    eng_entities = await test_entity_service.list_entities(user_id, tags=["engineering"])
+    eng_entities, total = await test_entity_service.list_entities(user_id, tags=["engineering"])
 
     assert len(eng_entities) == 1
+    assert total == 1
     assert "engineering" in eng_entities[0].tags
 
 
@@ -625,7 +628,7 @@ async def test_list_entities_filter_by_project_ids(test_entity_service):
     )
 
     # Filter by project 100
-    entities_in_proj100 = await test_entity_service.list_entities(
+    entities_in_proj100, total_100 = await test_entity_service.list_entities(
         user_id,
         project_ids=[100]
     )
@@ -635,7 +638,7 @@ async def test_list_entities_filter_by_project_ids(test_entity_service):
     assert len(proj_filter_entities) == 2
 
     # Filter by project 200
-    entities_in_proj200 = await test_entity_service.list_entities(
+    entities_in_proj200, total_200 = await test_entity_service.list_entities(
         user_id,
         project_ids=[200]
     )

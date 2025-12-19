@@ -108,8 +108,10 @@ def register(mcp: FastMCP):
         # Add entity nodes and edges if requested
         seen_entity_ids = set()
         if include_entities:
-            entities = await mcp.entity_service.list_entities(
-                user_id=user.id
+            # Get all entities (no pagination limit for graph visualization)
+            entities, _ = await mcp.entity_service.list_entities(
+                user_id=user.id,
+                limit=10000  # High limit to get all entities for graph
             )
 
             for entity in entities:

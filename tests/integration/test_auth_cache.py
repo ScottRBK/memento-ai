@@ -7,10 +7,9 @@ import pytest
 import time
 from unittest.mock import patch, AsyncMock
 from starlette.requests import Request
-from starlette.datastructures import Headers
 
 from app.middleware.auth import TokenCache, get_user_from_request
-from app.models.user_models import User, UserCreate
+from app.models.user_models import User
 from app.config.settings import settings
 
 

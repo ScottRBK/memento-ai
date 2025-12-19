@@ -132,18 +132,24 @@ class EntityService:
         user_id: UUID,
         project_ids: List[int] | None = None,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None
-    ) -> List[EntitySummary]:
-        """List entities with optional filtering
+        tags: List[str] | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[List[EntitySummary], int]:
+        """List entities with optional filtering and pagination
 
         Args:
             user_id: User ID for ownership filtering
             project_ids: Optional filter by projects (returns entities associated with ANY of these projects)
             entity_type: Optional filter by entity type
             tags: Optional filter by tags (returns entities with ANY of these tags)
+            limit: Maximum number of entities to return (default 20)
+            offset: Number of entities to skip (default 0)
 
         Returns:
-            List of EntitySummary (lightweight, excludes notes)
+            Tuple of (entities, total_count) where:
+            - entities: List of EntitySummary (lightweight, excludes notes)
+            - total_count: Total matching entities before pagination
         """
         logger.info(
             "listing entities",
@@ -151,26 +157,31 @@ class EntityService:
                 "user_id": str(user_id),
                 "project_ids": project_ids,
                 "entity_type": entity_type.value if entity_type else None,
-                "tags": tags
+                "tags": tags,
+                "limit": limit,
+                "offset": offset
             }
         )
 
-        entities = await self.entity_repo.list_entities(
+        entities, total = await self.entity_repo.list_entities(
             user_id=user_id,
             project_ids=project_ids,
             entity_type=entity_type,
-            tags=tags
+            tags=tags,
+            limit=limit,
+            offset=offset
         )
 
         logger.info(
             "entities retrieved",
             extra={
                 "count": len(entities),
+                "total": total,
                 "user_id": str(user_id)
             }
         )
 
-        return entities
+        return entities, total
 
     async def search_entities(
         self,

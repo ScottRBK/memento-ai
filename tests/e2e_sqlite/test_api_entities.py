@@ -67,6 +67,105 @@ class TestEntityAPIList:
         assert response.status_code == 400
         assert "Invalid entity_type" in response.json()["error"]
 
+    @pytest.mark.asyncio
+    async def test_list_entities_pagination(self, http_client):
+        """GET /api/v1/entities supports pagination with limit and offset."""
+        # Create 5 entities
+        for i in range(5):
+            await http_client.post("/api/v1/entities", json={
+                "name": f"Pagination Entity {i}",
+                "entity_type": "Individual",
+                "tags": ["pagination-test"]
+            })
+
+        # Get first page (limit=2, offset=0)
+        response = await http_client.get("/api/v1/entities?limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["entities"]) == 2
+        assert data["limit"] == 2
+        assert data["offset"] == 0
+        assert data["total"] >= 5  # At least 5 entities created
+
+        # Get second page (limit=2, offset=2)
+        response2 = await http_client.get("/api/v1/entities?limit=2&offset=2")
+        assert response2.status_code == 200
+        data2 = response2.json()
+        assert len(data2["entities"]) == 2
+        assert data2["offset"] == 2
+
+        # Verify different entities on different pages
+        page1_ids = {e["id"] for e in data["entities"]}
+        page2_ids = {e["id"] for e in data2["entities"]}
+        assert page1_ids.isdisjoint(page2_ids)  # No overlap between pages
+
+    @pytest.mark.asyncio
+    async def test_list_entities_pagination_default_values(self, http_client):
+        """GET /api/v1/entities uses default pagination values."""
+        response = await http_client.get("/api/v1/entities")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["limit"] == 20  # Default limit
+        assert data["offset"] == 0  # Default offset
+
+    @pytest.mark.asyncio
+    async def test_list_entities_invalid_limit(self, http_client):
+        """GET /api/v1/entities returns 400 for invalid limit."""
+        # Limit too high
+        response = await http_client.get("/api/v1/entities?limit=200")
+        assert response.status_code == 400
+        assert "limit must be between 1 and 100" in response.json()["error"]
+
+        # Limit too low
+        response = await http_client.get("/api/v1/entities?limit=0")
+        assert response.status_code == 400
+        assert "limit must be between 1 and 100" in response.json()["error"]
+
+        # Non-integer limit
+        response = await http_client.get("/api/v1/entities?limit=abc")
+        assert response.status_code == 400
+        assert "must be an integer" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_list_entities_invalid_offset(self, http_client):
+        """GET /api/v1/entities returns 400 for invalid offset."""
+        # Negative offset
+        response = await http_client.get("/api/v1/entities?offset=-1")
+        assert response.status_code == 400
+        assert "offset must be non-negative" in response.json()["error"]
+
+        # Non-integer offset
+        response = await http_client.get("/api/v1/entities?offset=abc")
+        assert response.status_code == 400
+        assert "must be an integer" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_list_entities_pagination_with_filter(self, http_client):
+        """GET /api/v1/entities pagination works with filters."""
+        # Create entities of different types
+        for i in range(3):
+            await http_client.post("/api/v1/entities", json={
+                "name": f"Filtered Org {i}",
+                "entity_type": "Organization",
+                "tags": ["filter-pagination-test"]
+            })
+        for i in range(3):
+            await http_client.post("/api/v1/entities", json={
+                "name": f"Filtered Individual {i}",
+                "entity_type": "Individual",
+                "tags": ["filter-pagination-test"]
+            })
+
+        # Get organizations only, with pagination
+        response = await http_client.get("/api/v1/entities?entity_type=Organization&limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["entities"]) == 2
+        for entity in data["entities"]:
+            assert entity["entity_type"] == "Organization"
+        # Total should reflect filtered count (only organizations)
+        assert data["total"] >= 3
+
 
 class TestEntityAPICrud:
     """Test Entity CRUD operations."""

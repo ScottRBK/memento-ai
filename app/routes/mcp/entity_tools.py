@@ -232,16 +232,18 @@ def register(mcp: FastMCP):
             entity_type_enum = EntityType(entity_type.title()) if entity_type else None
 
             entity_service = ctx.fastmcp.entity_service
-            entities = await entity_service.list_entities(
+            # MCP tool returns all entities (no pagination params exposed)
+            entities, total = await entity_service.list_entities(
                 user_id=user.id,
                 project_ids=project_ids,
                 entity_type=entity_type_enum,
-                tags=tags
+                tags=tags,
+                limit=10000  # High limit to return all entities for MCP
             )
 
             return {
                 "entities": entities,
-                "total_count": len(entities),
+                "total_count": total,
                 "filters": {
                     "project_ids": project_ids,
                     "entity_type": entity_type,

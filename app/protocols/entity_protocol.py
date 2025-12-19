@@ -66,21 +66,27 @@ class EntityRepository(Protocol):
     async def list_entities(
         self,
         user_id: UUID,
-        project_id: int | None = None,
+        project_ids: List[int] | None = None,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None
-    ) -> List[EntitySummary]:
-        """List entities with optional filtering
+        tags: List[str] | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[List[EntitySummary], int]:
+        """List entities with optional filtering and pagination
 
         Args:
             user_id: User ID for ownership filtering
-            project_id: Optional filter by project
+            project_ids: Optional filter by projects (returns entities in ANY of these projects)
             entity_type: Optional filter by entity type (Organization, Individual, etc.)
             tags: Optional filter by tags (returns entities with ANY of these tags)
+            limit: Maximum number of entities to return (default 20)
+            offset: Number of entities to skip (default 0)
 
         Returns:
-            List of EntitySummary (lightweight, excludes notes)
-            Sorted by creation date (newest first)
+            Tuple of (entities, total_count) where:
+            - entities: List of EntitySummary (lightweight, excludes notes)
+            - total_count: Total matching entities before pagination
+            Sorted by creation date (newest first), then by ID for deterministic ordering
         """
         ...
 

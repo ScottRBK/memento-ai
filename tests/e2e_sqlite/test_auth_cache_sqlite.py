@@ -9,7 +9,6 @@ These tests validate that the cache works correctly alongside the real
 database for user management.
 """
 import pytest
-import asyncio
 from unittest.mock import patch, AsyncMock
 
 from app.middleware.auth import TokenCache, get_user_from_request
@@ -44,7 +43,6 @@ async def test_token_cache_with_real_database(http_client, sqlite_app):
     - Subsequent calls return same user from cache without DB query
     """
     from app.config.settings import settings
-    from app.middleware.auth import TokenCache
 
     # Track verify_token calls
     call_count = 0
@@ -101,7 +99,6 @@ async def test_sequential_requests_use_cache(http_client, sqlite_app):
     - All requests return same user
     """
     from app.config.settings import settings
-    from app.middleware.auth import TokenCache
 
     call_count = 0
 
@@ -151,7 +148,6 @@ async def test_cache_expiration_re_provisions_user(http_client, sqlite_app):
     - User still retrieved correctly from database
     """
     from app.config.settings import settings
-    from app.middleware.auth import TokenCache
     import time
 
     call_count = 0
