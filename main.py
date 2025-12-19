@@ -9,6 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.config.settings import settings
+from app.version import get_version
 from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
@@ -257,6 +258,11 @@ def cli():
         type=int,
         default=settings.SERVER_PORT,
         help=f"HTTP port (default: {settings.SERVER_PORT})"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {get_version()}"
     )
     args = parser.parse_args()
 

@@ -7,6 +7,8 @@ from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 from platformdirs import user_data_dir, user_config_dir
 
+from app.version import get_version
+
 load_dotenv()
 
 # Platform-specific default paths
@@ -17,7 +19,7 @@ _default_config_dir = Path(user_config_dir("forgetful", ensure_exists=False))
 class Settings(BaseSettings):
     # Application Info
     SERVICE_NAME: str = "Forgetful"
-    SERVICE_VERSION: str = "v0.0.1"
+    SERVICE_VERSION: str = get_version()
     SERVICE_DESCRIPTION: str = "Forgetful Memory Service"
 
     # Server Configuration
