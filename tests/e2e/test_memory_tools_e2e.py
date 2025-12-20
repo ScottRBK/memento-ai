@@ -598,7 +598,17 @@ async def test_update_memory_remove_project_ids_e2e(docker_services,
 async def test_get_recent_memories_basic_e2e(docker_services, mcp_server_url):
     """Test getting recent memories sorted by creation timestamp"""
     async with Client(mcp_server_url) as client:
-        # Create several memories
+        # Create a unique project to isolate this test's memories
+        project_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_project', 'arguments': {
+                'name': 'Recent Memories Basic Test Project',
+                'description': 'Project for test isolation in get_recent_memories test',
+                'project_type': 'development'
+            }
+        })
+        project_id = project_result.data["id"]
+
+        # Create several memories in this project
         memory_ids = []
         for i in range(5):
             result = await client.call_tool('execute_forgetful_tool', {
@@ -607,16 +617,18 @@ async def test_get_recent_memories_basic_e2e(docker_services, mcp_server_url):
                     'content': f'Testing recent memories retrieval {i}',
                     'context': f'E2E test for get_recent_memories {i}',
                     'keywords': ['recent', 'test', f'memory{i}'],
-                    'tags': ['test', 'recent'],
-                    'importance': 7
+                    'tags': ['recent-basic-e2e-test'],
+                    'importance': 7,
+                    'project_ids': [project_id]
                 }
             })
             memory_ids.append(result.data["id"])
 
-        # Get recent memories (should return newest first)
+        # Get recent memories filtered by project (should return newest first)
         recent_result = await client.call_tool('execute_forgetful_tool', {
             'tool_name': 'get_recent_memories', 'arguments': {
-                'limit': 3
+                'limit': 3,
+                'project_ids': [project_id]
             }
         })
 

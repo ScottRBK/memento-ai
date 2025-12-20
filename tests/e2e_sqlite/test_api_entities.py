@@ -383,6 +383,59 @@ class TestEntityMemoryLinks:
         assert response.status_code == 200
         assert response.json()["success"] is True
 
+    @pytest.mark.asyncio
+    async def test_get_entity_memories(self, http_client):
+        """GET /api/v1/entities/{id}/memories returns linked memories."""
+        # Create entity
+        entity_response = await http_client.post("/api/v1/entities", json={
+            "name": "Get Memories Test Entity",
+            "entity_type": "Individual"
+        })
+        entity_id = entity_response.json()["id"]
+
+        # Create and link memories
+        memory_ids = []
+        for i in range(2):
+            mem_resp = await http_client.post("/api/v1/memories", json={
+                "title": f"Test Memory {i}",
+                "content": f"Content {i}",
+                "context": "Testing",
+                "keywords": ["test"],
+                "tags": ["test"],
+                "importance": 7
+            })
+            memory_id = mem_resp.json()["id"]
+            memory_ids.append(memory_id)
+            await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={"memory_id": memory_id})
+
+        # Get entity memories
+        response = await http_client.get(f"/api/v1/entities/{entity_id}/memories")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 2
+        assert set(data["memory_ids"]) == set(memory_ids)
+
+    @pytest.mark.asyncio
+    async def test_get_entity_memories_empty(self, http_client):
+        """GET /api/v1/entities/{id}/memories returns empty for entity with no links."""
+        entity_response = await http_client.post("/api/v1/entities", json={
+            "name": "Empty Memories Entity",
+            "entity_type": "Organization"
+        })
+        entity_id = entity_response.json()["id"]
+
+        response = await http_client.get(f"/api/v1/entities/{entity_id}/memories")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["count"] == 0
+        assert data["memory_ids"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_entity_memories_not_found(self, http_client):
+        """GET /api/v1/entities/{id}/memories returns 404 for non-existent entity."""
+        response = await http_client.get("/api/v1/entities/999999/memories")
+        assert response.status_code == 404
+
 
 class TestEntityRelationships:
     """Test entity relationship endpoints."""

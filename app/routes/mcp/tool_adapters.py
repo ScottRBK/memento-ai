@@ -1134,6 +1134,21 @@ class EntityToolAdapters:
 
         return {"success": result, "deleted_id": relationship_id}
 
+    async def get_entity_memories(
+        self,
+        entity_id: int,
+        ctx: Context
+    ) -> dict:
+        """Adapter for get_entity_memories tool"""
+        user = await get_user_from_auth(ctx)
+
+        memory_ids, count = await self.entity_service.get_entity_memories(
+            user_id=user.id,
+            entity_id=entity_id
+        )
+
+        return {"memory_ids": memory_ids, "count": count}
+
 
 def create_entity_adapters(
     entity_service: EntityService,
@@ -1154,4 +1169,5 @@ def create_entity_adapters(
         "get_entity_relationships": adapters.get_entity_relationships,
         "update_entity_relationship": adapters.update_entity_relationship,
         "delete_entity_relationship": adapters.delete_entity_relationship,
+        "get_entity_memories": adapters.get_entity_memories,
     }

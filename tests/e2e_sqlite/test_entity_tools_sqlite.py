@@ -934,3 +934,157 @@ async def test_search_entities_by_aka_case_insensitive_e2e(mcp_client):
 
     test_entities = [e for e in entities if 'case-aka-e2e' in e['tags']]
     assert len(test_entities) >= 1
+
+
+# Entity-Memory Query E2E Tests (get_entity_memories)
+
+
+@pytest.mark.asyncio
+async def test_get_entity_memories_basic_e2e(mcp_client):
+    """Test getting memories linked to an entity via MCP tool"""
+    # Create entity
+    entity_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Entity for Memory Query SQLite',
+            'entity_type': 'Organization',
+            'tags': ['memory-query-e2e-sqlite']
+        }
+    })
+    entity_id = entity_result.data["id"]
+
+    # Create some memories
+    memory_ids = []
+    for i in range(3):
+        memory_result = await mcp_client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {
+                'title': f'Memory for Entity Query Test SQLite {i}',
+                'content': f'Content for memory {i}',
+                'context': 'Testing get_entity_memories',
+                'keywords': ['test'],
+                'tags': ['memory-query-e2e-sqlite'],
+                'importance': 7
+            }
+        })
+        memory_ids.append(memory_result.data["id"])
+        # Link to entity
+        await mcp_client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'link_entity_to_memory', 'arguments': {
+                'entity_id': entity_id,
+                'memory_id': memory_result.data["id"]
+            }
+        })
+
+    # Get entity memories
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_entity_memories', 'arguments': {
+            'entity_id': entity_id
+        }
+    })
+
+    assert result.data is not None
+    assert 'memory_ids' in result.data
+    assert 'count' in result.data
+    assert result.data['count'] == 3
+    assert len(result.data['memory_ids']) == 3
+    for mid in memory_ids:
+        assert mid in result.data['memory_ids']
+
+
+@pytest.mark.asyncio
+async def test_get_entity_memories_empty_e2e(mcp_client):
+    """Test getting memories for entity with no linked memories"""
+    # Create entity with no memory links
+    entity_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Entity With No Memories SQLite',
+            'entity_type': 'Individual',
+            'tags': ['empty-memory-e2e-sqlite']
+        }
+    })
+    entity_id = entity_result.data["id"]
+
+    # Get entity memories (should be empty)
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_entity_memories', 'arguments': {
+            'entity_id': entity_id
+        }
+    })
+
+    assert result.data is not None
+    assert result.data['count'] == 0
+    assert result.data['memory_ids'] == []
+
+
+@pytest.mark.asyncio
+async def test_get_entity_memories_not_found_e2e(mcp_client):
+    """Test error handling for non-existent entity"""
+    try:
+        await mcp_client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_entity_memories', 'arguments': {
+                'entity_id': 999999
+            }
+        })
+        assert False, 'Expected error for non-existent entity'
+    except Exception as e:
+        assert 'not found' in str(e).lower()
+
+
+@pytest.mark.asyncio
+async def test_get_entity_memories_after_unlink_e2e(mcp_client):
+    """Test that unlinking removes memory from entity's memory list"""
+    # Create entity
+    entity_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {
+            'name': 'Entity for Unlink Test SQLite',
+            'entity_type': 'Device',
+            'tags': ['unlink-memory-e2e-sqlite']
+        }
+    })
+    entity_id = entity_result.data["id"]
+
+    # Create and link 2 memories
+    memory_ids = []
+    for i in range(2):
+        memory_result = await mcp_client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory', 'arguments': {
+                'title': f'Memory for Unlink Test SQLite {i}',
+                'content': f'Content {i}',
+                'context': 'Testing unlink',
+                'keywords': ['test'],
+                'tags': ['unlink-memory-e2e-sqlite'],
+                'importance': 7
+            }
+        })
+        memory_ids.append(memory_result.data["id"])
+        await mcp_client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'link_entity_to_memory', 'arguments': {
+                'entity_id': entity_id,
+                'memory_id': memory_result.data["id"]
+            }
+        })
+
+    # Verify initial state
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_entity_memories', 'arguments': {
+            'entity_id': entity_id
+        }
+    })
+    assert result.data['count'] == 2
+
+    # Unlink one memory
+    await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'unlink_entity_from_memory', 'arguments': {
+            'entity_id': entity_id,
+            'memory_id': memory_ids[0]
+        }
+    })
+
+    # Verify memory was removed
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_entity_memories', 'arguments': {
+            'entity_id': entity_id
+        }
+    })
+    assert result.data['count'] == 1
+    assert memory_ids[1] in result.data['memory_ids']
+    assert memory_ids[0] not in result.data['memory_ids']

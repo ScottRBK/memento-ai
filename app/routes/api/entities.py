@@ -305,6 +305,29 @@ def register(mcp: FastMCP):
 
         return JSONResponse({"success": True})
 
+    @mcp.custom_route("/api/v1/entities/{entity_id}/memories", methods=["GET"])
+    async def get_entity_memories(request: Request) -> JSONResponse:
+        """Get all memories linked to an entity."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        entity_id = int(request.path_params["entity_id"])
+
+        try:
+            memory_ids, count = await mcp.entity_service.get_entity_memories(
+                user_id=user.id,
+                entity_id=entity_id
+            )
+        except NotFoundError:
+            return JSONResponse({"error": "Entity not found"}, status_code=404)
+
+        return JSONResponse({
+            "memory_ids": memory_ids,
+            "count": count
+        })
+
     # Entity Relationships
     @mcp.custom_route("/api/v1/entities/{entity_id}/relationships", methods=["GET"])
     async def get_entity_relationships(request: Request) -> JSONResponse:

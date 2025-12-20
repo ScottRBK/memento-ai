@@ -313,3 +313,22 @@ class EntityRepository(Protocol):
             List of (entity_id, memory_id) tuples representing all links
         """
         ...
+
+    async def get_entity_memories(
+        self,
+        user_id: UUID,
+        entity_id: int
+    ) -> List[int]:
+        """Get all memory IDs linked to a specific entity
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to get memories for
+
+        Returns:
+            List of memory IDs linked to this entity
+
+        Raises:
+            NotFoundError: If entity not found or not owned by user
+        """
+        ...

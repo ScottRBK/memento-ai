@@ -983,6 +983,35 @@ class InMemoryEntityRepository(EntityRepository):
             return True
         return False
 
+    async def get_all_entity_relationships(self, user_id: UUID) -> List[EntityRelationship]:
+        """Get all entity relationships for a user (for graph visualization)"""
+        user_relationships = self._relationships.get(user_id, {})
+        relationships = list(user_relationships.values())
+        relationships.sort(key=lambda r: r.created_at, reverse=True)
+        return relationships
+
+    async def get_all_entity_memory_links(self, user_id: UUID) -> List[tuple[int, int]]:
+        """Get all entity-memory associations for a user (for graph visualization)"""
+        user_entities = self._entities.get(user_id, {})
+        links = []
+        for entity_id in user_entities:
+            memory_ids = self._entity_memory_links.get(entity_id, set())
+            for memory_id in memory_ids:
+                links.append((entity_id, memory_id))
+        return links
+
+    async def get_entity_memories(self, user_id: UUID, entity_id: int) -> List[int]:
+        """Get all memory IDs linked to a specific entity"""
+        # Verify entity exists
+        entity = await self.get_entity_by_id(user_id, entity_id)
+        if not entity:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"Entity {entity_id} not found")
+
+        # Return list of memory IDs linked to this entity
+        memory_ids = self._entity_memory_links.get(entity_id, set())
+        return list(memory_ids)
+
 
 @pytest.fixture
 def mock_entity_repository():

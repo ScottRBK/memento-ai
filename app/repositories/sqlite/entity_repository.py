@@ -981,3 +981,63 @@ class SqliteEntityRepository:
                 }
             )
             raise
+
+    async def get_entity_memories(
+        self,
+        user_id: UUID,
+        entity_id: int
+    ) -> List[int]:
+        """Get all memory IDs linked to a specific entity
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to get memories for
+
+        Returns:
+            List of memory IDs linked to this entity
+
+        Raises:
+            NotFoundError: If entity not found or not owned by user
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                # First verify the entity exists and is owned by user
+                entity_stmt = select(EntitiesTable).where(
+                    EntitiesTable.id == entity_id,
+                    EntitiesTable.user_id == str(user_id)
+                )
+                entity_result = await session.execute(entity_stmt)
+                entity = entity_result.scalar_one_or_none()
+
+                if not entity:
+                    raise NotFoundError(f"Entity {entity_id} not found")
+
+                # Query the association table for memory IDs linked to this entity
+                stmt = select(
+                    memory_entity_association.c.memory_id
+                ).select_from(
+                    memory_entity_association
+                ).join(
+                    MemoryTable,
+                    MemoryTable.id == memory_entity_association.c.memory_id
+                ).where(
+                    memory_entity_association.c.entity_id == entity_id,
+                    MemoryTable.user_id == str(user_id)
+                )
+
+                result = await session.execute(stmt)
+                return [row.memory_id for row in result]
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(
+                "Failed to get entity memories",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "entity_id": entity_id,
+                    "error": str(e)
+                }
+            )
+            raise

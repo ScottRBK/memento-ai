@@ -1167,6 +1167,19 @@ def register_entity_tools_metadata(
             ],
             "tags": ["entity", "relationship", "delete"],
         },
+        {
+            "name": "get_entity_memories",
+            "description": "Get all memories linked to a specific entity (useful for entity deduplication and auditing)",
+            "parameters": [
+                {"name": "entity_id", "type": "int", "description": "ID of the entity to get memories for", "required": True, "example": 42},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with memory_ids (list of int) and count (int)",
+            "examples": [
+                'execute_forgetful_tool("get_entity_memories", {"entity_id": 42})',
+            ],
+            "tags": ["entity", "memory", "query", "linking"],
+        },
     ]
 
     for tool_def in tools:

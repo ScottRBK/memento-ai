@@ -669,3 +669,44 @@ class EntityService:
         )
 
         return links
+
+    async def get_entity_memories(
+        self,
+        user_id: UUID,
+        entity_id: int
+    ) -> tuple[List[int], int]:
+        """Get all memories linked to a specific entity
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to get memories for
+
+        Returns:
+            Tuple of (memory_ids_list, count)
+
+        Raises:
+            NotFoundError: If entity not found or not owned by user
+        """
+        logger.info(
+            "getting memories for entity",
+            extra={
+                "entity_id": entity_id,
+                "user_id": str(user_id)
+            }
+        )
+
+        memory_ids = await self.entity_repo.get_entity_memories(
+            user_id=user_id,
+            entity_id=entity_id
+        )
+
+        logger.info(
+            "entity memories retrieved",
+            extra={
+                "entity_id": entity_id,
+                "count": len(memory_ids),
+                "user_id": str(user_id)
+            }
+        )
+
+        return memory_ids, len(memory_ids)

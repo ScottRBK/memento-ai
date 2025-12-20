@@ -5,6 +5,17 @@ This section provides more detailed instructions on how to connect forgetful to 
 - [Gemini CLI](#gemini-cli) 
 
 ## Claude Code
+
+### [Plugin](https://github.com/ScottRBK/forgetful-plugin) 
+
+```bash
+/plugin marketplace add ScottRBK/forgetful-plugin
+/plugin install forgetful-plugin@forgetful-plugins
+cd ~/.claude/plugins/forgetful-plugin
+cp .mcp.json.stdio.example .mcp.json
+```
+
+
 ### STDIO Transport
 ```bash
 claude mcp add --scope user forgetful uvx forgetful-ai
@@ -23,6 +34,7 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
 ```bash
 claude mcp add --transport http --scope user forgetful http://localhost:8020/mcp
 ```
+
 
 ## Cursor
 Pasting the following configuration into your Cursor `~/.cursor/mcp.json` file is the recommended approach. You may also install in a specific project by creating `.cursor/mcp.json` in your project folder. See [Cursor MCP docs](https://docs.cursor.com/context/model-context-protocol) for more info.

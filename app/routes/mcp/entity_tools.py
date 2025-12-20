@@ -874,3 +874,66 @@ def register(mcp: FastMCP):
         except Exception as e:
             logger.error("Failed to delete entity relationship", exc_info=True)
             raise ToolError(f"Failed to delete entity relationship: {str(e)}")
+
+    @mcp.tool()
+    async def get_entity_memories(
+        entity_id: int,
+        ctx: Context
+    ) -> dict:
+        """
+        Get all memories linked to a specific entity.
+
+        WHAT: Returns the list of memory IDs associated with a specific entity,
+        useful for understanding what knowledge is attached to entities.
+
+        WHEN: When you need to find all memories linked to an entity:
+        - Before deleting or merging duplicate entities
+        - To understand what knowledge is attached to a person/organization
+        - During entity deduplication workflows
+        - To audit entity-memory relationships
+
+        BEHAVIOR: Returns list of memory IDs and total count. Requires entity to exist
+        and be owned by the requesting user. Returns empty list (not error) if entity
+        has no linked memories.
+
+        EXAMPLES:
+        get_entity_memories(entity_id=42)
+        # Returns: {"memory_ids": [1, 5, 17, 23], "count": 4}
+
+        get_entity_memories(entity_id=99)
+        # Returns: {"memory_ids": [], "count": 0}  # Entity exists but has no memories
+
+        Args:
+            entity_id: The entity ID to get memories for
+            ctx: Context (automatically injected)
+
+        Returns:
+            Dict with "memory_ids" (list of ints) and "count" (int)
+
+        Raises:
+            ToolError: If entity not found or user not authorized
+        """
+
+        logger.info("MCP Tool Called -> get_entity_memories", extra={
+            "entity_id": entity_id
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            entity_service = ctx.fastmcp.entity_service
+            memory_ids, count = await entity_service.get_entity_memories(
+                user_id=user.id,
+                entity_id=entity_id
+            )
+
+            return {
+                "memory_ids": memory_ids,
+                "count": count
+            }
+
+        except NotFoundError as e:
+            raise ToolError(str(e))
+        except Exception as e:
+            logger.error("Failed to get entity memories", exc_info=True)
+            raise ToolError(f"Failed to get entity memories: {str(e)}")
