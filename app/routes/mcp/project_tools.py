@@ -351,7 +351,7 @@ def register(mcp: FastMCP):
         Ordered by creation time (newest first).
 
         NOT-USE: Single project details (use get_project), creating (use create_project),
-        or searching memories (use query_project_memories).
+        or searching memories (use query_memory with project_ids).
 
         EXAMPLES:
         # List all projects

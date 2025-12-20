@@ -181,8 +181,7 @@ def register(mcp: FastMCP):
         When project_id set: strict_project_filter=True limits linked memories to same project only; False (default) allows cross-project pattern discovery.
         Uses query context to perform additional ranking of initial canidate list of queries. 
         
-        NOT-USE: Creating memories (user create_memory), listing all without search, retrieving specific ID (use get_memory),
-        getting latest project memories (use query_project_memories)
+        NOT-USE: Creating memories (use create_memory), listing all without search, retrieving specific ID (use get_memory)
         
         Args:
             query: Natural language query text
@@ -380,7 +379,7 @@ def register(mcp: FastMCP):
         Prevents duplicate and self linking.
 
         NOT-USE: Auto-linking during creation (happens automatically in create_memory), retrieving linked memories (use query_memory
-        with include_links), unlinking (not supported - use mark obsolete instead)
+        with include_links)
 
         Args:
             memory_id: Source memory ID

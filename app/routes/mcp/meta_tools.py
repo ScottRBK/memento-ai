@@ -42,6 +42,63 @@ def register(mcp: FastMCP):
             - total_count: Total number of tools
             - categories_available: List of available categories
             - filtered_by: Category filter applied (if any)
+
+        ## All Available Tools
+
+        **User Tools** - User profile and preferences
+        - get_current_user: Get authenticated user info
+        - update_user_notes: Store user preferences/notes
+
+        **Memory Tools** - Atomic knowledge storage (<400 words per memory)
+        - create_memory: Store a single concept with auto-linking to similar memories
+        - query_memory: Semantic search across memories (use query_context for better ranking)
+        - get_memory: Retrieve memory by ID
+        - update_memory: Modify memory fields (PATCH semantics)
+        - link_memories: Manually connect related memories bidirectionally
+        - unlink_memories: Remove link between memories
+        - mark_memory_obsolete: Soft-delete with audit trail and optional superseded_by
+        - get_recent_memories: Get newest memories (timeline view)
+
+        **Project Tools** - Organize memories by context/scope
+        - create_project: Create project container (development, personal, work, etc.)
+        - get_project: Retrieve project details
+        - list_projects: List all projects with optional status/repo filter
+        - update_project: Modify project metadata
+        - delete_project: Remove project (memories preserved)
+
+        **Code Artifact Tools** - Reusable code snippets and patterns
+        - create_code_artifact: Store code with language, tags, project link
+        - get_code_artifact: Retrieve code artifact by ID
+        - list_code_artifacts: List artifacts with project/language/tags filter
+        - update_code_artifact: Modify artifact fields
+        - delete_code_artifact: Remove artifact
+
+        **Document Tools** - Long-form content (>300 words)
+        - create_document: Store detailed docs, analysis, guides
+        - get_document: Retrieve document by ID
+        - list_documents: List documents with project/type/tags filter
+        - update_document: Modify document fields
+        - delete_document: Remove document
+
+        **Entity Tools** - Real-world entities (people, orgs, devices)
+        - create_entity: Create entity with type, aka (aliases), notes
+        - get_entity: Retrieve entity by ID
+        - list_entities: List entities with project/type/tags filter
+        - search_entities: Text search by name or aka (aliases)
+        - update_entity: Modify entity fields
+        - delete_entity: Remove entity (cascades links)
+        - link_entity_to_memory: Connect entity to memory
+        - unlink_entity_from_memory: Remove entity-memory link
+        - get_entity_memories: Get all memories linked to entity
+        - create_entity_relationship: Create typed relationship (works_for, owns, etc.)
+        - get_entity_relationships: Get relationships for entity
+        - update_entity_relationship: Modify relationship
+        - delete_entity_relationship: Remove relationship
+
+        ## Workflow
+        1. Call discover_forgetful_tools() to see this catalog
+        2. Call execute_forgetful_tool(tool_name, {args}) to run any tool
+        3. If needed, call how_to_use_forgetful_tool(tool_name) for full parameter docs
         """
         try:
             registry = ctx.fastmcp.registry
@@ -150,7 +207,7 @@ def register(mcp: FastMCP):
         - List: execute_forgetful_tool("list_projects", {})
         - Create: execute_forgetful_tool("create_project", {"name": "Project Name", "description": "What this project is about", "project_type": "development"})
         - Get: execute_forgetful_tool("get_project", {"project_id": 1})
-        - Query: execute_forgetful_tool("query_project_memories", {"project_id": 1, "query": "search terms", "query_context": "why searching"})
+        - Query: execute_forgetful_tool("query_memory", {"query": "search terms", "query_context": "why searching", "project_ids": [1]})
 
         **Entities (people, orgs, devices):**
         - Create: execute_forgetful_tool("create_entity", {"name": "Sarah Chen", "entity_type": "Individual", "notes": "Backend developer", "aka": ["Sarah", "S.C."]})
