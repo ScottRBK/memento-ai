@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "console"
 
+    # CORS Configuration (HTTP transport only)
+    CORS_ENABLED: bool = False
+    CORS_ORIGINS: list[str] = ["*"]
+
     # Database Configuration
     DATABASE: str = "SQLite"  # "Postgres" or "SQLite"
 

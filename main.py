@@ -268,8 +268,33 @@ def cli():
 
     if args.transport == "stdio":
         mcp.run()
-    else:
+    elif not settings.CORS_ENABLED:
+        # No CORS - use existing code path (zero behavioral change)
         mcp.run(transport="http", host=args.host, port=args.port)
+    else:
+        # CORS enabled - use http_app with middleware
+        from starlette.middleware import Middleware
+        from starlette.middleware.cors import CORSMiddleware
+
+        middleware = [
+            Middleware(
+                CORSMiddleware,
+                allow_origins=settings.CORS_ORIGINS,
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=[
+                    "mcp-protocol-version",
+                    "mcp-session-id",
+                    "Authorization",
+                    "Content-Type",
+                ],
+                expose_headers=["mcp-session-id"],
+            )
+        ]
+
+        import uvicorn
+        app = mcp.http_app(middleware=middleware)
+        uvicorn.run(app, host=args.host, port=args.port)
 
 
 if __name__ == "__main__":

@@ -21,3 +21,6 @@ app/_version.py
 
 # VS Code
 .vscode
+
+# serena
+.serena
