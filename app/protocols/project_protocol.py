@@ -1,12 +1,12 @@
-from typing import Protocol, List
+from typing import List, Protocol
 from uuid import UUID
 
 from app.models.project_models import (
     Project,
     ProjectCreate,
-    ProjectUpdate,
+    ProjectStatus,
     ProjectSummary,
-    ProjectStatus
+    ProjectUpdate,
 )
 
 
@@ -22,7 +22,8 @@ class ProjectRepository(Protocol):
         self,
         user_id: UUID,
         status: ProjectStatus | None = None,
-        repo_name: str | None = None
+        repo_name: str | None = None,
+        name: str | None = None,
     ) -> List[ProjectSummary]:
         """List projects with optional filtering
 
@@ -30,17 +31,14 @@ class ProjectRepository(Protocol):
             user_id: User ID for RLS (row-level security)
             status: Optional filter by project status (active/archived/completed)
             repo_name: Optional filter by repository name
+            name: Optional filter by project name (case-insensitive partial match)
 
         Returns:
             List of ProjectSummary objects matching filters
         """
         ...
 
-    async def get_project_by_id(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> Project | None:
+    async def get_project_by_id(self, user_id: UUID, project_id: int) -> Project | None:
         """Get single project by ID
 
         Args:
@@ -53,9 +51,7 @@ class ProjectRepository(Protocol):
         ...
 
     async def create_project(
-        self,
-        user_id: UUID,
-        project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate
     ) -> Project:
         """Create new project
 
@@ -69,10 +65,7 @@ class ProjectRepository(Protocol):
         ...
 
     async def update_project(
-        self,
-        user_id: UUID,
-        project_id: int,
-        project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
     ) -> Project:
         """Update existing project
 
@@ -89,11 +82,7 @@ class ProjectRepository(Protocol):
         """
         ...
 
-    async def delete_project(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> bool:
+    async def delete_project(self, user_id: UUID, project_id: int) -> bool:
         """Delete project
 
         Removes project metadata. Linked memories, code artifacts, and documents

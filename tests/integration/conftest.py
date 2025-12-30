@@ -1,31 +1,58 @@
 """
 Integration test fixtures with in-memory stubs (no real database required)
 """
-import pytest
+
 import hashlib
 import random
+from datetime import datetime, timezone
 from typing import List
 from uuid import UUID, uuid4
-from datetime import datetime, timezone
 
-from app.models.user_models import User, UserCreate, UserUpdate
+import pytest
+
+from app.models.code_artifact_models import (
+    CodeArtifact,
+    CodeArtifactCreate,
+    CodeArtifactSummary,
+    CodeArtifactUpdate,
+)
+from app.models.document_models import (
+    Document,
+    DocumentCreate,
+    DocumentSummary,
+    DocumentUpdate,
+)
+from app.models.entity_models import (
+    Entity,
+    EntityCreate,
+    EntityRelationship,
+    EntityRelationshipCreate,
+    EntityRelationshipUpdate,
+    EntitySummary,
+    EntityType,
+    EntityUpdate,
+)
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
-from app.models.project_models import Project, ProjectCreate, ProjectUpdate, ProjectSummary, ProjectStatus
-from app.models.code_artifact_models import CodeArtifact, CodeArtifactCreate, CodeArtifactUpdate, CodeArtifactSummary
-from app.models.document_models import Document, DocumentCreate, DocumentUpdate, DocumentSummary
-from app.models.entity_models import Entity, EntityCreate, EntityUpdate, EntitySummary, EntityType, EntityRelationship, EntityRelationshipCreate, EntityRelationshipUpdate
-from app.protocols.user_protocol import UserRepository
-from app.protocols.memory_protocol import MemoryRepository
-from app.protocols.project_protocol import ProjectRepository
+from app.models.project_models import (
+    Project,
+    ProjectCreate,
+    ProjectStatus,
+    ProjectSummary,
+    ProjectUpdate,
+)
+from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.protocols.document_protocol import DocumentRepository
 from app.protocols.entity_protocol import EntityRepository
-from app.services.user_service import UserService
-from app.services.memory_service import MemoryService
-from app.services.project_service import ProjectService
+from app.protocols.memory_protocol import MemoryRepository
+from app.protocols.project_protocol import ProjectRepository
+from app.protocols.user_protocol import UserRepository
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
+from app.services.memory_service import MemoryService
+from app.services.project_service import ProjectService
+from app.services.user_service import UserService
 
 
 class InMemoryUserRepository(UserRepository):
@@ -56,7 +83,7 @@ class InMemoryUserRepository(UserRepository):
             notes=user.notes,
             idp_metadata=user.idp_metadata,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         self._users[user_id] = new_user
@@ -118,7 +145,7 @@ class MockEmbeddingsAdapter:
         vector = [random.random() for _ in range(self.dimensions)]
 
         # Normalize to unit length (typical for embeddings)
-        magnitude = sum(x ** 2 for x in vector) ** 0.5
+        magnitude = sum(x**2 for x in vector) ** 0.5
         normalized = [x / magnitude for x in vector]
 
         return normalized
@@ -128,7 +155,9 @@ class InMemoryMemoryRepository(MemoryRepository):
     """In-memory implementation of MemoryRepository for testing"""
 
     def __init__(self):
-        self._memories: dict[UUID, dict[int, Memory]] = {}  # user_id -> {memory_id -> Memory}
+        self._memories: dict[
+            UUID, dict[int, Memory]
+        ] = {}  # user_id -> {memory_id -> Memory}
         self._links: dict[int, set[int]] = {}  # memory_id -> set of linked memory_ids
         self._next_id = 1
 
@@ -152,7 +181,7 @@ class InMemoryMemoryRepository(MemoryRepository):
             document_ids=memory.document_ids or [],
             linked_memory_ids=[],
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         if user_id not in self._memories:
@@ -176,7 +205,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         k: int,
         importance_threshold: int | None,
         project_ids: List[int] | None,
-        exclude_ids: List[int] | None = None
+        exclude_ids: List[int] | None = None,
     ) -> List[Memory]:
         """Mock semantic search - returns memories sorted by importance"""
         user_memories = self._memories.get(user_id, {})
@@ -191,7 +220,9 @@ class InMemoryMemoryRepository(MemoryRepository):
             memories = [m for m in memories if m.importance >= importance_threshold]
 
         if project_ids:
-            memories = [m for m in memories if any(pid in m.project_ids for pid in project_ids)]
+            memories = [
+                m for m in memories if any(pid in m.project_ids for pid in project_ids)
+            ]
 
         if exclude_ids:
             memories = [m for m in memories if m.id not in exclude_ids]
@@ -202,10 +233,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         return memories[:k]
 
     async def find_similar_memories(
-        self,
-        user_id: UUID,
-        memory_id: int,
-        max_links: int
+        self, user_id: UUID, memory_id: int, max_links: int
     ) -> List[Memory]:
         """Find similar memories - uses keyword overlap as proxy for similarity"""
         user_memories = self._memories.get(user_id, {})
@@ -215,7 +243,9 @@ class InMemoryMemoryRepository(MemoryRepository):
             return []
 
         # Get all memories except the source memory, filtering out obsolete memories
-        candidates = [m for m in user_memories.values() if m.id != memory_id and not m.is_obsolete]
+        candidates = [
+            m for m in user_memories.values() if m.id != memory_id and not m.is_obsolete
+        ]
 
         # Calculate similarity based on keyword overlap
         similar = []
@@ -232,10 +262,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         return similar[:max_links]
 
     async def create_links_batch(
-        self,
-        user_id: UUID,
-        source_id: int,
-        target_ids: List[int]
+        self, user_id: UUID, source_id: int, target_ids: List[int]
     ) -> List[int]:
         """Create bidirectional links between memories"""
         if not target_ids:
@@ -282,7 +309,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         user_id: UUID,
         memory_id: int,
         project_ids: List[int] | None,
-        max_links: int = 5
+        max_links: int = 5,
     ) -> List[Memory]:
         """Get linked memories (1-hop neighbors)"""
         linked_ids = self._links.get(memory_id, set())
@@ -333,7 +360,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         user_id: UUID,
         memory_id: int,
         reason: str,
-        superseded_by: int | None = None
+        superseded_by: int | None = None,
     ) -> bool:
         """Mark memory as obsolete (soft delete)"""
         memory = await self.get_memory_by_id(user_id, memory_id)
@@ -342,6 +369,7 @@ class InMemoryMemoryRepository(MemoryRepository):
 
         # Mark as obsolete but keep in storage for audit trail
         from datetime import datetime, timezone
+
         memory.is_obsolete = True
         memory.obsolete_reason = reason
         memory.superseded_by = superseded_by
@@ -370,7 +398,9 @@ class InMemoryMemoryRepository(MemoryRepository):
 
         # Apply project filter if provided
         if project_ids:
-            memories = [m for m in memories if any(pid in m.project_ids for pid in project_ids)]
+            memories = [
+                m for m in memories if any(pid in m.project_ids for pid in project_ids)
+            ]
 
         # Apply tag filter (OR logic)
         if tags:
@@ -391,7 +421,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         total = len(memories)
 
         # Apply pagination
-        paginated = memories[offset:offset + limit]
+        paginated = memories[offset : offset + limit]
 
         return paginated, total
 
@@ -447,16 +477,21 @@ class InMemoryProjectRepository(ProjectRepository):
     """In-memory implementation of ProjectRepository for testing"""
 
     def __init__(self):
-        self._projects: dict[UUID, dict[int, Project]] = {}  # user_id -> {project_id -> Project}
+        self._projects: dict[
+            UUID, dict[int, Project]
+        ] = {}  # user_id -> {project_id -> Project}
         self._next_id = 1
         # Track memories per project for memory_count calculation
-        self._project_memories: dict[int, set[int]] = {}  # project_id -> set of memory_ids
+        self._project_memories: dict[
+            int, set[int]
+        ] = {}  # project_id -> set of memory_ids
 
     async def list_projects(
         self,
         user_id: UUID,
         status: ProjectStatus | None = None,
-        repo_name: str | None = None
+        repo_name: str | None = None,
+        name: str | None = None,
     ) -> List[ProjectSummary]:
         """List projects with optional filtering"""
         user_projects = self._projects.get(user_id, {})
@@ -469,6 +504,11 @@ class InMemoryProjectRepository(ProjectRepository):
 
         if repo_name:
             projects = [p for p in projects if p.repo_name == repo_name]
+
+        if name:
+            # Case-insensitive partial match
+            name_lower = name.lower()
+            projects = [p for p in projects if name_lower in p.name.lower()]
 
         # Sort by creation date (newest first)
         projects.sort(key=lambda p: p.created_at, reverse=True)
@@ -483,26 +523,20 @@ class InMemoryProjectRepository(ProjectRepository):
                 repo_name=p.repo_name,
                 memory_count=p.memory_count,
                 created_at=p.created_at,
-                updated_at=p.updated_at
+                updated_at=p.updated_at,
             )
             for p in projects
         ]
 
         return summaries
 
-    async def get_project_by_id(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> Project | None:
+    async def get_project_by_id(self, user_id: UUID, project_id: int) -> Project | None:
         """Get single project by ID"""
         user_projects = self._projects.get(user_id, {})
         return user_projects.get(project_id)
 
     async def create_project(
-        self,
-        user_id: UUID,
-        project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate
     ) -> Project:
         """Create new project"""
         project_id = self._next_id
@@ -520,7 +554,7 @@ class InMemoryProjectRepository(ProjectRepository):
             notes=project_data.notes,
             memory_count=0,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         if user_id not in self._projects:
@@ -532,15 +566,13 @@ class InMemoryProjectRepository(ProjectRepository):
         return new_project
 
     async def update_project(
-        self,
-        user_id: UUID,
-        project_id: int,
-        project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
     ) -> Project:
         """Update existing project"""
         project = await self.get_project_by_id(user_id, project_id)
         if not project:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Project with id {project_id} not found")
 
         # Update fields using PATCH semantics
@@ -551,11 +583,7 @@ class InMemoryProjectRepository(ProjectRepository):
         project.updated_at = datetime.now(timezone.utc)
         return project
 
-    async def delete_project(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> bool:
+    async def delete_project(self, user_id: UUID, project_id: int) -> bool:
         """Delete project"""
         user_projects = self._projects.get(user_id, {})
         if project_id in user_projects:
@@ -589,7 +617,9 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         self._artifacts: dict[UUID, dict[int, CodeArtifact]] = {}
         self._next_id = 1
 
-    async def create_code_artifact(self, user_id: UUID, artifact_data: CodeArtifactCreate) -> CodeArtifact:
+    async def create_code_artifact(
+        self, user_id: UUID, artifact_data: CodeArtifactCreate
+    ) -> CodeArtifact:
         artifact_id = self._next_id
         self._next_id += 1
         now = datetime.now(timezone.utc)
@@ -603,7 +633,7 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
             tags=artifact_data.tags,
             project_id=None,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         if user_id not in self._artifacts:
@@ -611,12 +641,18 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         self._artifacts[user_id][artifact_id] = new_artifact
         return new_artifact
 
-    async def get_code_artifact_by_id(self, user_id: UUID, artifact_id: int) -> CodeArtifact | None:
+    async def get_code_artifact_by_id(
+        self, user_id: UUID, artifact_id: int
+    ) -> CodeArtifact | None:
         user_artifacts = self._artifacts.get(user_id, {})
         return user_artifacts.get(artifact_id)
 
     async def list_code_artifacts(
-        self, user_id: UUID, project_id: int | None = None, language: str | None = None, tags: List[str] | None = None
+        self,
+        user_id: UUID,
+        project_id: int | None = None,
+        language: str | None = None,
+        tags: List[str] | None = None,
     ) -> List[CodeArtifactSummary]:
         user_artifacts = self._artifacts.get(user_id, {})
         artifacts = list(user_artifacts.values())
@@ -631,10 +667,13 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         artifacts.sort(key=lambda a: a.created_at, reverse=True)
         return [CodeArtifactSummary.model_validate(a) for a in artifacts]
 
-    async def update_code_artifact(self, user_id: UUID, artifact_id: int, artifact_data: CodeArtifactUpdate) -> CodeArtifact:
+    async def update_code_artifact(
+        self, user_id: UUID, artifact_id: int, artifact_data: CodeArtifactUpdate
+    ) -> CodeArtifact:
         artifact = await self.get_code_artifact_by_id(user_id, artifact_id)
         if not artifact:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Code artifact {artifact_id} not found")
 
         update_data = artifact_data.model_dump(exclude_unset=True)
@@ -674,12 +713,16 @@ class InMemoryDocumentRepository(DocumentRepository):
         self._documents: dict[UUID, dict[int, Document]] = {}
         self._next_id = 1
 
-    async def create_document(self, user_id: UUID, document_data: DocumentCreate) -> Document:
+    async def create_document(
+        self, user_id: UUID, document_data: DocumentCreate
+    ) -> Document:
         document_id = self._next_id
         self._next_id += 1
         now = datetime.now(timezone.utc)
 
-        size_bytes = document_data.size_bytes or len(document_data.content.encode('utf-8'))
+        size_bytes = document_data.size_bytes or len(
+            document_data.content.encode("utf-8")
+        )
 
         new_document = Document(
             id=document_id,
@@ -692,7 +735,7 @@ class InMemoryDocumentRepository(DocumentRepository):
             tags=document_data.tags,
             project_id=None,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         if user_id not in self._documents:
@@ -700,12 +743,18 @@ class InMemoryDocumentRepository(DocumentRepository):
         self._documents[user_id][document_id] = new_document
         return new_document
 
-    async def get_document_by_id(self, user_id: UUID, document_id: int) -> Document | None:
+    async def get_document_by_id(
+        self, user_id: UUID, document_id: int
+    ) -> Document | None:
         user_documents = self._documents.get(user_id, {})
         return user_documents.get(document_id)
 
     async def list_documents(
-        self, user_id: UUID, project_id: int | None = None, document_type: str | None = None, tags: List[str] | None = None
+        self,
+        user_id: UUID,
+        project_id: int | None = None,
+        document_type: str | None = None,
+        tags: List[str] | None = None,
     ) -> List[DocumentSummary]:
         user_documents = self._documents.get(user_id, {})
         documents = list(user_documents.values())
@@ -720,15 +769,18 @@ class InMemoryDocumentRepository(DocumentRepository):
         documents.sort(key=lambda d: d.created_at, reverse=True)
         return [DocumentSummary.model_validate(d) for d in documents]
 
-    async def update_document(self, user_id: UUID, document_id: int, document_data: DocumentUpdate) -> Document:
+    async def update_document(
+        self, user_id: UUID, document_id: int, document_data: DocumentUpdate
+    ) -> Document:
         document = await self.get_document_by_id(user_id, document_id)
         if not document:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Document {document_id} not found")
 
         update_data = document_data.model_dump(exclude_unset=True)
         if "content" in update_data and update_data["content"]:
-            update_data["size_bytes"] = len(update_data["content"].encode('utf-8'))
+            update_data["size_bytes"] = len(update_data["content"].encode("utf-8"))
 
         for field, value in update_data.items():
             setattr(document, field, value)
@@ -762,7 +814,9 @@ class InMemoryEntityRepository(EntityRepository):
     def __init__(self):
         self._entities: dict[UUID, dict[int, Entity]] = {}
         self._relationships: dict[UUID, dict[int, EntityRelationship]] = {}
-        self._entity_memory_links: dict[int, set[int]] = {}  # entity_id -> set of memory_ids
+        self._entity_memory_links: dict[
+            int, set[int]
+        ] = {}  # entity_id -> set of memory_ids
         self._next_entity_id = 1
         self._next_relationship_id = 1
 
@@ -781,7 +835,7 @@ class InMemoryEntityRepository(EntityRepository):
             aka=entity_data.aka,
             project_ids=entity_data.project_ids or [],
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         if user_id not in self._entities:
@@ -807,7 +861,9 @@ class InMemoryEntityRepository(EntityRepository):
         entities = list(user_entities.values())
 
         if project_ids is not None and len(project_ids) > 0:
-            entities = [e for e in entities if any(pid in e.project_ids for pid in project_ids)]
+            entities = [
+                e for e in entities if any(pid in e.project_ids for pid in project_ids)
+            ]
         if entity_type:
             entities = [e for e in entities if e.entity_type == entity_type]
         if tags:
@@ -820,7 +876,7 @@ class InMemoryEntityRepository(EntityRepository):
         total = len(entities)
 
         # Apply pagination
-        paginated = entities[offset:offset + limit]
+        paginated = entities[offset : offset + limit]
 
         return [EntitySummary.model_validate(e) for e in paginated], total
 
@@ -830,7 +886,7 @@ class InMemoryEntityRepository(EntityRepository):
         search_query: str,
         entity_type: EntityType | None = None,
         tags: List[str] | None = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> List[EntitySummary]:
         """Search entities by name or aka using case-insensitive text matching"""
         user_entities = self._entities.get(user_id, {})
@@ -863,10 +919,13 @@ class InMemoryEntityRepository(EntityRepository):
         # Apply limit
         return [EntitySummary.model_validate(e) for e in entities[:limit]]
 
-    async def update_entity(self, user_id: UUID, entity_id: int, entity_data: EntityUpdate) -> Entity:
+    async def update_entity(
+        self, user_id: UUID, entity_id: int, entity_data: EntityUpdate
+    ) -> Entity:
         entity = await self.get_entity_by_id(user_id, entity_id)
         if not entity:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Entity {entity_id} not found")
 
         update_data = entity_data.model_dump(exclude_unset=True)
@@ -884,18 +943,25 @@ class InMemoryEntityRepository(EntityRepository):
                 del self._entity_memory_links[entity_id]
             # Clean up relationships where this entity is involved
             user_relationships = self._relationships.get(user_id, {})
-            to_delete = [rid for rid, rel in user_relationships.items()
-                        if rel.source_entity_id == entity_id or rel.target_entity_id == entity_id]
+            to_delete = [
+                rid
+                for rid, rel in user_relationships.items()
+                if rel.source_entity_id == entity_id
+                or rel.target_entity_id == entity_id
+            ]
             for rid in to_delete:
                 del user_relationships[rid]
             return True
         return False
 
-    async def link_entity_to_memory(self, user_id: UUID, entity_id: int, memory_id: int) -> bool:
+    async def link_entity_to_memory(
+        self, user_id: UUID, entity_id: int, memory_id: int
+    ) -> bool:
         # Verify entity exists
         entity = await self.get_entity_by_id(user_id, entity_id)
         if not entity:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Entity {entity_id} not found")
 
         # Add link
@@ -904,19 +970,28 @@ class InMemoryEntityRepository(EntityRepository):
         self._entity_memory_links[entity_id].add(memory_id)
         return True
 
-    async def unlink_entity_from_memory(self, user_id: UUID, entity_id: int, memory_id: int) -> bool:
+    async def unlink_entity_from_memory(
+        self, user_id: UUID, entity_id: int, memory_id: int
+    ) -> bool:
         if entity_id in self._entity_memory_links:
             if memory_id in self._entity_memory_links[entity_id]:
                 self._entity_memory_links[entity_id].discard(memory_id)
                 return True
         return False
 
-    async def create_entity_relationship(self, user_id: UUID, relationship_data: EntityRelationshipCreate) -> EntityRelationship:
+    async def create_entity_relationship(
+        self, user_id: UUID, relationship_data: EntityRelationshipCreate
+    ) -> EntityRelationship:
         # Verify both entities exist
-        source = await self.get_entity_by_id(user_id, relationship_data.source_entity_id)
-        target = await self.get_entity_by_id(user_id, relationship_data.target_entity_id)
+        source = await self.get_entity_by_id(
+            user_id, relationship_data.source_entity_id
+        )
+        target = await self.get_entity_by_id(
+            user_id, relationship_data.target_entity_id
+        )
         if not source or not target:
             from app.exceptions import NotFoundError
+
             raise NotFoundError("Source or target entity not found")
 
         relationship_id = self._next_relationship_id
@@ -932,7 +1007,7 @@ class InMemoryEntityRepository(EntityRepository):
             confidence=relationship_data.confidence,
             metadata=relationship_data.metadata or {},
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
 
         if user_id not in self._relationships:
@@ -941,33 +1016,51 @@ class InMemoryEntityRepository(EntityRepository):
         return new_relationship
 
     async def get_entity_relationships(
-        self, user_id: UUID, entity_id: int, direction: str | None = None, relationship_type: str | None = None
+        self,
+        user_id: UUID,
+        entity_id: int,
+        direction: str | None = None,
+        relationship_type: str | None = None,
     ) -> List[EntityRelationship]:
         user_relationships = self._relationships.get(user_id, {})
         relationships = list(user_relationships.values())
 
         # Filter by direction
         if direction == "outgoing":
-            relationships = [r for r in relationships if r.source_entity_id == entity_id]
+            relationships = [
+                r for r in relationships if r.source_entity_id == entity_id
+            ]
         elif direction == "incoming":
-            relationships = [r for r in relationships if r.target_entity_id == entity_id]
+            relationships = [
+                r for r in relationships if r.target_entity_id == entity_id
+            ]
         else:  # both directions
-            relationships = [r for r in relationships if r.source_entity_id == entity_id or r.target_entity_id == entity_id]
+            relationships = [
+                r
+                for r in relationships
+                if r.source_entity_id == entity_id or r.target_entity_id == entity_id
+            ]
 
         # Filter by relationship type
         if relationship_type:
-            relationships = [r for r in relationships if r.relationship_type == relationship_type]
+            relationships = [
+                r for r in relationships if r.relationship_type == relationship_type
+            ]
 
         relationships.sort(key=lambda r: r.created_at, reverse=True)
         return relationships
 
     async def update_entity_relationship(
-        self, user_id: UUID, relationship_id: int, relationship_data: EntityRelationshipUpdate
+        self,
+        user_id: UUID,
+        relationship_id: int,
+        relationship_data: EntityRelationshipUpdate,
     ) -> EntityRelationship:
         user_relationships = self._relationships.get(user_id, {})
         relationship = user_relationships.get(relationship_id)
         if not relationship:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Relationship {relationship_id} not found")
 
         update_data = relationship_data.model_dump(exclude_unset=True)
@@ -976,14 +1069,18 @@ class InMemoryEntityRepository(EntityRepository):
         relationship.updated_at = datetime.now(timezone.utc)
         return relationship
 
-    async def delete_entity_relationship(self, user_id: UUID, relationship_id: int) -> bool:
+    async def delete_entity_relationship(
+        self, user_id: UUID, relationship_id: int
+    ) -> bool:
         user_relationships = self._relationships.get(user_id, {})
         if relationship_id in user_relationships:
             del user_relationships[relationship_id]
             return True
         return False
 
-    async def get_all_entity_relationships(self, user_id: UUID) -> List[EntityRelationship]:
+    async def get_all_entity_relationships(
+        self, user_id: UUID
+    ) -> List[EntityRelationship]:
         """Get all entity relationships for a user (for graph visualization)"""
         user_relationships = self._relationships.get(user_id, {})
         relationships = list(user_relationships.values())
@@ -1006,6 +1103,7 @@ class InMemoryEntityRepository(EntityRepository):
         entity = await self.get_entity_by_id(user_id, entity_id)
         if not entity:
             from app.exceptions import NotFoundError
+
             raise NotFoundError(f"Entity {entity_id} not found")
 
         # Return list of memory IDs linked to this entity

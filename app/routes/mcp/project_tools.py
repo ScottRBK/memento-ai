@@ -2,25 +2,24 @@
 MCP Project Tools - FastMCP tool definitions for project operations
 """
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
-
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
 from app.models.project_models import (
     Project,
     ProjectCreate,
-    ProjectUpdate,
     ProjectStatus,
-    ProjectType
+    ProjectType,
+    ProjectUpdate,
 )
-from app.middleware.auth import get_user_from_auth
-from app.config.logging_config import logging
-from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 
-
 logger = logging.getLogger(__name__)
+
 
 def register(mcp: FastMCP):
     """Register the project tools - services accessed via context at call time"""
@@ -75,10 +74,10 @@ def register(mcp: FastMCP):
             Complete Project with id, timestamps, and memory_count
         """
 
-        logger.info("MCP Tool Called -> create_project", extra={
-            "project_name": name[:50],
-            "project_type": project_type.value
-        })
+        logger.info(
+            "MCP Tool Called -> create_project",
+            extra={"project_name": name[:50], "project_type": project_type.value},
+        )
 
         user = await get_user_from_auth(ctx)
 
@@ -90,49 +89,63 @@ def register(mcp: FastMCP):
                 project_type=project_type,
                 status=status,
                 repo_name=repo_name,
-                notes=notes
+                notes=notes,
             )
 
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             project = await project_service.create_project(
-                user_id=user.id,
-                project_data=project_data
+                user_id=user.id, project_data=project_data
             )
 
-            logger.info("MCP Tool Call -> create_project completed", extra={
-                "user_id": str(user.id),
-                "project_id": project.id,
-                "project_name": project.name
-            })
+            logger.info(
+                "MCP Tool Call -> create_project completed",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project.id,
+                    "project_name": project.name,
+                },
+            )
 
             return project
 
         except NotFoundError as e:
-            logger.debug("MCP Tool - create_project validation error", extra={
-                "user_id": str(user.id),
-                "project_name": name[:50],
-                "error_type": "NotFoundError",
-                "error_message": str(e)
-            })
+            logger.debug(
+                "MCP Tool - create_project validation error",
+                extra={
+                    "user_id": str(user.id),
+                    "project_name": name[:50],
+                    "error_type": "NotFoundError",
+                    "error_message": str(e),
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
             error_details = str(e)
-            logger.debug("MCP Tool - create_project validation error", extra={
-                "user_id": str(user.id),
-                "project_name": name[:50],
-                "error_type": "ValidationError",
-                "error_message": error_details
-            })
+            logger.debug(
+                "MCP Tool - create_project validation error",
+                extra={
+                    "user_id": str(user.id),
+                    "project_name": name[:50],
+                    "error_type": "ValidationError",
+                    "error_message": error_details,
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
-            logger.error("MCP Tool - create_project failed", exc_info=True, extra={
-                "user_id": str(user.id),
-                "project_name": name[:50],
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            })
-            raise ToolError(f"INTERNAL_ERROR: Project creation failed - {type(e).__name__}: {str(e)}")
+            logger.error(
+                "MCP Tool - create_project failed",
+                exc_info=True,
+                extra={
+                    "user_id": str(user.id),
+                    "project_name": name[:50],
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+            raise ToolError(
+                f"INTERNAL_ERROR: Project creation failed - {type(e).__name__}: {str(e)}"
+            )
 
     @mcp.tool()
     async def update_project(
@@ -185,9 +198,9 @@ def register(mcp: FastMCP):
             Updated Project with all fields
         """
 
-        logger.info("MCP Tool Called -> update_project", extra={
-            "project_id": project_id
-        })
+        logger.info(
+            "MCP Tool Called -> update_project", extra={"project_id": project_id}
+        )
 
         user = await get_user_from_auth(ctx)
 
@@ -199,11 +212,13 @@ def register(mcp: FastMCP):
                 project_type=project_type,
                 status=status,
                 repo_name=repo_name,
-                notes=notes
+                notes=notes,
             )
 
             if not update_dict:
-                raise ToolError("VALIDATION_ERROR: At least one field must be provided for update")
+                raise ToolError(
+                    "VALIDATION_ERROR: At least one field must be provided for update"
+                )
 
             # Build project update data
             project_data = ProjectUpdate(**update_dict)
@@ -211,53 +226,63 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             project = await project_service.update_project(
-                user_id=user.id,
-                project_id=project_id,
-                project_data=project_data
+                user_id=user.id, project_id=project_id, project_data=project_data
             )
 
             if not project:
                 raise NotFoundError(f"Project with id {project_id} not found")
 
-            logger.info("MCP Tool Call -> update_project completed", extra={
-                "user_id": str(user.id),
-                "project_id": project.id,
-                "updated_fields": list(update_dict.keys())
-            })
+            logger.info(
+                "MCP Tool Call -> update_project completed",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project.id,
+                    "updated_fields": list(update_dict.keys()),
+                },
+            )
 
             return project
 
         except NotFoundError as e:
-            logger.debug("MCP Tool - update_project not found", extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": "NotFoundError",
-                "error_message": str(e)
-            })
+            logger.debug(
+                "MCP Tool - update_project not found",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": "NotFoundError",
+                    "error_message": str(e),
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except ValidationError as e:
             error_details = str(e)
-            logger.debug("MCP Tool - update_project validation error", extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": "ValidationError",
-                "error_message": error_details
-            })
+            logger.debug(
+                "MCP Tool - update_project validation error",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": "ValidationError",
+                    "error_message": error_details,
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
-            logger.error("MCP Tool - update_project failed", exc_info=True, extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            })
-            raise ToolError(f"INTERNAL_ERROR: Project update failed - {type(e).__name__}: {str(e)}")
+            logger.error(
+                "MCP Tool - update_project failed",
+                exc_info=True,
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+            raise ToolError(
+                f"INTERNAL_ERROR: Project update failed - {type(e).__name__}: {str(e)}"
+            )
 
     @mcp.tool()
-    async def delete_project(
-        project_id: int,
-        ctx: Context
-    ) -> dict:
+    async def delete_project(project_id: int, ctx: Context) -> dict:
         """
         Delete project while preserving linked memories
 
@@ -285,9 +310,9 @@ def register(mcp: FastMCP):
             {"success": bool, "message": str, "project_id": int}
         """
 
-        logger.info("MCP Tool Called -> delete_project", extra={
-            "project_id": project_id
-        })
+        logger.info(
+            "MCP Tool Called -> delete_project", extra={"project_id": project_id}
+        )
 
         user = await get_user_from_auth(ctx)
 
@@ -295,59 +320,69 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             success = await project_service.delete_project(
-                user_id=user.id,
-                project_id=project_id
+                user_id=user.id, project_id=project_id
             )
 
             if not success:
                 raise NotFoundError(f"Project with id {project_id} not found")
 
-            logger.info("MCP Tool Call -> delete_project completed", extra={
-                "user_id": str(user.id),
-                "project_id": project_id
-            })
+            logger.info(
+                "MCP Tool Call -> delete_project completed",
+                extra={"user_id": str(user.id), "project_id": project_id},
+            )
 
             return {
                 "success": True,
                 "message": f"Project {project_id} deleted successfully",
-                "project_id": project_id
+                "project_id": project_id,
             }
 
         except NotFoundError as e:
-            logger.debug("MCP Tool - delete_project not found", extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": "NotFoundError",
-                "error_message": str(e)
-            })
+            logger.debug(
+                "MCP Tool - delete_project not found",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": "NotFoundError",
+                    "error_message": str(e),
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except Exception as e:
-            logger.error("MCP Tool - delete_project failed", exc_info=True, extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            })
-            raise ToolError(f"INTERNAL_ERROR: Project deletion failed - {type(e).__name__}: {str(e)}")
+            logger.error(
+                "MCP Tool - delete_project failed",
+                exc_info=True,
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+            raise ToolError(
+                f"INTERNAL_ERROR: Project deletion failed - {type(e).__name__}: {str(e)}"
+            )
 
     @mcp.tool()
     async def list_projects(
         ctx: Context,
         status: ProjectStatus = None,
         repo_name: str = None,
+        name: str = None,
     ) -> dict:
         """
-        List projects with optional status/repository filtering
+        List projects with optional status/repository/name filtering
 
         WHAT: Returns project summaries (excludes heavy text fields like description/notes to
-        save tokens). Filters by status/repo_name if provided; returns all projects if not.
+        save tokens). Filters by status/repo_name/name if provided; returns all projects if not.
 
-        WHEN: User wants to browse projects or filter by status (active/archived/completed)
-        or repository. Queries: "What projects do I have?", "Show active projects",
-        "List projects for repo X".
+        WHEN: User wants to browse projects or filter by status (active/archived/completed),
+        repository, or project name. Queries: "What projects do I have?", "Show active projects",
+        "List projects for repo X", "Find projects named forgetful".
 
         BEHAVIOR: Returns lightweight project summaries (id, name, type, status, repo_name,
-        memory_count). Filters by status/repo_name if provided; all projects if not.
+        memory_count). Filters by status/repo_name/name if provided; all projects if not.
+        Name filter uses case-insensitive partial matching.
         Ordered by creation time (newest first).
 
         NOT-USE: Single project details (use get_project), creating (use create_project),
@@ -363,11 +398,16 @@ def register(mcp: FastMCP):
         # List projects for specific repository
         list_projects(repo_name="scottrbk/forgetful")
 
+        # Find projects by name (partial match)
+        list_projects(name="forget")  # Matches "Forgetful", "forgetful-ui", etc.
+
         Args:
             status: Filter by project status (optional). Options: active, archived, completed.
                 None returns all statuses.
             repo_name: Filter by repository name (optional, e.g., "scottrbk/forgetful").
                 None returns all repos.
+            name: Filter by project name (optional, case-insensitive partial match).
+                Example: "forget" matches "Forgetful", "forgetful-ui", etc.
             ctx: Context (automatically injected by FastMCP)
 
         Returns:
@@ -375,14 +415,19 @@ def register(mcp: FastMCP):
                 "projects": List[ProjectSummary],
                 "total_count": int,
                 "status_filter": str | None,
-                "repo_name_filter": str | None
+                "repo_name_filter": str | None,
+                "name_filter": str | None
             }
         """
 
-        logger.info("MCP Tool Called -> list_projects", extra={
-            "status": status.value if status else None,
-            "repo_name": repo_name
-        })
+        logger.info(
+            "MCP Tool Called -> list_projects",
+            extra={
+                "status": status.value if status else None,
+                "repo_name": repo_name,
+                "name": name,
+            },
+        )
 
         user = await get_user_from_auth(ctx)
 
@@ -390,44 +435,49 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             projects = await project_service.list_projects(
-                user_id=user.id,
-                status=status,
-                repo_name=repo_name
+                user_id=user.id, status=status, repo_name=repo_name, name=name
             )
 
-            logger.info("MCP Tool Call -> list_projects completed", extra={
-                "user_id": str(user.id),
-                "total_count": len(projects)
-            })
+            logger.info(
+                "MCP Tool Call -> list_projects completed",
+                extra={"user_id": str(user.id), "total_count": len(projects)},
+            )
 
             return {
                 "projects": projects,
                 "total_count": len(projects),
                 "status_filter": status.value if status else None,
-                "repo_name_filter": repo_name
+                "repo_name_filter": repo_name,
+                "name_filter": name,
             }
 
         except ValidationError as e:
             error_details = str(e)
-            logger.debug("MCP Tool - list_projects validation error", extra={
-                "user_id": str(user.id),
-                "error_type": "ValidationError",
-                "error_message": error_details
-            })
+            logger.debug(
+                "MCP Tool - list_projects validation error",
+                extra={
+                    "user_id": str(user.id),
+                    "error_type": "ValidationError",
+                    "error_message": error_details,
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
-            logger.error("MCP Tool - list_projects failed", exc_info=True, extra={
-                "user_id": str(user.id),
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            })
-            raise ToolError(f"INTERNAL_ERROR: Project listing failed - {type(e).__name__}: {str(e)}")
+            logger.error(
+                "MCP Tool - list_projects failed",
+                exc_info=True,
+                extra={
+                    "user_id": str(user.id),
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+            raise ToolError(
+                f"INTERNAL_ERROR: Project listing failed - {type(e).__name__}: {str(e)}"
+            )
 
     @mcp.tool()
-    async def get_project(
-        project_id: int,
-        ctx: Context
-    ) -> Project:
+    async def get_project(project_id: int, ctx: Context) -> Project:
         """
         Retrieve complete project details by ID
 
@@ -455,9 +505,7 @@ def register(mcp: FastMCP):
             Complete Project with all fields including description and notes
         """
 
-        logger.info("MCP Tool Called -> get_project", extra={
-            "project_id": project_id
-        })
+        logger.info("MCP Tool Called -> get_project", extra={"project_id": project_id})
 
         user = await get_user_from_auth(ctx)
 
@@ -465,34 +513,45 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             project = await project_service.get_project(
-                user_id=user.id,
-                project_id=project_id
+                user_id=user.id, project_id=project_id
             )
 
             if not project:
                 raise NotFoundError(f"Project with id {project_id} not found")
 
-            logger.info("MCP Tool Call -> get_project completed", extra={
-                "user_id": str(user.id),
-                "project_id": project.id,
-                "project_name": project.name
-            })
+            logger.info(
+                "MCP Tool Call -> get_project completed",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project.id,
+                    "project_name": project.name,
+                },
+            )
 
             return project
 
         except NotFoundError as e:
-            logger.debug("MCP Tool - get_project not found", extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": "NotFoundError",
-                "error_message": str(e)
-            })
+            logger.debug(
+                "MCP Tool - get_project not found",
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": "NotFoundError",
+                    "error_message": str(e),
+                },
+            )
             raise ToolError(f"VALIDATION_ERROR: {str(e)}")
         except Exception as e:
-            logger.error("MCP Tool - get_project failed", exc_info=True, extra={
-                "user_id": str(user.id),
-                "project_id": project_id,
-                "error_type": type(e).__name__,
-                "error_message": str(e)
-            })
-            raise ToolError(f"INTERNAL_ERROR: Project retrieval failed - {type(e).__name__}: {str(e)}")
+            logger.error(
+                "MCP Tool - get_project failed",
+                exc_info=True,
+                extra={
+                    "user_id": str(user.id),
+                    "project_id": project_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                },
+            )
+            raise ToolError(
+                f"INTERNAL_ERROR: Project retrieval failed - {type(e).__name__}: {str(e)}"
+            )

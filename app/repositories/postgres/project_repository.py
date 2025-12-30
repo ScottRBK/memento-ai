@@ -1,25 +1,26 @@
 """
 Project repository for postgres data access operations
 """
-from uuid import UUID
+
 from datetime import datetime, timezone
 from typing import List
+from uuid import UUID
 
-from sqlalchemy import select, update, delete
-from sqlalchemy.orm import selectinload
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.orm import selectinload
 
-from app.repositories.postgres.postgres_tables import ProjectsTable
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
 from app.models.project_models import (
     Project,
     ProjectCreate,
-    ProjectUpdate,
+    ProjectStatus,
     ProjectSummary,
-    ProjectStatus
+    ProjectUpdate,
 )
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.repositories.postgres.postgres_tables import ProjectsTable
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,8 @@ class PostgresProjectRepository:
         self,
         user_id: UUID,
         status: ProjectStatus | None = None,
-        repo_name: str | None = None
+        repo_name: str | None = None,
+        name: str | None = None,
     ) -> List[ProjectSummary]:
         """List projects with optional filtering
 
@@ -57,6 +59,7 @@ class PostgresProjectRepository:
             user_id: User ID for RLS (row-level security)
             status: Optional filter by project status
             repo_name: Optional filter by repository name
+            name: Optional filter by project name (case-insensitive partial match)
 
         Returns:
             List of ProjectSummary objects ordered by created_at desc
@@ -66,8 +69,9 @@ class PostgresProjectRepository:
             extra={
                 "user_id": str(user_id),
                 "status": status.value if status else None,
-                "repo_name": repo_name
-            }
+                "repo_name": repo_name,
+                "name": name,
+            },
         )
 
         async with self.db_adapter.session(user_id) as session:
@@ -85,6 +89,9 @@ class PostgresProjectRepository:
             if repo_name:
                 stmt = stmt.where(ProjectsTable.repo_name == repo_name)
 
+            if name:
+                stmt = stmt.where(ProjectsTable.name.ilike(f"%{name}%"))
+
             # Order by creation date (newest first)
             stmt = stmt.order_by(ProjectsTable.created_at.desc())
 
@@ -97,16 +104,12 @@ class PostgresProjectRepository:
 
             logger.info(
                 "Projects retrieved",
-                extra={"count": len(projects), "user_id": str(user_id)}
+                extra={"count": len(projects), "user_id": str(user_id)},
             )
 
             return projects
 
-    async def get_project_by_id(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> Project | None:
+    async def get_project_by_id(self, user_id: UUID, project_id: int) -> Project | None:
         """Get single project by ID
 
         Retrieves complete project details including relationships.
@@ -120,17 +123,14 @@ class PostgresProjectRepository:
         """
         logger.info(
             "Getting project by ID",
-            extra={"user_id": str(user_id), "project_id": project_id}
+            extra={"user_id": str(user_id), "project_id": project_id},
         )
 
         async with self.db_adapter.session(user_id) as session:
             stmt = (
                 select(ProjectsTable)
                 .options(selectinload(ProjectsTable.memories))
-                .where(
-                    ProjectsTable.user_id == user_id,
-                    ProjectsTable.id == project_id
-                )
+                .where(ProjectsTable.user_id == user_id, ProjectsTable.id == project_id)
             )
 
             result = await session.execute(stmt)
@@ -139,20 +139,18 @@ class PostgresProjectRepository:
             if project_orm:
                 logger.info(
                     "Project found",
-                    extra={"project_id": project_id, "project_name": project_orm.name}
+                    extra={"project_id": project_id, "project_name": project_orm.name},
                 )
                 return Project.model_validate(project_orm)
             else:
                 logger.info(
                     "Project not found",
-                    extra={"project_id": project_id, "user_id": str(user_id)}
+                    extra={"project_id": project_id, "user_id": str(user_id)},
                 )
                 return None
 
     async def create_project(
-        self,
-        user_id: UUID,
-        project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate
     ) -> Project:
         """Create new project
 
@@ -171,24 +169,21 @@ class PostgresProjectRepository:
             extra={
                 "user_id": str(user_id),
                 "project_name": project_data.name,
-                "type": project_data.project_type.value
-            }
+                "type": project_data.project_type.value,
+            },
         )
 
         async with self.db_adapter.session(user_id) as session:
             # Extract data and create ORM object
             data = project_data.model_dump()
-            new_project = ProjectsTable(
-                **data,
-                user_id=user_id
-            )
+            new_project = ProjectsTable(**data, user_id=user_id)
 
             # Add and flush to get ID
             session.add(new_project)
             await session.flush()
 
             # Refresh to load relationships (eager load memories for memory_count)
-            await session.refresh(new_project, attribute_names=['memories'])
+            await session.refresh(new_project, attribute_names=["memories"])
 
             # Convert to Pydantic model
             project = Project.model_validate(new_project)
@@ -198,17 +193,14 @@ class PostgresProjectRepository:
                 extra={
                     "project_id": project.id,
                     "project_name": project.name,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             return project
 
     async def update_project(
-        self,
-        user_id: UUID,
-        project_id: int,
-        project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
     ) -> Project:
         """Update existing project
 
@@ -227,7 +219,7 @@ class PostgresProjectRepository:
         """
         logger.info(
             "Updating project",
-            extra={"user_id": str(user_id), "project_id": project_id}
+            extra={"user_id": str(user_id), "project_id": project_id},
         )
 
         async with self.db_adapter.session(user_id) as session:
@@ -241,8 +233,7 @@ class PostgresProjectRepository:
                     select(ProjectsTable)
                     .options(selectinload(ProjectsTable.memories))
                     .where(
-                        ProjectsTable.user_id == user_id,
-                        ProjectsTable.id == project_id
+                        ProjectsTable.user_id == user_id, ProjectsTable.id == project_id
                     )
                 )
                 result = await session.execute(stmt)
@@ -254,15 +245,12 @@ class PostgresProjectRepository:
                 return Project.model_validate(project_orm)
 
             # Add updated timestamp
-            update_data['updated_at'] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.now(timezone.utc)
 
             # Execute update with RETURNING
             stmt = (
                 update(ProjectsTable)
-                .where(
-                    ProjectsTable.user_id == user_id,
-                    ProjectsTable.id == project_id
-                )
+                .where(ProjectsTable.user_id == user_id, ProjectsTable.id == project_id)
                 .values(**update_data)
                 .returning(ProjectsTable)
             )
@@ -275,23 +263,19 @@ class PostgresProjectRepository:
                 raise NotFoundError(f"Project with id {project_id} not found")
 
             # Refresh to load relationships
-            await session.refresh(project_orm, attribute_names=['memories'])
+            await session.refresh(project_orm, attribute_names=["memories"])
 
             # Convert to Pydantic model
             project = Project.model_validate(project_orm)
 
             logger.info(
                 "Project updated",
-                extra={"project_id": project_id, "project_name": project.name}
+                extra={"project_id": project_id, "project_name": project.name},
             )
 
             return project
 
-    async def delete_project(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> bool:
+    async def delete_project(self, user_id: UUID, project_id: int) -> bool:
         """Delete project
 
         Removes project metadata. Linked entities (memories, code artifacts,
@@ -306,13 +290,12 @@ class PostgresProjectRepository:
         """
         logger.info(
             "Deleting project",
-            extra={"user_id": str(user_id), "project_id": project_id}
+            extra={"user_id": str(user_id), "project_id": project_id},
         )
 
         async with self.db_adapter.session(user_id) as session:
             stmt = delete(ProjectsTable).where(
-                ProjectsTable.user_id == user_id,
-                ProjectsTable.id == project_id
+                ProjectsTable.user_id == user_id, ProjectsTable.id == project_id
             )
 
             result = await session.execute(stmt)
@@ -321,12 +304,12 @@ class PostgresProjectRepository:
             if deleted:
                 logger.info(
                     "Project deleted",
-                    extra={"project_id": project_id, "user_id": str(user_id)}
+                    extra={"project_id": project_id, "user_id": str(user_id)},
                 )
             else:
                 logger.info(
                     "Project not found for deletion",
-                    extra={"project_id": project_id, "user_id": str(user_id)}
+                    extra={"project_id": project_id, "user_id": str(user_id)},
                 )
 
             return deleted

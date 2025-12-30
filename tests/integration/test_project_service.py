@@ -1,10 +1,18 @@
 """
 Integration tests for ProjectService with in-memory stubs
 """
-import pytest
+
 from uuid import uuid4
 
-from app.models.project_models import ProjectCreate, ProjectUpdate, ProjectType, ProjectStatus
+import pytest
+
+from app.models.project_models import (
+    ProjectCreate,
+    ProjectStatus,
+    ProjectType,
+    ProjectUpdate,
+)
+
 
 @pytest.mark.asyncio
 async def test_create_project_basic(test_project_service):
@@ -17,18 +25,20 @@ async def test_create_project_basic(test_project_service):
         project_type=ProjectType.DEVELOPMENT,
         status=ProjectStatus.ACTIVE,
         repo_name="scottrbk/forgetful",
-        notes="Uses FastAPI, PostgreSQL, and pgvector for semantic search"
+        notes="Uses FastAPI, PostgreSQL, and pgvector for semantic search",
     )
 
     project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     assert project is not None
     assert project.id is not None
     assert project.name == "forgetful"
-    assert project.description == "MIT-licensed memory service implementing atomic memory principles"
+    assert (
+        project.description
+        == "MIT-licensed memory service implementing atomic memory principles"
+    )
     assert project.project_type == ProjectType.DEVELOPMENT
     assert project.status == ProjectStatus.ACTIVE
     assert project.repo_name == "scottrbk/forgetful"
@@ -46,12 +56,11 @@ async def test_create_project_minimal(test_project_service):
     project_data = ProjectCreate(
         name="minimal-project",
         description="A minimal project for testing",
-        project_type=ProjectType.PERSONAL
+        project_type=ProjectType.PERSONAL,
     )
 
     project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     assert project is not None
@@ -74,18 +83,16 @@ async def test_get_project(test_project_service):
     project_data = ProjectCreate(
         name="test-project",
         description="Test project for retrieval",
-        project_type=ProjectType.WORK
+        project_type=ProjectType.WORK,
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     # Retrieve project
     retrieved_project = await test_project_service.get_project(
-        user_id=user_id,
-        project_id=created_project.id
+        user_id=user_id, project_id=created_project.id
     )
 
     assert retrieved_project is not None
@@ -99,10 +106,7 @@ async def test_get_project_not_found(test_project_service):
     """Test retrieving a non-existent project"""
     user_id = uuid4()
 
-    project = await test_project_service.get_project(
-        user_id=user_id,
-        project_id=99999
-    )
+    project = await test_project_service.get_project(user_id=user_id, project_id=99999)
 
     assert project is None
 
@@ -128,11 +132,10 @@ async def test_list_projects_multiple(test_project_service):
         project_data = ProjectCreate(
             name=f"project-{i}",
             description=f"Test project {i}",
-            project_type=ProjectType.DEVELOPMENT
+            project_type=ProjectType.DEVELOPMENT,
         )
         await test_project_service.create_project(
-            user_id=user_id,
-            project_data=project_data
+            user_id=user_id, project_data=project_data
         )
 
     # List all projects
@@ -146,11 +149,11 @@ async def test_list_projects_multiple(test_project_service):
 
     # Verify they're ProjectSummary objects (not full Project)
     for project in projects:
-        assert hasattr(project, 'id')
-        assert hasattr(project, 'name')
-        assert hasattr(project, 'project_type')
-        assert hasattr(project, 'status')
-        assert hasattr(project, 'memory_count')
+        assert hasattr(project, "id")
+        assert hasattr(project, "name")
+        assert hasattr(project, "project_type")
+        assert hasattr(project, "status")
+        assert hasattr(project, "memory_count")
 
 
 @pytest.mark.asyncio
@@ -163,21 +166,21 @@ async def test_list_projects_filter_by_status(test_project_service):
         name="active-project",
         description="Active project",
         project_type=ProjectType.DEVELOPMENT,
-        status=ProjectStatus.ACTIVE
+        status=ProjectStatus.ACTIVE,
     )
 
     archived_project = ProjectCreate(
         name="archived-project",
         description="Archived project",
         project_type=ProjectType.DEVELOPMENT,
-        status=ProjectStatus.ARCHIVED
+        status=ProjectStatus.ARCHIVED,
     )
 
     completed_project = ProjectCreate(
         name="completed-project",
         description="Completed project",
         project_type=ProjectType.DEVELOPMENT,
-        status=ProjectStatus.COMPLETED
+        status=ProjectStatus.COMPLETED,
     )
 
     await test_project_service.create_project(user_id, active_project)
@@ -186,8 +189,7 @@ async def test_list_projects_filter_by_status(test_project_service):
 
     # Filter by active
     active_projects = await test_project_service.list_projects(
-        user_id=user_id,
-        status=ProjectStatus.ACTIVE
+        user_id=user_id, status=ProjectStatus.ACTIVE
     )
     assert len(active_projects) == 1
     assert active_projects[0].name == "active-project"
@@ -195,8 +197,7 @@ async def test_list_projects_filter_by_status(test_project_service):
 
     # Filter by archived
     archived_projects = await test_project_service.list_projects(
-        user_id=user_id,
-        status=ProjectStatus.ARCHIVED
+        user_id=user_id, status=ProjectStatus.ARCHIVED
     )
     assert len(archived_projects) == 1
     assert archived_projects[0].name == "archived-project"
@@ -204,8 +205,7 @@ async def test_list_projects_filter_by_status(test_project_service):
 
     # Filter by completed
     completed_projects = await test_project_service.list_projects(
-        user_id=user_id,
-        status=ProjectStatus.COMPLETED
+        user_id=user_id, status=ProjectStatus.COMPLETED
     )
     assert len(completed_projects) == 1
     assert completed_projects[0].name == "completed-project"
@@ -222,20 +222,20 @@ async def test_list_projects_filter_by_repo(test_project_service):
         name="project1",
         description="Project 1",
         project_type=ProjectType.DEVELOPMENT,
-        repo_name="scottrbk/forgetful"
+        repo_name="scottrbk/forgetful",
     )
 
     project2 = ProjectCreate(
         name="project2",
         description="Project 2",
         project_type=ProjectType.DEVELOPMENT,
-        repo_name="scottrbk/other-repo"
+        repo_name="scottrbk/other-repo",
     )
 
     project3 = ProjectCreate(
         name="project3",
         description="Project 3 without repo",
-        project_type=ProjectType.DEVELOPMENT
+        project_type=ProjectType.DEVELOPMENT,
     )
 
     await test_project_service.create_project(user_id, project1)
@@ -244,8 +244,7 @@ async def test_list_projects_filter_by_repo(test_project_service):
 
     # Filter by specific repo
     forgetful_projects = await test_project_service.list_projects(
-        user_id=user_id,
-        repo_name="scottrbk/forgetful"
+        user_id=user_id, repo_name="scottrbk/forgetful"
     )
     assert len(forgetful_projects) == 1
     assert forgetful_projects[0].name == "project1"
@@ -253,8 +252,7 @@ async def test_list_projects_filter_by_repo(test_project_service):
 
     # Filter by different repo
     other_projects = await test_project_service.list_projects(
-        user_id=user_id,
-        repo_name="scottrbk/other-repo"
+        user_id=user_id, repo_name="scottrbk/other-repo"
     )
     assert len(other_projects) == 1
     assert other_projects[0].name == "project2"
@@ -273,8 +271,8 @@ async def test_list_projects_combined_filters(test_project_service):
             description="Active forgetful project",
             project_type=ProjectType.DEVELOPMENT,
             status=ProjectStatus.ACTIVE,
-            repo_name="scottrbk/forgetful"
-        )
+            repo_name="scottrbk/forgetful",
+        ),
     )
 
     await test_project_service.create_project(
@@ -284,8 +282,8 @@ async def test_list_projects_combined_filters(test_project_service):
             description="Archived forgetful project",
             project_type=ProjectType.DEVELOPMENT,
             status=ProjectStatus.ARCHIVED,
-            repo_name="scottrbk/forgetful"
-        )
+            repo_name="scottrbk/forgetful",
+        ),
     )
 
     await test_project_service.create_project(
@@ -295,15 +293,13 @@ async def test_list_projects_combined_filters(test_project_service):
             description="Active other project",
             project_type=ProjectType.DEVELOPMENT,
             status=ProjectStatus.ACTIVE,
-            repo_name="scottrbk/other-repo"
-        )
+            repo_name="scottrbk/other-repo",
+        ),
     )
 
     # Filter by active + forgetful
     filtered_projects = await test_project_service.list_projects(
-        user_id=user_id,
-        status=ProjectStatus.ACTIVE,
-        repo_name="scottrbk/forgetful"
+        user_id=user_id, status=ProjectStatus.ACTIVE, repo_name="scottrbk/forgetful"
     )
 
     assert len(filtered_projects) == 1
@@ -321,21 +317,18 @@ async def test_update_project_single_field(test_project_service):
     project_data = ProjectCreate(
         name="original-name",
         description="Original description",
-        project_type=ProjectType.DEVELOPMENT
+        project_type=ProjectType.DEVELOPMENT,
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     # Update only name
     update_data = ProjectUpdate(name="updated-name")
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id,
-        project_id=created_project.id,
-        project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data
     )
 
     assert updated_project is not None
@@ -344,7 +337,9 @@ async def test_update_project_single_field(test_project_service):
     # Other fields should remain unchanged
     assert updated_project.description == "Original description"
     assert updated_project.project_type == ProjectType.DEVELOPMENT
-    assert updated_project.updated_at >= created_project.updated_at  # >= to handle in-memory timing
+    assert (
+        updated_project.updated_at >= created_project.updated_at
+    )  # >= to handle in-memory timing
 
 
 @pytest.mark.asyncio
@@ -356,24 +351,20 @@ async def test_update_project_multiple_fields(test_project_service):
     project_data = ProjectCreate(
         name="original-name",
         description="Original description",
-        project_type=ProjectType.DEVELOPMENT
+        project_type=ProjectType.DEVELOPMENT,
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     # Update name and description
     update_data = ProjectUpdate(
-        name="updated-name",
-        description="Updated description with new information"
+        name="updated-name", description="Updated description with new information"
     )
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id,
-        project_id=created_project.id,
-        project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data
     )
 
     assert updated_project is not None
@@ -392,12 +383,11 @@ async def test_update_project_status_change(test_project_service):
         name="test-project",
         description="Test project",
         project_type=ProjectType.DEVELOPMENT,
-        status=ProjectStatus.ACTIVE
+        status=ProjectStatus.ACTIVE,
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     assert created_project.status == ProjectStatus.ACTIVE
@@ -406,9 +396,7 @@ async def test_update_project_status_change(test_project_service):
     update_data = ProjectUpdate(status=ProjectStatus.ARCHIVED)
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id,
-        project_id=created_project.id,
-        project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data
     )
 
     assert updated_project.status == ProjectStatus.ARCHIVED
@@ -424,26 +412,20 @@ async def test_update_project_no_changes(test_project_service):
     project_data = ProjectCreate(
         name="test-project",
         description="Test description",
-        project_type=ProjectType.DEVELOPMENT
+        project_type=ProjectType.DEVELOPMENT,
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     original_updated_at = created_project.updated_at
 
     # Update with same values
-    update_data = ProjectUpdate(
-        name="test-project",
-        description="Test description"
-    )
+    update_data = ProjectUpdate(name="test-project", description="Test description")
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id,
-        project_id=created_project.id,
-        project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data
     )
 
     # Should return existing project without changes
@@ -463,9 +445,7 @@ async def test_update_project_not_found(test_project_service):
     update_data = ProjectUpdate(name="updated-name")
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id,
-        project_id=99999,
-        project_data=update_data
+        user_id=user_id, project_id=99999, project_data=update_data
     )
 
     assert updated_project is None
@@ -480,26 +460,23 @@ async def test_delete_project(test_project_service):
     project_data = ProjectCreate(
         name="to-delete",
         description="This project will be deleted",
-        project_type=ProjectType.DEVELOPMENT
+        project_type=ProjectType.DEVELOPMENT,
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id,
-        project_data=project_data
+        user_id=user_id, project_data=project_data
     )
 
     # Delete project
     success = await test_project_service.delete_project(
-        user_id=user_id,
-        project_id=created_project.id
+        user_id=user_id, project_id=created_project.id
     )
 
     assert success is True
 
     # Verify project no longer exists
     deleted_project = await test_project_service.get_project(
-        user_id=user_id,
-        project_id=created_project.id
+        user_id=user_id, project_id=created_project.id
     )
 
     assert deleted_project is None
@@ -511,8 +488,7 @@ async def test_delete_project_not_found(test_project_service):
     user_id = uuid4()
 
     success = await test_project_service.delete_project(
-        user_id=user_id,
-        project_id=99999
+        user_id=user_id, project_id=99999
     )
 
     assert success is False
@@ -528,18 +504,16 @@ async def test_project_user_isolation(test_project_service):
     project_data = ProjectCreate(
         name="user1-project",
         description="User 1's project",
-        project_type=ProjectType.PERSONAL
+        project_type=ProjectType.PERSONAL,
     )
 
     user1_project = await test_project_service.create_project(
-        user_id=user1_id,
-        project_data=project_data
+        user_id=user1_id, project_data=project_data
     )
 
     # User 2 tries to get user 1's project
     retrieved_project = await test_project_service.get_project(
-        user_id=user2_id,
-        project_id=user1_project.id
+        user_id=user2_id, project_id=user1_project.id
     )
 
     assert retrieved_project is None
@@ -552,3 +526,95 @@ async def test_project_user_isolation(test_project_service):
     user1_projects = await test_project_service.list_projects(user_id=user1_id)
     assert len(user1_projects) == 1
     assert user1_projects[0].name == "user1-project"
+
+
+@pytest.mark.asyncio
+async def test_list_projects_filter_by_name(test_project_service):
+    """Test filtering projects by name (partial match)"""
+    user_id = uuid4()
+
+    # Create projects with different names
+    await test_project_service.create_project(
+        user_id,
+        ProjectCreate(
+            name="forgetful-backend",
+            description="Backend service",
+            project_type=ProjectType.DEVELOPMENT,
+        ),
+    )
+
+    await test_project_service.create_project(
+        user_id,
+        ProjectCreate(
+            name="forgetful-ui",
+            description="UI components",
+            project_type=ProjectType.DEVELOPMENT,
+        ),
+    )
+
+    await test_project_service.create_project(
+        user_id,
+        ProjectCreate(
+            name="other-project",
+            description="Unrelated project",
+            project_type=ProjectType.DEVELOPMENT,
+        ),
+    )
+
+    # Filter by partial name match
+    forgetful_projects = await test_project_service.list_projects(
+        user_id=user_id, name="forgetful"
+    )
+    assert len(forgetful_projects) == 2
+    project_names = [p.name for p in forgetful_projects]
+    assert "forgetful-backend" in project_names or "forgetful-ui" in project_names
+
+    # Filter with different partial match
+    backend_projects = await test_project_service.list_projects(
+        user_id=user_id, name="backend"
+    )
+    assert len(backend_projects) == 1
+    assert backend_projects[0].name == "forgetful-backend"
+
+    # No match
+    no_match = await test_project_service.list_projects(
+        user_id=user_id, name="nonexistent"
+    )
+    assert len(no_match) == 0
+
+
+@pytest.mark.asyncio
+async def test_list_projects_filter_by_name_case_insensitive(test_project_service):
+    """Test that name filtering is case-insensitive"""
+    user_id = uuid4()
+
+    # Create project with mixed case name
+    await test_project_service.create_project(
+        user_id,
+        ProjectCreate(
+            name="Forgetful-Project",
+            description="Mixed case project name",
+            project_type=ProjectType.DEVELOPMENT,
+        ),
+    )
+
+    # Search with lowercase
+    lowercase_match = await test_project_service.list_projects(
+        user_id=user_id, name="forgetful"
+    )
+    assert len(lowercase_match) == 1
+    assert lowercase_match[0].name == "Forgetful-Project"
+
+    # Search with uppercase
+    uppercase_match = await test_project_service.list_projects(
+        user_id=user_id, name="FORGETFUL"
+    )
+    assert len(uppercase_match) == 1
+    assert uppercase_match[0].name == "Forgetful-Project"
+
+    # Search with mixed case
+    mixedcase_match = await test_project_service.list_projects(
+        user_id=user_id, name="FoRgEtFuL"
+    )
+    assert len(mixedcase_match) == 1
+    assert mixedcase_match[0].name == "Forgetful-Project"

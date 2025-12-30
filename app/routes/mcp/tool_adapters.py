@@ -4,40 +4,52 @@ Tool Adapters - Bridge between services and tool registry
 This module provides adapter classes that wrap service methods as registry-compatible
 callables, ensuring user context is properly extracted and preserved.
 """
-from typing import Dict, Any, List, Optional
+
+from typing import Any, Dict, List, Optional
+
 from fastmcp import Context
 
-from app.services.user_service import UserService
-from app.services.memory_service import MemoryService
-from app.services.project_service import ProjectService
-from app.services.code_artifact_service import CodeArtifactService
-from app.services.document_service import DocumentService
-from app.services.entity_service import EntityService
+from app.config.logging_config import logging
+from app.config.settings import settings
 from app.middleware.auth import get_user_from_auth
-from app.models.user_models import UserUpdate, UserResponse
-from app.models.memory_models import (
-    MemoryCreate,
-    MemoryCreateResponse,
-    MemoryUpdate,
-    MemoryQueryRequest,
-    MemoryQueryResult,
-    Memory,
+from app.models.code_artifact_models import (
+    CodeArtifact,
+    CodeArtifactCreate,
+    CodeArtifactUpdate,
 )
-from app.models.project_models import Project, ProjectCreate, ProjectUpdate, ProjectStatus, ProjectType
-from app.models.code_artifact_models import CodeArtifact, CodeArtifactCreate, CodeArtifactUpdate
 from app.models.document_models import Document, DocumentCreate, DocumentUpdate
 from app.models.entity_models import (
     Entity,
     EntityCreate,
-    EntityUpdate,
     EntityRelationship,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
     EntityType,
+    EntityUpdate,
 )
-from app.config.settings import settings
+from app.models.memory_models import (
+    Memory,
+    MemoryCreate,
+    MemoryCreateResponse,
+    MemoryQueryRequest,
+    MemoryQueryResult,
+    MemoryUpdate,
+)
+from app.models.project_models import (
+    Project,
+    ProjectCreate,
+    ProjectStatus,
+    ProjectType,
+    ProjectUpdate,
+)
+from app.models.user_models import UserResponse, UserUpdate
+from app.services.code_artifact_service import CodeArtifactService
+from app.services.document_service import DocumentService
+from app.services.entity_service import EntityService
+from app.services.memory_service import MemoryService
+from app.services.project_service import ProjectService
+from app.services.user_service import UserService
 from app.utils.pydantic_helper import filter_none_values
-from app.config.logging_config import logging
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +57,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # User Tool Adapters
 # ============================================================================
+
 
 class UserToolAdapters:
     """Wraps user service methods as registry-compatible callables"""
@@ -60,23 +73,16 @@ class UserToolAdapters:
             extra={
                 "user": user.name,
                 "user_id": user.id,
-                "external_id": user.external_id
-            }
+                "external_id": user.external_id,
+            },
         )
         return UserResponse(**user.model_dump())
 
-    async def update_user_notes(
-        self,
-        user_notes: str,
-        ctx: Context
-    ) -> UserResponse:
+    async def update_user_notes(self, user_notes: str, ctx: Context) -> UserResponse:
         """Adapter for update_user_notes tool"""
         user = await get_user_from_auth(ctx)
 
-        user_update = UserUpdate(
-            external_id=user.external_id,
-            notes=user_notes
-        )
+        user_update = UserUpdate(external_id=user.external_id, notes=user_notes)
 
         updated_user = await self.user_service.update_user(user_update=user_update)
         return UserResponse(**updated_user.model_dump())
@@ -94,6 +100,7 @@ def create_user_adapters(user_service: UserService) -> Dict[str, Any]:
 # ============================================================================
 # Memory Tool Adapters
 # ============================================================================
+
 
 class MemoryToolAdapters:
     """Wraps memory service methods as registry-compatible callables"""
@@ -133,8 +140,7 @@ class MemoryToolAdapters:
         )
 
         memory, similar_memories = await self.memory_service.create_memory(
-            user_id=user.id,
-            memory_data=memory_data
+            user_id=user.id, memory_data=memory_data
         )
 
         logger.info(
@@ -144,8 +150,8 @@ class MemoryToolAdapters:
                 "memory_id": memory.id,
                 "title": memory.title,
                 "linked_memory_ids": memory.linked_memory_ids,
-                "similar_memories_count": len(similar_memories)
-            }
+                "similar_memories_count": len(similar_memories),
+            },
         )
 
         return MemoryCreateResponse(
@@ -155,7 +161,7 @@ class MemoryToolAdapters:
             project_ids=memory.project_ids,
             code_artifact_ids=memory.code_artifact_ids,
             document_ids=memory.document_ids,
-            similar_memories=similar_memories
+            similar_memories=similar_memories,
         )
 
     async def query_memory(
@@ -168,16 +174,12 @@ class MemoryToolAdapters:
         max_links_per_primary: int = 5,
         importance_threshold: Optional[int] = None,
         project_ids: Optional[List[int]] = None,
-        strict_project_filter: bool = False
+        strict_project_filter: bool = False,
     ) -> MemoryQueryResult:
         """Adapter for query_memory tool"""
         logger.info(
             "MCP Tool -> query_memory",
-            extra={
-                "query": query[:50],
-                "k": k,
-                "include_links": include_links
-            }
+            extra={"query": query[:50], "k": k, "include_links": include_links},
         )
 
         user = await get_user_from_auth(ctx)
@@ -198,16 +200,16 @@ class MemoryToolAdapters:
                 max_links_per_primary=max_links_per_primary,
                 importance_threshold=importance_threshold,
                 project_ids=project_ids,
-                strict_project_filter=strict_project_filter
-            )
+                strict_project_filter=strict_project_filter,
+            ),
         )
 
         logger.info(
             "MCP Tool -> query memory completed",
             extra={
                 "total_memories_returned": result.total_count,
-                "token_count": result.token_count
-            }
+                "token_count": result.token_count,
+            },
         )
 
         return result
@@ -265,10 +267,7 @@ class MemoryToolAdapters:
         """Adapter for link_memories tool"""
         logger.info(
             "MCP Tool -> link_memories",
-            extra={
-                "memory_id": memory_id,
-                "related_ids": related_ids
-            }
+            extra={"memory_id": memory_id, "related_ids": related_ids},
         )
 
         user = await get_user_from_auth(ctx)
@@ -289,10 +288,7 @@ class MemoryToolAdapters:
 
         logger.info(
             "MCP Tool - memories linked",
-            extra={
-                "memory_id": memory_id,
-                "memories_linked": links_created
-            }
+            extra={"memory_id": memory_id, "memories_linked": links_created},
         )
 
         return {"linked_memory_ids": links_created}
@@ -306,10 +302,7 @@ class MemoryToolAdapters:
         """Adapter for unlink_memories tool"""
         logger.info(
             "MCP Tool -> unlink_memories",
-            extra={
-                "source_id": source_id,
-                "target_id": target_id
-            }
+            extra={"source_id": source_id, "target_id": target_id},
         )
 
         user = await get_user_from_auth(ctx)
@@ -322,11 +315,7 @@ class MemoryToolAdapters:
 
         logger.info(
             "MCP Tool - memories unlinked",
-            extra={
-                "source_id": source_id,
-                "target_id": target_id,
-                "success": success
-            }
+            extra={"source_id": source_id, "target_id": target_id, "success": success},
         )
 
         return {"success": success}
@@ -342,16 +331,12 @@ class MemoryToolAdapters:
         user = await get_user_from_auth(ctx)
 
         memory = await self.memory_service.get_memory(
-            user_id=user.id,
-            memory_id=memory_id
+            user_id=user.id, memory_id=memory_id
         )
 
         logger.info(
             "MCP Tool - successfully retrieved memory",
-            extra={
-                "memory_id": memory.id,
-                "user_id": user.id
-            }
+            extra={"memory_id": memory.id, "user_id": user.id},
         )
 
         return memory
@@ -364,10 +349,7 @@ class MemoryToolAdapters:
         superseded_by: Optional[int] = None,
     ) -> dict:
         """Adapter for mark_memory_obsolete tool"""
-        logger.info(
-            "MCP Tool -> mark_memory_obsolete",
-            extra={"memory_id": memory_id}
-        )
+        logger.info("MCP Tool -> mark_memory_obsolete", extra={"memory_id": memory_id})
 
         user = await get_user_from_auth(ctx)
 
@@ -375,7 +357,7 @@ class MemoryToolAdapters:
             user_id=user.id,
             memory_id=memory_id,
             reason=reason,
-            superseded_by=superseded_by
+            superseded_by=superseded_by,
         )
 
         return {"success": success}
@@ -389,24 +371,21 @@ class MemoryToolAdapters:
         """Adapter for get_recent_memories tool"""
         logger.info(
             "MCP Tool -> get_recent_memories",
-            extra={"limit": limit, "project_ids": project_ids}
+            extra={"limit": limit, "project_ids": project_ids},
         )
 
         user = await get_user_from_auth(ctx)
 
         # Service returns (memories, total_count) tuple; MCP tool only needs memories
         memories, _ = await self.memory_service.get_recent_memories(
-            user_id=user.id,
-            limit=limit,
-            project_ids=project_ids
+            user_id=user.id, limit=limit, project_ids=project_ids
         )
 
         return memories
 
 
 def create_memory_adapters(
-    memory_service: MemoryService,
-    user_service: UserService
+    memory_service: MemoryService, user_service: UserService
 ) -> Dict[str, Any]:
     """Create all memory tool adapters and return as dict"""
     adapters = MemoryToolAdapters(memory_service, user_service)
@@ -425,6 +404,7 @@ def create_memory_adapters(
 # ============================================================================
 # Project Tool Adapters
 # ============================================================================
+
 
 class ProjectToolAdapters:
     """Wraps project service methods as registry-compatible callables"""
@@ -456,8 +436,7 @@ class ProjectToolAdapters:
         )
 
         project = await self.project_service.create_project(
-            user_id=user.id,
-            project_data=project_data
+            user_id=user.id, project_data=project_data
         )
 
         return project
@@ -495,17 +474,12 @@ class ProjectToolAdapters:
 
         return project
 
-    async def delete_project(
-        self,
-        project_id: int,
-        ctx: Context
-    ) -> dict:
+    async def delete_project(self, project_id: int, ctx: Context) -> dict:
         """Adapter for delete_project tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.project_service.delete_project(
-            user_id=user.id,
-            project_id=project_id
+            user_id=user.id, project_id=project_id
         )
 
         return {"success": result, "project_id": project_id}
@@ -515,6 +489,7 @@ class ProjectToolAdapters:
         ctx: Context,
         status: Optional[str] = None,
         repo_name: Optional[str] = None,
+        name: Optional[str] = None,
     ) -> dict:
         """Adapter for list_projects tool"""
         user = await get_user_from_auth(ctx)
@@ -526,30 +501,30 @@ class ProjectToolAdapters:
             user_id=user.id,
             status=status_enum,
             repo_name=repo_name,
+            name=name,
         )
 
         count = len(result)
-        return {"projects": result, "total_count": count, "count": count}
+        return {
+            "projects": result,
+            "total_count": count,
+            "count": count,
+            "name_filter": name,
+        }
 
-    async def get_project(
-        self,
-        project_id: int,
-        ctx: Context
-    ) -> Project:
+    async def get_project(self, project_id: int, ctx: Context) -> Project:
         """Adapter for get_project tool"""
         user = await get_user_from_auth(ctx)
 
         project = await self.project_service.get_project(
-            user_id=user.id,
-            project_id=project_id
+            user_id=user.id, project_id=project_id
         )
 
         return project
 
 
 def create_project_adapters(
-    project_service: ProjectService,
-    user_service: UserService
+    project_service: ProjectService, user_service: UserService
 ) -> Dict[str, Any]:
     """Create all project tool adapters and return as dict"""
     adapters = ProjectToolAdapters(project_service, user_service)
@@ -566,10 +541,13 @@ def create_project_adapters(
 # CodeArtifact Tool Adapters
 # ============================================================================
 
+
 class CodeArtifactToolAdapters:
     """Wraps code artifact service methods as registry-compatible callables"""
 
-    def __init__(self, code_artifact_service: CodeArtifactService, user_service: UserService):
+    def __init__(
+        self, code_artifact_service: CodeArtifactService, user_service: UserService
+    ):
         self.code_artifact_service = code_artifact_service
         self.user_service = user_service
 
@@ -596,23 +574,17 @@ class CodeArtifactToolAdapters:
         )
 
         artifact = await self.code_artifact_service.create_code_artifact(
-            user_id=user.id,
-            artifact_data=artifact_data
+            user_id=user.id, artifact_data=artifact_data
         )
 
         return artifact
 
-    async def get_code_artifact(
-        self,
-        artifact_id: int,
-        ctx: Context
-    ) -> CodeArtifact:
+    async def get_code_artifact(self, artifact_id: int, ctx: Context) -> CodeArtifact:
         """Adapter for get_code_artifact tool"""
         user = await get_user_from_auth(ctx)
 
         artifact = await self.code_artifact_service.get_code_artifact(
-            user_id=user.id,
-            artifact_id=artifact_id
+            user_id=user.id, artifact_id=artifact_id
         )
 
         return artifact
@@ -669,25 +641,19 @@ class CodeArtifactToolAdapters:
 
         return artifact
 
-    async def delete_code_artifact(
-        self,
-        artifact_id: int,
-        ctx: Context
-    ) -> dict:
+    async def delete_code_artifact(self, artifact_id: int, ctx: Context) -> dict:
         """Adapter for delete_code_artifact tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.code_artifact_service.delete_code_artifact(
-            user_id=user.id,
-            artifact_id=artifact_id
+            user_id=user.id, artifact_id=artifact_id
         )
 
         return {"success": result, "deleted_id": artifact_id}
 
 
 def create_code_artifact_adapters(
-    code_artifact_service: CodeArtifactService,
-    user_service: UserService
+    code_artifact_service: CodeArtifactService, user_service: UserService
 ) -> Dict[str, Any]:
     """Create all code artifact tool adapters and return as dict"""
     adapters = CodeArtifactToolAdapters(code_artifact_service, user_service)
@@ -703,6 +669,7 @@ def create_code_artifact_adapters(
 # ============================================================================
 # Document Tool Adapters
 # ============================================================================
+
 
 class DocumentToolAdapters:
     """Wraps document service methods as registry-compatible callables"""
@@ -736,23 +703,17 @@ class DocumentToolAdapters:
         )
 
         document = await self.document_service.create_document(
-            user_id=user.id,
-            document_data=document_data
+            user_id=user.id, document_data=document_data
         )
 
         return document
 
-    async def get_document(
-        self,
-        document_id: int,
-        ctx: Context
-    ) -> Document:
+    async def get_document(self, document_id: int, ctx: Context) -> Document:
         """Adapter for get_document tool"""
         user = await get_user_from_auth(ctx)
 
         document = await self.document_service.get_document(
-            user_id=user.id,
-            document_id=document_id
+            user_id=user.id, document_id=document_id
         )
 
         return document
@@ -811,25 +772,19 @@ class DocumentToolAdapters:
 
         return document
 
-    async def delete_document(
-        self,
-        document_id: int,
-        ctx: Context
-    ) -> dict:
+    async def delete_document(self, document_id: int, ctx: Context) -> dict:
         """Adapter for delete_document tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.document_service.delete_document(
-            user_id=user.id,
-            document_id=document_id
+            user_id=user.id, document_id=document_id
         )
 
         return {"success": result, "deleted_id": document_id}
 
 
 def create_document_adapters(
-    document_service: DocumentService,
-    user_service: UserService
+    document_service: DocumentService, user_service: UserService
 ) -> Dict[str, Any]:
     """Create all document tool adapters and return as dict"""
     adapters = DocumentToolAdapters(document_service, user_service)
@@ -845,6 +800,7 @@ def create_document_adapters(
 # ============================================================================
 # Entity Tool Adapters
 # ============================================================================
+
 
 class EntityToolAdapters:
     """Wraps entity service methods as registry-compatible callables"""
@@ -880,23 +836,17 @@ class EntityToolAdapters:
         entity_data = EntityCreate(**entity_dict)
 
         entity = await self.entity_service.create_entity(
-            user_id=user.id,
-            entity_data=entity_data
+            user_id=user.id, entity_data=entity_data
         )
 
         return entity
 
-    async def get_entity(
-        self,
-        entity_id: int,
-        ctx: Context
-    ) -> Entity:
+    async def get_entity(self, entity_id: int, ctx: Context) -> Entity:
         """Adapter for get_entity tool"""
         user = await get_user_from_auth(ctx)
 
         entity = await self.entity_service.get_entity(
-            user_id=user.id,
-            entity_id=entity_id
+            user_id=user.id, entity_id=entity_id
         )
 
         return entity
@@ -906,7 +856,7 @@ class EntityToolAdapters:
         ctx: Context,
         project_ids: Optional[List[int]] = None,
         entity_type: Optional[str] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
     ) -> dict:
         """Adapter for list_entities tool"""
         user = await get_user_from_auth(ctx)
@@ -920,7 +870,7 @@ class EntityToolAdapters:
             project_ids=project_ids,
             entity_type=entity_type_enum,
             tags=tags,
-            limit=10000  # High limit to return all entities for MCP
+            limit=10000,  # High limit to return all entities for MCP
         )
 
         return {"entities": entities, "total_count": total}
@@ -931,7 +881,7 @@ class EntityToolAdapters:
         ctx: Context,
         entity_type: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> dict:
         """Adapter for search_entities tool"""
         user = await get_user_from_auth(ctx)
@@ -944,18 +894,14 @@ class EntityToolAdapters:
             search_query=query,
             entity_type=entity_type_enum,
             tags=tags,
-            limit=limit
+            limit=limit,
         )
 
         return {
             "entities": result,
             "total_count": len(result),
             "search_query": query,
-            "filters": {
-                "entity_type": entity_type,
-                "tags": tags,
-                "limit": limit
-            }
+            "filters": {"entity_type": entity_type, "tags": tags, "limit": limit},
         }
 
     async def update_entity(
@@ -968,7 +914,7 @@ class EntityToolAdapters:
         notes: str | None = None,
         tags: List[str] | None = None,
         aka: List[str] | None = None,
-        project_ids: List[int] | None = None
+        project_ids: List[int] | None = None,
     ) -> Entity:
         """Adapter for update_entity tool"""
         user = await get_user_from_auth(ctx)
@@ -993,51 +939,36 @@ class EntityToolAdapters:
 
         return entity
 
-    async def delete_entity(
-        self,
-        entity_id: int,
-        ctx: Context
-    ) -> dict:
+    async def delete_entity(self, entity_id: int, ctx: Context) -> dict:
         """Adapter for delete_entity tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.delete_entity(
-            user_id=user.id,
-            entity_id=entity_id
+            user_id=user.id, entity_id=entity_id
         )
 
         return {"success": result, "deleted_id": entity_id}
 
     async def link_entity_to_memory(
-        self,
-        entity_id: int,
-        memory_id: int,
-        ctx: Context
+        self, entity_id: int, memory_id: int, ctx: Context
     ) -> dict:
         """Adapter for link_entity_to_memory tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.link_entity_to_memory(
-            user_id=user.id,
-            entity_id=entity_id,
-            memory_id=memory_id
+            user_id=user.id, entity_id=entity_id, memory_id=memory_id
         )
 
         return {"success": result}
 
     async def unlink_entity_from_memory(
-        self,
-        entity_id: int,
-        memory_id: int,
-        ctx: Context
+        self, entity_id: int, memory_id: int, ctx: Context
     ) -> dict:
         """Adapter for unlink_entity_from_memory tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.unlink_entity_from_memory(
-            user_id=user.id,
-            entity_id=entity_id,
-            memory_id=memory_id
+            user_id=user.id, entity_id=entity_id, memory_id=memory_id
         )
 
         return {"success": result}
@@ -1050,7 +981,7 @@ class EntityToolAdapters:
         ctx: Context,
         strength: Optional[float] = None,
         confidence: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> EntityRelationship:
         """Adapter for create_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
@@ -1065,8 +996,7 @@ class EntityToolAdapters:
         )
 
         relationship = await self.entity_service.create_entity_relationship(
-            user_id=user.id,
-            relationship_data=relationship_data
+            user_id=user.id, relationship_data=relationship_data
         )
 
         return relationship
@@ -1076,7 +1006,7 @@ class EntityToolAdapters:
         entity_id: int,
         ctx: Context,
         direction: Optional[str] = None,
-        relationship_type: Optional[str] = None
+        relationship_type: Optional[str] = None,
     ) -> dict:
         """Adapter for get_entity_relationships tool"""
         user = await get_user_from_auth(ctx)
@@ -1097,7 +1027,7 @@ class EntityToolAdapters:
         relationship_type: Optional[str] = None,
         strength: Optional[float] = None,
         confidence: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> EntityRelationship:
         """Adapter for update_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
@@ -1120,39 +1050,30 @@ class EntityToolAdapters:
         return relationship
 
     async def delete_entity_relationship(
-        self,
-        relationship_id: int,
-        ctx: Context
+        self, relationship_id: int, ctx: Context
     ) -> dict:
         """Adapter for delete_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.delete_entity_relationship(
-            user_id=user.id,
-            relationship_id=relationship_id
+            user_id=user.id, relationship_id=relationship_id
         )
 
         return {"success": result, "deleted_id": relationship_id}
 
-    async def get_entity_memories(
-        self,
-        entity_id: int,
-        ctx: Context
-    ) -> dict:
+    async def get_entity_memories(self, entity_id: int, ctx: Context) -> dict:
         """Adapter for get_entity_memories tool"""
         user = await get_user_from_auth(ctx)
 
         memory_ids, count = await self.entity_service.get_entity_memories(
-            user_id=user.id,
-            entity_id=entity_id
+            user_id=user.id, entity_id=entity_id
         )
 
         return {"memory_ids": memory_ids, "count": count}
 
 
 def create_entity_adapters(
-    entity_service: EntityService,
-    user_service: UserService
+    entity_service: EntityService, user_service: UserService
 ) -> Dict[str, Any]:
     """Create all entity tool adapters and return as dict"""
     adapters = EntityToolAdapters(entity_service, user_service)

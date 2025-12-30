@@ -2,14 +2,14 @@ from typing import List
 from uuid import UUID
 
 from app.config.logging_config import logging
-from app.protocols.project_protocol import ProjectRepository
 from app.models.project_models import (
     Project,
     ProjectCreate,
-    ProjectUpdate,
+    ProjectStatus,
     ProjectSummary,
-    ProjectStatus
+    ProjectUpdate,
 )
+from app.protocols.project_protocol import ProjectRepository
 from app.utils.pydantic_helper import get_changed_fields
 
 logger = logging.getLogger(__name__)
@@ -39,17 +39,20 @@ class ProjectService:
         self,
         user_id: UUID,
         status: ProjectStatus | None = None,
-        repo_name: str | None = None
+        repo_name: str | None = None,
+        name: str | None = None,
     ) -> List[ProjectSummary]:
         """List projects with optional filtering
 
         Retrieves lightweight project summaries (excludes description/notes
-        to save tokens). Supports filtering by status and repository name.
+        to save tokens). Supports filtering by status, repository name, and
+        project name.
 
         Args:
             user_id: User ID for RLS (row-level security)
             status: Optional filter by project status (active/archived/completed)
             repo_name: Optional filter by repository name (e.g., 'owner/repo')
+            name: Optional filter by project name (case-insensitive partial match)
 
         Returns:
             List of ProjectSummary objects matching filters, ordered by created_at desc
@@ -59,28 +62,23 @@ class ProjectService:
             extra={
                 "user_id": str(user_id),
                 "status": status.value if status else None,
-                "repo_name": repo_name
-            }
+                "repo_name": repo_name,
+                "name": name,
+            },
         )
 
         projects = await self.project_repo.list_projects(
-            user_id=user_id,
-            status=status,
-            repo_name=repo_name
+            user_id=user_id, status=status, repo_name=repo_name, name=name
         )
 
         logger.info(
             "projects retrieved",
-            extra={"count": len(projects), "user_id": str(user_id)}
+            extra={"count": len(projects), "user_id": str(user_id)},
         )
 
         return projects
 
-    async def get_project(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> Project | None:
+    async def get_project(self, user_id: UUID, project_id: int) -> Project | None:
         """Get single project by ID
 
         Retrieves complete project details including description, notes,
@@ -94,32 +92,28 @@ class ProjectService:
             Project if found, None otherwise
         """
         logger.info(
-            "getting project",
-            extra={"user_id": str(user_id), "project_id": project_id}
+            "getting project", extra={"user_id": str(user_id), "project_id": project_id}
         )
 
         project = await self.project_repo.get_project_by_id(
-            user_id=user_id,
-            project_id=project_id
+            user_id=user_id, project_id=project_id
         )
 
         if project:
             logger.info(
                 "project retrieved",
-                extra={"project_id": project_id, "project_name": project.name}
+                extra={"project_id": project_id, "project_name": project.name},
             )
         else:
             logger.info(
                 "project not found",
-                extra={"project_id": project_id, "user_id": str(user_id)}
+                extra={"project_id": project_id, "user_id": str(user_id)},
             )
 
         return project
 
     async def create_project(
-        self,
-        user_id: UUID,
-        project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate
     ) -> Project:
         """Create new project
 
@@ -141,13 +135,12 @@ class ProjectService:
             extra={
                 "user_id": str(user_id),
                 "project_name": project_data.name,
-                "type": project_data.project_type.value
-            }
+                "type": project_data.project_type.value,
+            },
         )
 
         project = await self.project_repo.create_project(
-            user_id=user_id,
-            project_data=project_data
+            user_id=user_id, project_data=project_data
         )
 
         logger.info(
@@ -155,17 +148,14 @@ class ProjectService:
             extra={
                 "project_id": project.id,
                 "project_name": project.name,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         return project
 
     async def update_project(
-        self,
-        user_id: UUID,
-        project_id: int,
-        project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
     ) -> Project | None:
         """Update existing project
 
@@ -186,32 +176,30 @@ class ProjectService:
         """
         logger.info(
             "updating project",
-            extra={"user_id": str(user_id), "project_id": project_id}
+            extra={"user_id": str(user_id), "project_id": project_id},
         )
 
         # Pre-flight validation: get existing project
         existing_project = await self.project_repo.get_project_by_id(
-            user_id=user_id,
-            project_id=project_id
+            user_id=user_id, project_id=project_id
         )
 
         if not existing_project:
             logger.info(
                 "project not found for update",
-                extra={"project_id": project_id, "user_id": str(user_id)}
+                extra={"project_id": project_id, "user_id": str(user_id)},
             )
             return None
 
         # Business logic: detect actual changes
         changed_fields = get_changed_fields(
-            input_model=project_data,
-            existing_model=existing_project
+            input_model=project_data, existing_model=existing_project
         )
 
         if not changed_fields:
             logger.info(
                 "no changes detected, returning existing project",
-                extra={"project_id": project_id}
+                extra={"project_id": project_id},
             )
             return existing_project
 
@@ -219,29 +207,23 @@ class ProjectService:
             "changes detected",
             extra={
                 "project_id": project_id,
-                "changed_fields": list(changed_fields.keys())
-            }
+                "changed_fields": list(changed_fields.keys()),
+            },
         )
 
         # Update project in repository
         updated_project = await self.project_repo.update_project(
-            user_id=user_id,
-            project_id=project_id,
-            project_data=project_data
+            user_id=user_id, project_id=project_id, project_data=project_data
         )
 
         logger.info(
             "project updated",
-            extra={"project_id": project_id, "project_name": updated_project.name}
+            extra={"project_id": project_id, "project_name": updated_project.name},
         )
 
         return updated_project
 
-    async def delete_project(
-        self,
-        user_id: UUID,
-        project_id: int
-    ) -> bool:
+    async def delete_project(self, user_id: UUID, project_id: int) -> bool:
         """Delete project
 
         Removes project metadata. Linked entities (memories, code artifacts,
@@ -260,26 +242,24 @@ class ProjectService:
         """
         logger.info(
             "deleting project",
-            extra={"user_id": str(user_id), "project_id": project_id}
+            extra={"user_id": str(user_id), "project_id": project_id},
         )
 
         # Pre-flight validation: verify project exists
         existing_project = await self.project_repo.get_project_by_id(
-            user_id=user_id,
-            project_id=project_id
+            user_id=user_id, project_id=project_id
         )
 
         if not existing_project:
             logger.info(
                 "project not found for deletion",
-                extra={"project_id": project_id, "user_id": str(user_id)}
+                extra={"project_id": project_id, "user_id": str(user_id)},
             )
             return False
 
         # Delete project
         success = await self.project_repo.delete_project(
-            user_id=user_id,
-            project_id=project_id
+            user_id=user_id, project_id=project_id
         )
 
         if success:
@@ -288,13 +268,13 @@ class ProjectService:
                 extra={
                     "project_id": project_id,
                     "project_name": existing_project.name,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
         else:
             logger.warning(
                 "project deletion failed",
-                extra={"project_id": project_id, "user_id": str(user_id)}
+                extra={"project_id": project_id, "user_id": str(user_id)},
             )
 
         return success
