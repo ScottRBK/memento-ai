@@ -96,4 +96,10 @@ gemini mcp add forgetful uvx forgetful-ai
 gemini mcp add -t http forgetful http://localhost:8020/mcp
 ```
 
+### Custom Commands
+
+For enhanced workflows with Forgetful, we provide ready-to-use Gemini CLI commands for memory management, search, and repository encoding.
+
+See [Gemini CLI Commands](gemini-cli/README.md) for installation and usage.
+
 

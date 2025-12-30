@@ -1,0 +1,321 @@
+description = "Bootstrap a repository into Forgetful's knowledge base"
+prompt = """
+# Encode Repository
+
+Systematically populate the Forgetful knowledge base with comprehensive project context using the Zettelkasten-inspired bootstrap protocol.
+
+## Purpose
+
+Transform an undocumented or lightly-documented codebase into a rich, searchable knowledge repository. Use this when:
+- Starting to use Forgetful for an existing project
+- Onboarding a new project into the memory system
+- Preparing a project for AI agent collaboration
+- Creating institutional knowledge for team members
+
+## Arguments
+
+{{args}}
+
+Parse for:
+- **Project path**: Directory to encode (default: current working directory)
+- **Project name**: Override auto-detected name (optional)
+- **Phases**: Specific phases to run (optional, default: all)
+
+---
+
+## Phase 0: Discovery & Assessment (ALWAYS START HERE)
+
+### Step 1: Check for Existing Project
+
+```
+execute_forgetful_tool("list_projects", {})
+```
+
+Search for the project. If found:
+- Note the `project_id` (required for linking)
+- Review description, project_type, status
+- Check notes field for operational details
+
+### Step 2: Assess Project Size & Scope
+
+Explore the codebase to determine:
+
+**Project Size:**
+- Lines of code: Small <5K, Medium 5K-50K, Large >50K
+- File count: Small <50, Medium 50-500, Large >500
+
+**Project Type:**
+- Simple app/script
+- Standard web app
+- Library/SDK
+- Microservice
+- Monorepo
+- Integration/ETL
+
+### Step 3: Query Existing KB Coverage
+
+```
+execute_forgetful_tool("query_memory", {
+  "query": "<project-name> architecture overview",
+  "query_context": "Assessing existing knowledge base coverage for bootstrap",
+  "k": 10,
+  "include_links": true,
+  "project_ids": [<project_id if exists>]
+})
+```
+
+### Step 4: Analyze Current Codebase
+
+Read key files:
+- README.md
+- pyproject.toml / package.json / Cargo.toml
+- Main entry points
+- Configuration files
+
+### Step 5: Gap Analysis
+
+Compare KB vs Codebase:
+- What's documented and current?
+- What's documented but outdated?
+- What's missing from KB?
+- What memories reference non-existent code?
+
+Report gap analysis before proceeding.
+
+---
+
+## Memory Targets by Project Profile
+
+| Profile | Phase 1 | Phase 2 | Phase 3 | Phase 4 | Phase 5 | Total |
+|---------|---------|---------|---------|---------|---------|-------|
+| Small Simple | 3-5 | 3-5 | 3-5 | 2-4 | 2-3 | 15-27 |
+| Small Complex | 5-7 | 5-8 | 5-8 | 4-6 | 3-5 | 26-42 |
+| Medium Standard | 5-10 | 10-15 | 8-12 | 5-10 | 5-8 | 35-60 |
+| Large | 8-12 | 15-20 | 12-18 | 10-15 | 8-12 | 60-100 |
+
+---
+
+## Phase 1: Project Foundation (5-10 memories)
+
+### Create/Update Project Entity
+
+If project doesn't exist:
+```
+execute_forgetful_tool("create_project", {
+  "name": "owner/repo-name",
+  "description": "<2-3 paragraphs: problem solved, features, tech stack>",
+  "project_type": "development",
+  "repo_name": "owner/repo",
+  "notes": "<operational details: how to run, test, deploy>"
+})
+```
+
+### Create Foundation Memories
+
+1. **Project Overview** (Importance: 10)
+   - Problem solved, users, unique value, status
+
+2. **Technology Stack** (Importance: 9)
+   - Language, frameworks, critical dependencies
+
+3. **Architecture Pattern** (Importance: 10)
+   - Style, major components, data flow
+
+4. **Development Setup** (Importance: 8)
+   - Prerequisites, install steps, configuration
+
+5. **Testing Strategy** (Importance: 8)
+   - Frameworks, categories, commands
+
+---
+
+## Phase 2: Architectural Deep Dive (10-15 memories)
+
+One memory per major architectural layer:
+- Routes/Controllers
+- Service/Business Logic
+- Repository/Data Access
+- Models/Domain Entities
+- Middleware
+- Authentication
+- Configuration
+
+Template:
+```
+{
+  "title": "[Project] - [Layer] Layer Implementation",
+  "content": "Purpose, location, patterns used, interactions, design decisions",
+  "context": "Understanding this layer for [specific tasks]",
+  "keywords": ["layer-name", "pattern", "directory"],
+  "tags": ["architecture", "layer"],
+  "importance": 8,
+  "project_ids": [<project_id>]
+}
+```
+
+---
+
+## Phase 3: Key Patterns & Practices (8-12 memories)
+
+Document recurring patterns:
+- Dependency injection
+- Error handling
+- Database transactions
+- Async patterns
+- Validation
+- Caching
+- Event handling
+
+---
+
+## Phase 4: Critical Features (1-2 per feature)
+
+For each major feature:
+```
+{
+  "title": "[Project] - [Feature] Implementation",
+  "content": "User perspective, technical approach, key files, data flow",
+  "context": "Critical feature that [business value]",
+  "importance": 8,
+  "tags": ["feature", "implementation"]
+}
+```
+
+---
+
+## Phase 5: Design Decisions (ONLY from explicit documentation)
+
+**CRITICAL: Only capture decisions that are explicitly documented in the repository.**
+
+### Where to Look for Documented Decisions
+
+Search for explicit decision documentation:
+- `docs/adr/` or `docs/decisions/` (Architecture Decision Records)
+- `DECISIONS.md` or `ARCHITECTURE.md`
+- README sections titled "Why", "Design", "Architecture Decisions"
+- Code comments with `DECISION:`, `RATIONALE:`, or `WHY:`
+- Commit messages or PR descriptions with explicit rationale
+- `docs/*.md` files with decision context
+
+### What NOT to Do
+
+- Do NOT infer or guess at design rationales
+- Do NOT create decision memories based on code patterns alone
+- Do NOT assume "they probably chose X because Y"
+- If rationale is not explicitly documented, do NOT create a decision memory
+
+### Process
+
+1. Search for ADR files:
+   ```
+   Glob: **/adr/**/*.md, **/decisions/**/*.md
+   Grep: "Decision:", "Rationale:", "Context:", "## Why"
+   ```
+
+2. For each documented decision found, create memory:
+   ```
+   {
+     "title": "[Project] - Decision: [Topic]",
+     "content": "<QUOTE or PARAPHRASE the documented rationale>",
+     "context": "Documented in [file path]",
+     "importance": 9,
+     "tags": ["decision", "documented"]
+   }
+   ```
+
+3. If no explicit decision documentation exists:
+   - Report: "No explicit decision documentation found in repository"
+   - Skip this phase
+   - Optionally suggest the user document key decisions
+
+### Template for Documented Decisions
+```
+{
+  "title": "[Project] - Decision: [Topic]",
+  "content": "Decision: [what was decided]. Rationale: [quoted/paraphrased from docs]. Alternatives considered: [if documented]. Source: [file path]",
+  "context": "Documented decision from [source file]",
+  "importance": 9,
+  "tags": ["decision", "documented", "architecture"]
+}
+```
+
+---
+
+## Phase 6: Code Artifacts (as needed)
+
+For reusable code patterns, use:
+```
+execute_forgetful_tool("create_code_artifact", {
+  "title": "Descriptive name",
+  "description": "What it does, when to use",
+  "code": "<implementation>",
+  "language": "python",
+  "tags": ["middleware", "pattern"],
+  "project_id": <project_id>
+})
+```
+
+Then link to memories via `code_artifact_ids`.
+
+---
+
+## Phase 7: Documents (as needed)
+
+For content >400 words:
+```
+execute_forgetful_tool("create_document", {
+  "title": "Document name",
+  "description": "Overview and purpose",
+  "content": "<full documentation>",
+  "document_type": "markdown",
+  "project_id": <project_id>
+})
+```
+
+Create 3-5 atomic memories as entry points, linked via `document_ids`.
+
+---
+
+## Execution Guidelines
+
+1. **Execute phases in order**: 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+2. **Skip phases** with good existing coverage (from gap analysis)
+3. **Update outdated memories** as discovered
+4. **Mark obsolete** memories that reference removed code
+5. **Link new memories** to existing related memories
+
+## Quality Principles
+
+- **One concept per memory** (atomic)
+- **200-400 words ideal** per memory
+- **Include context field** explaining relevance
+- **Honest importance scoring** (most should be 7-8)
+- **Quality over quantity**
+- **Only document what's explicitly in the repo** (especially for decisions)
+
+---
+
+## Validation
+
+After completion, test with queries:
+```
+execute_forgetful_tool("query_memory", {
+  "query": "How do I add a new API endpoint?",
+  "query_context": "Testing bootstrap coverage",
+  "project_ids": [<project_id>]
+})
+```
+
+If searches return poor results, create additional memories in those areas.
+
+---
+
+## Report Progress
+
+After each phase, report:
+- Memories created/updated
+- Gaps remaining
+- Suggested next steps
+
+Ask user to confirm before proceeding to next phase.
+"""
