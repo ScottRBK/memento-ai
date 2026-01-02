@@ -136,6 +136,7 @@ For detailed connection guides (Claude Code, Claude Desktop, other clients that 
 - [Cursor](docs/connectivity_guide.md#cursor) 
 - [Codex](docs/connectivity_guide.md#codex) 
 - [Gemini CLI](docs/connectivity_guide.md#gemini-cli) (includes [custom commands](docs/gemini-cli/README.md)) 
+- [Opencode](docs/connectivity_guide.md#opencode) (includes [custom commands and skills](docs/opencode/README.md)) 
 
 Add Forgetful to your MCP client configuration:
 

@@ -1,8 +1,9 @@
 This section provides more detailed instructions on how to connect forgetful to various AI Agent applications.
-- [Claude Code](#claude-code) 
-- [Cursor](#cursor) 
-- [Codex](#codex) 
-- [Gemini CLI](#gemini-cli) 
+- [Claude Code](#claude-code)
+- [Cursor](#cursor)
+- [Codex](#codex)
+- [Gemini CLI](#gemini-cli)
+- [OpenCode](#opencode) 
 
 ## Claude Code
 
@@ -103,3 +104,38 @@ For enhanced workflows with Forgetful, we provide ready-to-use Gemini CLI comman
 See [Gemini CLI Commands](gemini-cli/README.md) for installation and usage.
 
 
+## OpenCode
+
+Add to your `opencode.json` or `opencode.jsonc` configuration file.
+
+### STDIO Transport
+
+```jsonc
+{
+  "mcp": {
+    "forgetful": {
+      "type": "local",
+      "command": ["uvx", "forgetful-ai"]
+    }
+  }
+}
+```
+
+### HTTP Transport
+
+```jsonc
+{
+  "mcp": {
+    "forgetful": {
+      "type": "remote",
+      "url": "http://localhost:8020/mcp"
+    }
+  }
+}
+```
+
+### Custom Commands & Skills
+
+For enhanced workflows with Forgetful, we provide ready-to-use OpenCode commands and skills for memory management, search, and repository encoding.
+
+See [OpenCode Integration](opencode/README.md) for installation and usage.
