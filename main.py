@@ -267,10 +267,12 @@ def cli():
     args = parser.parse_args()
 
     if args.transport == "stdio":
-        mcp.run()
+        import warnings 
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        mcp.run(show_banner=False)
     elif not settings.CORS_ENABLED:
         # No CORS - use existing code path (zero behavioral change)
-        mcp.run(transport="http", host=args.host, port=args.port)
+        mcp.run(transport="http", host=args.host, port=args.port, show_banner=False)
     else:
         # CORS enabled - use http_app with middleware
         from starlette.middleware import Middleware
