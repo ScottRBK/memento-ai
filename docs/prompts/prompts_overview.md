@@ -1,26 +1,29 @@
-# Project Understanding Prompts
+# Forgetful Prompts
 
 ## Overview
 
-Three AI-agent optimized prompts for understanding codebases and managing project knowledge through Forgetful MCP. Each prompt provides direct, executable instructions with concrete tool calls—ready to paste into an AI agent.
+AI-agent optimized prompts for understanding codebases and managing project knowledge through Forgetful MCP. Each prompt provides direct, executable instructions with concrete tool calls—ready to paste into an AI agent's system prompt or context.
 
 ---
 
-## The Three Prompts
+## Prompts
 
 | Prompt | Depth | Use When | Output |
 |--------|-------|----------|--------|
+| **[Custom Agent Integration](custom_agent_integration.md)** | Comprehensive | Building custom agents, system prompts, deep entity/knowledge graph coverage | Agent with full Forgetful capability |
+| **[Example System Prompt](example_system_prompt.md)** | Reference | Adding Forgetful context to CLAUDE.md or system prompts | Ready-to-copy prompt |
 | **[Rapid Scan](rapid_project_scan_prompt.md)** | Surface | Bug fixes, quick features, evaluation, initial orientation | Quick orientation map |
 | **[Comprehensive Understanding](comprehensive_project_understanding_prompt.md)** | Deep | Major refactoring, architectural changes, deep debugging | Understanding document |
 | **[KB Bootstrap](knowledge_base_bootstrap_prompt.md)** | KB Population | Documenting projects, enabling AI agents, institutional knowledge | Populated knowledge base |
-| **[Example System Prompt](example_system_prompt.md)** | Reference | Adding Forgetful context to CLAUDE.md or system prompts | Ready-to-copy prompt |
 
 ---
 
 ## Quick Decision Guide
 
-| Your Goal | Use This Prompt |
-|-----------|-----------------|
+| Your Goal | Use This |
+|-----------|----------|
+| Build a custom agent with Forgetful | Custom Agent Integration |
+| Understand entities & knowledge graphs | Custom Agent Integration |
 | Fix a bug | Rapid Scan |
 | Add small feature | Rapid Scan |
 | Understand architecture | Comprehensive Understanding |
