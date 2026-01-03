@@ -43,6 +43,63 @@ Queries return at most 20 memories, capped at ~8K tokens. Results are prioritize
 
 ---
 
+## When to Use Forgetful (Trigger Patterns)
+
+Adapt these patterns to your agent's domain.
+
+### Query Memory When...
+
+**User references the past:**
+- "Remember when..." / "Last time we talked about..."
+- "What did we decide about..."
+- "You know how I like to..."
+
+**User mentions people or organizations:**
+- Names come up → `search_entities` to check if known
+- Relationships discussed → `get_entity_relationships`
+
+**Context would help:**
+- Starting a new session with returning user
+- Topic relates to user's known interests/work
+- Question might have been answered before
+
+### Create Memory When...
+
+**User shares important information:**
+- Personal facts (family, preferences, important dates)
+- Decisions with reasoning
+- Preferences and how they like things done
+- Goals, plans, or ongoing projects
+
+**Knowledge is reusable:**
+- Solutions to problems they may encounter again
+- Patterns in how they work or think
+- Relationships between people, organizations, or concepts
+
+### Create Entity When...
+
+- User mentions people in their life (family, colleagues, contacts)
+- Organizations come up (employers, clients, vendors)
+- Named things need tracking (devices, locations, accounts)
+
+### Entity Relationships
+
+Proactively create relationships when **explicitly stated**:
+- User says "Sarah works at TechFlow" → create `works_for` relationship
+- User says "I'm married to Emma" → create `spouse` relationship
+- User mentions "our Redis server" in context of their company → create `owns` relationship
+
+**Never infer relationships** that weren't directly stated. When uncertain, ask rather than assume.
+
+### Skip Forgetful When...
+
+- Information is momentary (today's weather, current time)
+- Knowledge is universally available
+- Casual/social exchange with no lasting value
+- Would score below importance 6
+
+---
+
 ## The Meta-Tools Pattern
 
 Forgetful uses 3 gateway tools to access all functionality:
