@@ -3,128 +3,694 @@ description: Bootstrap a repository into Forgetful's knowledge base
 ---
 # Encode Repository
 
-Bootstrap a repository into Forgetful's knowledge base using a structured 7-phase protocol.
+Systematically populate the Forgetful knowledge base with comprehensive project context using the Zettelkasten-inspired bootstrap protocol.
 
-**Project name**: $ARGUMENTS
+## Purpose
 
-## Overview
+Transform an undocumented or lightly-documented codebase into a rich, searchable knowledge repository. Use this when:
+- Starting to use Forgetful for an existing project
+- Onboarding a new project into the memory system
+- Preparing a project for AI agent collaboration
+- Creating institutional knowledge for team members
 
-This command walks through a comprehensive process to document a codebase into atomic memories, capturing:
-- Project structure and architecture
-- Key patterns and conventions
-- Important decisions and their rationale
-- Technical debt and future considerations
+## Arguments
 
-## Phase 1: Discovery
+$ARGUMENTS
 
-Gather basic project information:
+Parse for:
+- **Project path**: Directory to encode (default: current working directory)
+- **Project name**: Override auto-detected name (optional)
+- **Phases**: Specific phases to run (optional, default: all)
 
-1. Check git remote for repository name:
-   ```bash
-   !`git remote get-url origin 2>/dev/null || echo "No git remote"`
-   ```
+---
 
-2. List project structure:
-   ```bash
-   !`find . -type f -name "*.md" -o -name "*.json" -o -name "*.toml" | head -20`
-   ```
+## Phase 0: Discovery & Assessment (ALWAYS START HERE)
 
-3. Check for existing project in Forgetful:
-   ```
-   execute_forgetful_tool("list_projects", {"repo_name": "<detected-repo>"})
-   ```
+### Step 1: Check for Existing Project
 
-4. If no project exists, create one:
-   ```
-   execute_forgetful_tool("create_project", {
-     "name": "$ARGUMENTS",
-     "description": "...",
-     "project_type": "development",
-     "repo_name": "<detected-repo>"
-   })
-   ```
+```
+execute_forgetful_tool("list_projects", {})
+```
 
-## Phase 2: Foundation
+Search for the project. If found:
+- Note the `project_id` (required for linking)
+- Review description, project_type, status
+- Check notes field for operational details
 
-Capture foundational information:
+### Step 2: Assess Project Size & Scope
 
-- Tech stack and dependencies
-- Build system and tooling
-- Development environment setup
-- Testing approach
+Explore the codebase to determine:
 
-Create atomic memories for each foundation element.
+**Project Size:**
+- Lines of code: Small <5K, Medium 5K-50K, Large >50K
+- File count: Small <50, Medium 50-500, Large >500
 
-## Phase 3: Architecture
+**Project Type:**
+- Simple app/script
+- Standard web app
+- Library/SDK
+- Microservice
+- Monorepo
+- Integration/ETL
 
-Document the architecture:
+### Step 3: Query Existing KB Coverage
 
-- High-level system design
-- Component relationships
-- Data flow patterns
-- External integrations
+```
+execute_forgetful_tool("query_memory", {
+  "query": "<project-name> architecture overview",
+  "query_context": "Assessing existing knowledge base coverage for bootstrap",
+  "k": 10,
+  "include_links": true,
+  "project_ids": [<project_id if exists>]
+})
+```
 
-For complex architectures, create a document first, then extract atomic memories.
+### Step 4: Analyze Current Codebase
 
-## Phase 4: Patterns
+Read key files:
+- README.md
+- pyproject.toml / package.json / Cargo.toml
+- Main entry points
+- Configuration files
 
-Identify and document patterns:
+### Step 5: Gap Analysis
 
-- Code conventions
-- Error handling approach
-- Logging patterns
-- Configuration management
+Compare KB vs Codebase:
+- What's documented and current?
+- What's documented but outdated?
+- What's missing from KB?
+- What memories reference non-existent code?
 
-## Phase 5: Features
+Report gap analysis before proceeding.
 
-Document key features:
+---
 
-- Core functionality
-- User-facing capabilities
-- API surface (if applicable)
-- Extension points
+## Memory Targets by Project Profile
 
-## Phase 6: Decisions
+| Profile | Phase 1 | Phase 2 | Phase 2B | Phase 3 | Phase 4 | Phase 5 | Phase 6 | Total Memories |
+|---------|---------|---------|----------|---------|---------|---------|---------|----------------|
+| Small Simple | 3-5 | 3-5 | 3+ entities | 3-5 | 2-4 | 0-3 | 3+ artifacts | 15-27 |
+| Small Complex | 5-7 | 5-8 | 5+ entities | 5-8 | 4-6 | 0-5 | 3-5 artifacts | 26-42 |
+| Medium Standard | 5-10 | 10-15 | 8+ entities | 8-12 | 5-10 | 0-8 | 5-10 artifacts | 35-60 |
+| Large | 8-12 | 15-20 | 12+ entities | 12-18 | 10-15 | 0-12 | 8-15 artifacts | 60-100 |
 
-Capture important decisions:
+**Note**: Phase 5 shows "0-X" because decision memories are ONLY created when explicit documentation exists. Phase 2B and Phase 6 are **MANDATORY** with minimum counts.
 
-- Why certain technologies were chosen
-- Trade-offs that were made
-- Rejected alternatives
-- Technical debt acknowledged
+---
 
-## Phase 7: Validation
+## Phase Completion Gates
 
-Verify the encoding:
+**CRITICAL**: Do not proceed to the next phase until the current phase meets its minimum targets.
 
-1. Query the new memories:
-   ```
-   execute_forgetful_tool("query_memory", {
-     "query": "$ARGUMENTS architecture patterns",
-     "query_context": "Validating encode-repo results",
-     "project_ids": [<new-project-id>]
-   })
-   ```
+After each phase, report:
+```
+Phase [N] Complete:
+- Created: [X] memories, [Y] entities, [Z] artifacts
+- Minimum required: [targets from table above]
+- Status: ✅ Met / ❌ Not met (explain gaps)
+```
 
-2. Check for gaps and offer to fill them
+### Mandatory Phases (CANNOT SKIP)
 
-3. Report summary:
-   ```
-   Encoding complete for $ARGUMENTS:
-   - Project ID: X
-   - Memories created: Y
-   - Documents created: Z
-   - Key themes: [list]
+| Phase | Minimum Output | Gate Requirement |
+|-------|---------------|------------------|
+| 0: Discovery | Gap analysis report | Report before proceeding |
+| 1: Foundation | 5 memories + project entity | All 5 core memories created |
+| 2: Architecture | Layer memories | 1 memory per identified layer |
+| **2B: Entities** | **3+ entities** | **Entity count met** |
+| 3: Patterns | 3+ pattern memories | Pattern count met |
+| **6: Artifacts** | **3+ code artifacts** | **Artifact count met** |
 
-   Suggested follow-up queries:
-   - /memory-search $ARGUMENTS authentication
-   - /memory-explore $ARGUMENTS
-   ```
+### Conditional Phases (Skip if criteria not met)
 
-## Guidelines
+| Phase | Condition | Skip Message |
+|-------|-----------|--------------|
+| 4: Features | Features exist | "No distinct features beyond core architecture" |
+| 5: Decisions | Explicit documentation exists | "No explicit decision documentation found" |
+| 7: Documents | Content >400 words needed | "No long-form documentation needed"
 
-- Create atomic memories (one concept per memory)
-- Use importance scoring consistently
-- Link related memories together
-- Ask clarifying questions when needed
-- Don't assume - query the codebase
+---
+
+## Phase 1: Project Foundation (5-10 memories)
+
+### Create/Update Project Entity
+
+If project doesn't exist:
+```
+execute_forgetful_tool("create_project", {
+  "name": "owner/repo-name",
+  "description": "<2-3 paragraphs: problem solved, features, tech stack>",
+  "project_type": "development",
+  "repo_name": "owner/repo",
+  "notes": "<operational details: how to run, test, deploy>"
+})
+```
+
+### Create Foundation Memories
+
+1. **Project Overview** (Importance: 10)
+   - Problem solved, users, unique value, status
+
+2. **Technology Stack** (Importance: 9)
+   - Language, frameworks, critical dependencies
+
+3. **Architecture Pattern** (Importance: 10)
+   - Style, major components, data flow
+
+4. **Development Setup** (Importance: 8)
+   - Prerequisites, install steps, configuration
+
+5. **Testing Strategy** (Importance: 8)
+   - Frameworks, categories, commands
+
+---
+
+## Phase 2: Architectural Deep Dive (10-15 memories)
+
+One memory per major architectural layer:
+- Routes/Controllers
+- Service/Business Logic
+- Repository/Data Access
+- Models/Domain Entities
+- Middleware
+- Authentication
+- Configuration
+
+Template:
+```
+{
+  "title": "[Project] - [Layer] Layer Implementation",
+  "content": "Purpose, location, patterns used, interactions, design decisions",
+  "context": "Understanding this layer for [specific tasks]",
+  "keywords": ["layer-name", "pattern", "directory"],
+  "tags": ["architecture", "layer"],
+  "importance": 8,
+  "project_ids": [<project_id>]
+}
+```
+
+**Checkpoint**: Report layer memories created before proceeding.
+
+---
+
+## Phase 2B: Entity Graph (MANDATORY, minimum 3 entities)
+
+**Purpose**: Create a knowledge graph of project components, people, services, and their relationships.
+
+**THIS PHASE IS MANDATORY** - Minimum 3 entities for any project.
+
+### Why Entities Matter
+
+Without entities, an agent cannot:
+- Understand relationships between components
+- Map team members to project areas
+- Track external services and integrations
+- Navigate the knowledge graph effectively
+
+### Minimum Entity Requirements
+
+| Project Size | Minimum Entities | Recommended |
+|--------------|------------------|-------------|
+| Small | 3 | 3-5 |
+| Medium | 5 | 8-12 |
+| Large | 8 | 12-20 |
+
+### Entity Categories to Create
+
+1. **Core Services/Components** (entity_type: "other", custom_type: "Service")
+   - Main application modules
+   - Background workers
+   - API services
+
+2. **External Dependencies** (entity_type: "other", custom_type: "ExternalService")
+   - Databases (PostgreSQL, Redis, etc.)
+   - Third-party APIs
+   - Cloud services
+
+3. **Key Abstractions** (entity_type: "other", custom_type: "Pattern")
+   - Base classes used throughout
+   - Core interfaces
+   - Shared utilities
+
+### Entity Creation
+
+```
+execute_forgetful_tool("create_entity", {
+  "name": "AuthService",
+  "entity_type": "other",
+  "custom_type": "Service",
+  "notes": "Handles JWT validation, user sessions, OAuth flows",
+  "aka": ["auth", "authentication"],
+  "tags": ["service", "security"],
+  "project_ids": [<project_id>]
+})
+```
+
+### Entity Relationships
+
+After creating entities, map their relationships:
+
+```
+execute_forgetful_tool("create_entity_relationship", {
+  "source_entity_id": <auth_service_id>,
+  "target_entity_id": <user_repo_id>,
+  "relationship_type": "depends_on",
+  "strength": 0.9,
+  "notes": "AuthService requires UserRepository for credential lookup"
+})
+```
+
+**Relationship Types**: `uses`, `depends_on`, `extends`, `implements`, `connects_to`, `contains`
+
+### Link Entities to Memories
+
+Connect entities to their related memories:
+
+```
+execute_forgetful_tool("link_entity_to_memory", {
+  "entity_id": <entity_id>,
+  "memory_id": <architecture_memory_id>
+})
+```
+
+**Checkpoint**:
+```
+Phase 2B Complete:
+- Entities created: [count]
+- Relationships mapped: [count]
+- Entity-memory links: [count]
+- Minimum required: 3 entities
+- Status: ✅ Met / ❌ Not met
+```
+
+---
+
+## Phase 3: Key Patterns & Practices (MANDATORY, 3+ memories)
+
+**THIS PHASE IS MANDATORY** - Minimum 3 pattern memories.
+
+### Pattern Categories to Search
+
+Search for these pattern types:
+
+1. **Dependency Injection / IoC**
+   - Search: `@inject`, `Depends(`, `container`, `provider`
+
+2. **Error Handling**
+   - Search: `except`, `catch`, `Error`, `Exception`, error middleware
+
+3. **Database Patterns**
+   - Search: `@transactional`, `session`, `commit`, `rollback`, connection pools
+
+4. **Async/Concurrency**
+   - Search: `async def`, `await`, `Promise`, `Future`, `lock`, `queue`
+
+5. **Validation**
+   - Search: `validate`, `schema`, `Pydantic`, `zod`, `@validator`
+
+6. **Caching**
+   - Search: `@cache`, `redis`, `lru_cache`, cache invalidation
+
+7. **Event/Message Patterns**
+   - Search: `emit`, `subscribe`, `publish`, `on_event`, message queues
+
+8. **Configuration**
+   - Search: `settings`, `config`, `env`, `.env`, secrets management
+
+### Pattern Memory Template
+
+```
+{
+  "title": "[Project] - Pattern: [Pattern Name]",
+  "content": "Where used, how implemented, key files, example usage",
+  "context": "Common pattern for [use case]",
+  "keywords": ["pattern", "specific-pattern-name"],
+  "tags": ["pattern", "implementation"],
+  "importance": 8,
+  "project_ids": [<project_id>]
+}
+```
+
+**Checkpoint**:
+```
+Phase 3 Complete:
+- Pattern memories created: [count]
+- Pattern categories covered: [list]
+- Minimum required: 3 memories
+- Status: ✅ Met / ❌ Not met
+```
+
+---
+
+## Phase 4: Critical Features (1-2 per feature)
+
+### Feature Categories to Identify
+
+1. **User-Facing Features**
+   - Authentication/authorization
+   - Data visualization/dashboards
+   - User management
+   - Notifications
+
+2. **Integration Features**
+   - External API integrations
+   - Data import/export
+   - Webhook handlers
+
+3. **Background/Scheduled Tasks**
+   - Cron jobs
+   - Queue workers
+   - Data sync processes
+
+4. **Core Business Logic**
+   - Domain-specific workflows
+   - Calculation engines
+   - State machines
+
+### Feature Memory Template
+
+```
+{
+  "title": "[Project] - Feature: [Feature Name]",
+  "content": "User perspective, technical approach, key files, data flow, dependencies",
+  "context": "Critical feature that [business value]",
+  "keywords": ["feature", "specific-feature-area"],
+  "tags": ["feature", "implementation"],
+  "importance": 8,
+  "project_ids": [<project_id>]
+}
+```
+
+**Checkpoint**:
+```
+Phase 4 Complete:
+- Feature memories created: [count]
+- Major features documented: [list]
+- Status: ✅ Complete / ⏭️ Skipped (no distinct features)
+```
+
+---
+
+## Phase 5: Design Decisions (CONDITIONAL - DOCUMENTATION ONLY)
+
+**CRITICAL: This phase is CONDITIONAL. Only capture decisions that are EXPLICITLY documented.**
+
+### What Counts as "Documented"
+
+✅ **DO create decision memories for**:
+- ADRs (Architecture Decision Records) in `docs/adr/` or similar
+- README sections titled "Why X", "Rationale", "Design Decisions"
+- Code comments explicitly stating "We chose X because Y"
+- CONTRIBUTING.md or DESIGN.md files explaining choices
+- Commit messages or PR descriptions with explicit rationale
+
+❌ **DO NOT create decision memories for**:
+- Inferred decisions (e.g., "They use PostgreSQL so they must value ACID")
+- Technology choices without documented rationale
+- Patterns you observe but aren't explained
+- Your assumptions about why something was built a certain way
+- Standard framework conventions (e.g., "FastAPI uses Pydantic")
+
+### Search Patterns
+
+```
+# ADR files
+Glob: **/adr/**/*.md, **/decisions/**/*.md, **/docs/architecture*.md
+
+# Decision markers in code
+Grep: "DECISION:", "RATIONALE:", "WHY:", "We chose", "Reason:"
+
+# README decision sections
+Grep: "## Why", "## Design", "## Architecture Decisions", "## Rationale"
+```
+
+### Process
+
+1. Search for explicit decision documentation using patterns above
+2. For each documented decision found, create memory with source citation
+3. **If NO explicit documentation found**:
+   - Report: "No explicit decision documentation found in repository"
+   - **SKIP this phase entirely**
+   - Do NOT create any decision memories based on inference
+
+### Template for Documented Decisions
+
+```
+{
+  "title": "[Project] - Decision: [Topic]",
+  "content": "Decision: [what was decided]. Rationale: [QUOTE from docs]. Source: [file path]",
+  "context": "Documented decision from [source file]",
+  "keywords": ["decision", "topic-area"],
+  "tags": ["decision", "documented"],
+  "importance": 9,
+  "project_ids": [<project_id>]
+}
+```
+
+**Checkpoint**:
+```
+Phase 5 Complete:
+- Decision documentation found: Yes/No
+- Decision memories created: [count]
+- Sources: [list of files]
+- Status: ✅ Complete / ⏭️ Skipped (no documentation found)
+```
+
+---
+
+## Phase 6: Code Artifacts (MANDATORY, minimum 3)
+
+**Purpose**: Store reusable code patterns that enable an agent to understand HOW the codebase works, not just WHAT exists.
+
+**THIS PHASE IS MANDATORY** - Minimum 3 artifacts for any project.
+
+### Why Code Artifacts Matter
+
+Without artifacts, an agent knows components exist but cannot:
+- Write code that integrates with existing patterns
+- Understand implementation details
+- See actual syntax and conventions used
+- Learn project-specific idioms
+
+### Minimum Artifact Requirements
+
+| Project Size | Minimum Artifacts | Recommended |
+|--------------|-------------------|-------------|
+| Small | 3 | 3-5 |
+| Medium | 5 | 5-10 |
+| Large | 8 | 8-15 |
+
+### What to Capture as Artifacts
+
+1. **Configuration Patterns** - How settings/config is loaded
+2. **Database Connection** - Connection pooling, session management
+3. **API Route Patterns** - Standard endpoint structure
+4. **Error Handling** - Custom exception handling
+5. **Authentication Flow** - Token validation, middleware
+6. **Testing Patterns** - Fixture setup, mocking patterns
+7. **Logging/Monitoring** - Standard logging setup
+8. **Background Tasks** - Worker/job patterns
+
+### Artifact Template
+
+```
+execute_forgetful_tool("create_code_artifact", {
+  "title": "[Project] - [Pattern Name]",
+  "description": "What it does, when to use, key integration points",
+  "code": "<actual implementation code>",
+  "language": "python",
+  "tags": ["pattern-type", "layer"],
+  "project_id": <project_id>
+})
+```
+
+### Link Artifacts to Memories
+
+After creating artifacts, link them to related memories:
+
+```
+execute_forgetful_tool("update_memory", {
+  "memory_id": <architecture_memory_id>,
+  "code_artifact_ids": [<artifact_id>]
+})
+```
+
+**Checkpoint**:
+```
+Phase 6 Complete:
+- Code artifacts created: [count]
+- Categories covered: [list]
+- Minimum required: 3 artifacts
+- Status: ✅ Met / ❌ Not met
+```
+
+---
+
+## Phase 7: Documents (as needed)
+
+For long-form content (>400 words), create documents with atomic memory entry points:
+
+```
+execute_forgetful_tool("create_document", {
+  "title": "[Project] - [Document Topic]",
+  "description": "Overview and purpose",
+  "content": "<full documentation>",
+  "document_type": "markdown",
+  "tags": ["documentation", "topic-area"],
+  "project_id": <project_id>
+})
+```
+
+After creating a document:
+1. Create 3-5 atomic memories as entry points
+2. Link memories to document via `document_ids`
+
+### When to Create Documents
+
+- Architecture overview (comprehensive)
+- API reference
+- Deployment guide
+- Symbol/Class index
+
+**Checkpoint**:
+```
+Phase 7 Complete:
+- Documents created: [count]
+- Entry point memories: [count]
+- Status: ✅ Complete / ⏭️ Skipped (not needed)
+```
+
+---
+
+## Execution Guidelines
+
+### Mandatory Phases (CANNOT SKIP)
+
+| Phase | Minimum Output | Gate Requirement |
+|-------|---------------|------------------|
+| 0: Discovery | Gap analysis report | Report before proceeding |
+| 1: Foundation | 5 memories + project | All 5 core memories created |
+| 2: Architecture | Layer memories | 1 per identified layer |
+| **2B: Entities** | **3+ entities** | **Entity count met** |
+| 3: Patterns | 3+ memories | Pattern count met |
+| **6: Artifacts** | **3+ artifacts** | **Artifact count met** |
+
+### Conditional Phases (Skip if criteria not met)
+
+| Phase | Condition to Run | Skip Message |
+|-------|-----------------|--------------|
+| 4: Features | Distinct features exist | "No distinct features beyond core architecture" |
+| 5: Decisions | Explicit docs exist | "No explicit decision documentation found" |
+| 7: Documents | Long-form needed | "No long-form documentation needed" |
+
+### Execution Rules
+
+1. **Execute phases in order**: 0 → 1 → 2 → 2B → 3 → 4 → 5 → 6 → 7
+2. **Check gates**: Each mandatory phase must meet minimums before proceeding
+3. **Report checkpoints**: Use checkpoint format after each phase
+4. **Skip conditionals**: Only if skip criteria explicitly met
+5. **Never skip mandatories**: Phases 0, 1, 2, 2B, 3, 6 must always run
+6. **Update outdated memories** as discovered
+7. **Mark obsolete** memories that reference removed code
+8. **Link new memories** to existing related memories
+
+## Quality Principles
+
+- **One concept per memory** (atomic)
+- **200-400 words ideal** per memory
+- **Include context field** explaining relevance
+- **Honest importance scoring** (most should be 7-8)
+- **Quality over quantity**
+- **Only document what's explicitly in the repo** (especially for decisions)
+
+---
+
+## Validation
+
+After completion, test with validation queries:
+
+```
+# Test 1: Architecture understanding
+execute_forgetful_tool("query_memory", {
+  "query": "How is the codebase architected?",
+  "query_context": "Testing bootstrap coverage",
+  "project_ids": [<project_id>]
+})
+
+# Test 2: Implementation patterns
+execute_forgetful_tool("query_memory", {
+  "query": "How do I add a new API endpoint?",
+  "query_context": "Testing bootstrap coverage",
+  "project_ids": [<project_id>]
+})
+
+# Test 3: Entity graph
+execute_forgetful_tool("list_entities", {
+  "project_ids": [<project_id>]
+})
+```
+
+If searches return poor results, create additional memories in those areas.
+
+---
+
+## Final Encoding Summary
+
+When encoding is complete, provide a summary in this format:
+
+```
+# [Project] Encoding Complete
+
+## Artifacts Created
+
+| Type | Count | Minimum | Status |
+|------|-------|---------|--------|
+| Memories | [X] | [per profile] | ✅/❌ |
+| Entities | [Y] | 3+ | ✅/❌ |
+| Relationships | [Z] | - | - |
+| Code Artifacts | [W] | 3+ | ✅/❌ |
+| Documents | [V] | 0 | ✅ |
+
+## Phase Completion
+
+| Phase | Status | Output |
+|-------|--------|--------|
+| 0: Discovery | ✅ | Gap analysis |
+| 1: Foundation | ✅ | [X] memories |
+| 2: Architecture | ✅ | [X] memories |
+| 2B: Entities | ✅/❌ | [X] entities |
+| 3: Patterns | ✅ | [X] memories |
+| 4: Features | ✅/⏭️ | [X] memories |
+| 5: Decisions | ✅/⏭️ | [X] memories |
+| 6: Artifacts | ✅/❌ | [X] artifacts |
+| 7: Documents | ✅/⏭️ | [X] documents |
+
+## Entity Graph Summary
+
+Created entities:
+- [Entity 1]: [type] - [description]
+- [Entity 2]: [type] - [description]
+- ...
+
+Relationships:
+- [Entity A] → [relationship] → [Entity B]
+- ...
+
+## Validation Queries Tested
+
+- [Query 1]: [result quality]
+- [Query 2]: [result quality]
+- [Query 3]: [result quality]
+```
+
+---
+
+## Report Progress
+
+After each phase, report:
+- Checkpoint status (using checkpoint format)
+- Memories/entities/artifacts created
+- Gaps remaining
+- Next phase to execute
+
+Ask user to confirm before proceeding to next phase.
