@@ -127,6 +127,9 @@ class MemoryRepository(Protocol):
             depth: int,
             include_memories: bool,
             include_entities: bool,
+            include_projects: bool,
+            include_documents: bool,
+            include_code_artifacts: bool,
             max_nodes: int
     ) -> Tuple[List[Dict[str, Any]], bool]:
         """
@@ -136,14 +139,22 @@ class MemoryRepository(Protocol):
         - memory_links (memory <-> memory)
         - memory_entity_association (memory <-> entity)
         - entity_relationships (entity <-> entity)
+        - memory_project_association (memory <-> project)
+        - document.project_id (document -> project)
+        - code_artifact.project_id (code_artifact -> project)
+        - memory_document_association (memory <-> document)
+        - memory_code_artifact_association (memory <-> code_artifact)
 
         Args:
             user_id: User ID for ownership filtering
-            center_type: "memory" or "entity"
+            center_type: "memory", "entity", "project", "document", or "code_artifact"
             center_id: ID of the center node
             depth: Maximum traversal depth (1-3)
             include_memories: Whether to include memory nodes in traversal
             include_entities: Whether to include entity nodes in traversal
+            include_projects: Whether to include project nodes in traversal
+            include_documents: Whether to include document nodes in traversal
+            include_code_artifacts: Whether to include code_artifact nodes in traversal
             max_nodes: Maximum nodes to return
 
         Returns:

@@ -19,16 +19,21 @@ logger = logging.getLogger(__name__)
 def register(mcp: FastMCP):
     """Register graph REST routes with FastMCP"""
 
+    # Constants for valid node types
+    ALL_NODE_TYPES = {"memory", "entity", "project", "document", "code_artifact"}
+
     @mcp.custom_route("/api/v1/graph", methods=["GET"])
     async def get_graph(request: Request) -> JSONResponse:
         """
         Get graph data for visualization.
 
-        Returns nodes (memories, entities) and edges (links between them).
+        Returns nodes (memories, entities, projects, documents, code_artifacts) and edges.
 
         Query params:
-            project_id: Filter to specific project (optional)
-            include_entities: Include entity nodes (default true)
+            project_id: Filter memories to specific project (optional)
+            node_types: Comma-separated list of node types to include
+                       (default: memory,entity,project,document,code_artifact)
+            include_entities: Legacy param, deprecated in favor of node_types
             limit: Max memories to include (default 100)
         """
         try:
@@ -38,8 +43,32 @@ def register(mcp: FastMCP):
 
         params = request.query_params
         project_id_str = params.get("project_id")
-        include_entities = params.get("include_entities", "true").lower() == "true"
         limit_str = params.get("limit", "100")
+
+        # Parse node_types parameter (new approach)
+        node_types_str = params.get("node_types")
+        if node_types_str:
+            # node_types takes precedence over include_entities
+            requested_types = {t.strip() for t in node_types_str.split(",") if t.strip()}
+            invalid_types = requested_types - ALL_NODE_TYPES
+            if invalid_types:
+                return JSONResponse(
+                    {"error": f"Invalid node_types: {invalid_types}. Valid values: {', '.join(sorted(ALL_NODE_TYPES))}"},
+                    status_code=400
+                )
+            include_memories = "memory" in requested_types
+            include_entities = "entity" in requested_types
+            include_projects = "project" in requested_types
+            include_documents = "document" in requested_types
+            include_code_artifacts = "code_artifact" in requested_types
+        else:
+            # Fallback to legacy include_entities param, default all types
+            include_entities_str = params.get("include_entities", "true").lower()
+            include_memories = True  # Always include memories by default
+            include_entities = include_entities_str == "true"
+            include_projects = True  # New default: include all types
+            include_documents = True
+            include_code_artifacts = True
 
         # Validate limit parameter
         try:
@@ -61,49 +90,52 @@ def register(mcp: FastMCP):
                     status_code=400
                 )
 
-        # Get memories
-        memories, _ = await mcp.memory_service.get_recent_memories(
-            user_id=user.id,
-            limit=limit,
-            project_ids=project_ids
-        )
-
         nodes: List[Dict[str, Any]] = []
         edges: List[Dict[str, Any]] = []
         seen_memory_ids = set()
         seen_edge_ids = set()
+        seen_project_ids = set()
+        seen_document_ids = set()
+        seen_code_artifact_ids = set()
+        memories = []  # Store for edge building
 
-        # First pass: Add all memory nodes and collect IDs
-        for memory in memories:
-            seen_memory_ids.add(memory.id)
-            nodes.append({
-                "id": f"memory_{memory.id}",
-                "type": "memory",
-                "label": memory.title,
-                "data": {
-                    "id": memory.id,
-                    "title": memory.title,
-                    "importance": memory.importance,
-                    "tags": memory.tags,
-                    "created_at": memory.created_at.isoformat() if memory.created_at else None
-                }
-            })
+        # Get memories
+        if include_memories:
+            memories, _ = await mcp.memory_service.get_recent_memories(
+                user_id=user.id,
+                limit=limit,
+                project_ids=project_ids
+            )
 
-        # Second pass: Add edges for all memory links (independent of processing order)
-        for memory in memories:
-            for linked_id in memory.linked_memory_ids:
-                # Only add edge if both memories are in the result set
-                if linked_id in seen_memory_ids:
-                    # Use canonical edge ID to deduplicate bidirectional links
-                    edge_id = f"memory_{min(memory.id, linked_id)}_memory_{max(memory.id, linked_id)}"
-                    if edge_id not in seen_edge_ids:
-                        seen_edge_ids.add(edge_id)
-                        edges.append({
-                            "id": edge_id,
-                            "source": f"memory_{memory.id}",
-                            "target": f"memory_{linked_id}",
-                            "type": "memory_link"
-                        })
+            # Add memory nodes
+            for memory in memories:
+                seen_memory_ids.add(memory.id)
+                nodes.append({
+                    "id": f"memory_{memory.id}",
+                    "type": "memory",
+                    "label": memory.title,
+                    "data": {
+                        "id": memory.id,
+                        "title": memory.title,
+                        "importance": memory.importance,
+                        "tags": memory.tags,
+                        "created_at": memory.created_at.isoformat() if memory.created_at else None
+                    }
+                })
+
+            # Add edges for memory links
+            for memory in memories:
+                for linked_id in memory.linked_memory_ids:
+                    if linked_id in seen_memory_ids:
+                        edge_id = f"memory_{min(memory.id, linked_id)}_memory_{max(memory.id, linked_id)}"
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
+                            edges.append({
+                                "id": edge_id,
+                                "source": f"memory_{memory.id}",
+                                "target": f"memory_{linked_id}",
+                                "type": "memory_link"
+                            })
 
         # Add entity nodes and edges if requested
         seen_entity_ids = set()
@@ -176,10 +208,156 @@ def register(mcp: FastMCP):
                             "type": "entity_memory"
                         })
 
+        # Add project nodes
+        projects = []
+        if include_projects:
+            projects = await mcp.project_service.list_projects(
+                user_id=user.id
+            )
+
+            for project in projects:
+                seen_project_ids.add(project.id)
+                nodes.append({
+                    "id": f"project_{project.id}",
+                    "type": "project",
+                    "label": project.name,
+                    "data": {
+                        "id": project.id,
+                        "name": project.name,
+                        "project_type": project.project_type.value if hasattr(project.project_type, 'value') else project.project_type,
+                        "status": project.status.value if hasattr(project.status, 'value') else project.status,
+                        "created_at": project.created_at.isoformat() if project.created_at else None
+                    }
+                })
+
+        # Add document nodes
+        documents = []
+        if include_documents:
+            documents = await mcp.document_service.list_documents(
+                user_id=user.id
+            )
+
+            for document in documents:
+                seen_document_ids.add(document.id)
+                nodes.append({
+                    "id": f"document_{document.id}",
+                    "type": "document",
+                    "label": document.title,
+                    "data": {
+                        "id": document.id,
+                        "title": document.title,
+                        "description": document.description,
+                        "document_type": document.document_type,
+                        "tags": document.tags,
+                        "created_at": document.created_at.isoformat() if document.created_at else None
+                    }
+                })
+
+        # Add code artifact nodes
+        code_artifacts = []
+        if include_code_artifacts:
+            code_artifacts = await mcp.code_artifact_service.list_code_artifacts(
+                user_id=user.id
+            )
+
+            for artifact in code_artifacts:
+                seen_code_artifact_ids.add(artifact.id)
+                nodes.append({
+                    "id": f"code_artifact_{artifact.id}",
+                    "type": "code_artifact",
+                    "label": artifact.title,
+                    "data": {
+                        "id": artifact.id,
+                        "title": artifact.title,
+                        "description": artifact.description,
+                        "language": artifact.language,
+                        "tags": artifact.tags,
+                        "created_at": artifact.created_at.isoformat() if artifact.created_at else None
+                    }
+                })
+
+        # Add memory-project edges (from memory.project_ids)
+        if include_memories and include_projects:
+            for memory in memories:
+                for proj_id in (memory.project_ids or []):
+                    if proj_id in seen_project_ids:
+                        edge_id = f"memory_{memory.id}_project_{proj_id}"
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
+                            edges.append({
+                                "id": edge_id,
+                                "source": f"memory_{memory.id}",
+                                "target": f"project_{proj_id}",
+                                "type": "memory_project"
+                            })
+
+        # Add document-project edges (from document.project_id)
+        if include_documents and include_projects:
+            for document in documents:
+                if document.project_id and document.project_id in seen_project_ids:
+                    edge_id = f"document_{document.id}_project_{document.project_id}"
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append({
+                            "id": edge_id,
+                            "source": f"document_{document.id}",
+                            "target": f"project_{document.project_id}",
+                            "type": "document_project"
+                        })
+
+        # Add code_artifact-project edges (from artifact.project_id)
+        if include_code_artifacts and include_projects:
+            for artifact in code_artifacts:
+                if artifact.project_id and artifact.project_id in seen_project_ids:
+                    edge_id = f"code_artifact_{artifact.id}_project_{artifact.project_id}"
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append({
+                            "id": edge_id,
+                            "source": f"code_artifact_{artifact.id}",
+                            "target": f"project_{artifact.project_id}",
+                            "type": "code_artifact_project"
+                        })
+
+        # Add memory-document edges (from memory.document_ids)
+        if include_memories and include_documents:
+            for memory in memories:
+                for doc_id in (memory.document_ids or []):
+                    if doc_id in seen_document_ids:
+                        edge_id = f"memory_{memory.id}_document_{doc_id}"
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
+                            edges.append({
+                                "id": edge_id,
+                                "source": f"memory_{memory.id}",
+                                "target": f"document_{doc_id}",
+                                "type": "memory_document"
+                            })
+
+        # Add memory-code_artifact edges (from memory.code_artifact_ids)
+        if include_memories and include_code_artifacts:
+            for memory in memories:
+                for artifact_id in (memory.code_artifact_ids or []):
+                    if artifact_id in seen_code_artifact_ids:
+                        edge_id = f"memory_{memory.id}_code_artifact_{artifact_id}"
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
+                            edges.append({
+                                "id": edge_id,
+                                "source": f"memory_{memory.id}",
+                                "target": f"code_artifact_{artifact_id}",
+                                "type": "memory_code_artifact"
+                            })
+
         # Count edges by type for meta
         memory_link_count = len([e for e in edges if e["type"] == "memory_link"])
         entity_relationship_count = len([e for e in edges if e["type"] == "entity_relationship"])
         entity_memory_count = len([e for e in edges if e["type"] == "entity_memory"])
+        memory_project_count = len([e for e in edges if e["type"] == "memory_project"])
+        document_project_count = len([e for e in edges if e["type"] == "document_project"])
+        code_artifact_project_count = len([e for e in edges if e["type"] == "code_artifact_project"])
+        memory_document_count = len([e for e in edges if e["type"] == "memory_document"])
+        memory_code_artifact_count = len([e for e in edges if e["type"] == "memory_code_artifact"])
 
         return JSONResponse({
             "nodes": nodes,
@@ -187,10 +365,18 @@ def register(mcp: FastMCP):
             "meta": {
                 "memory_count": len([n for n in nodes if n["type"] == "memory"]),
                 "entity_count": len([n for n in nodes if n["type"] == "entity"]),
+                "project_count": len([n for n in nodes if n["type"] == "project"]),
+                "document_count": len([n for n in nodes if n["type"] == "document"]),
+                "code_artifact_count": len([n for n in nodes if n["type"] == "code_artifact"]),
                 "edge_count": len(edges),
                 "memory_link_count": memory_link_count,
                 "entity_relationship_count": entity_relationship_count,
-                "entity_memory_count": entity_memory_count
+                "entity_memory_count": entity_memory_count,
+                "memory_project_count": memory_project_count,
+                "document_project_count": document_project_count,
+                "code_artifact_project_count": code_artifact_project_count,
+                "memory_document_count": memory_document_count,
+                "memory_code_artifact_count": memory_code_artifact_count
             }
         })
 
@@ -408,9 +594,9 @@ def register(mcp: FastMCP):
         older /graph/memory/{id} endpoint with better performance and entity support.
 
         Query params:
-            node_id: Center node in format "memory_{id}" or "entity_{id}" (required)
+            node_id: Center node in format "memory_{id}", "entity_{id}", "project_{id}", "document_{id}", or "code_artifact_{id}" (required)
             depth: Traversal depth 1-3 (default 2)
-            node_types: Comma-separated list "memory,entity" (default both)
+            node_types: Comma-separated list of types to include (default: "memory,entity,project,document,code_artifact")
             max_nodes: Safety limit (default 200, max 500)
 
         Returns:
@@ -429,7 +615,7 @@ def register(mcp: FastMCP):
         node_id = params.get("node_id")
         if not node_id:
             return JSONResponse(
-                {"error": "Missing required parameter: node_id. Format: 'memory_{id}' or 'entity_{id}'"},
+                {"error": "Missing required parameter: node_id. Format: 'memory_{id}', 'entity_{id}', 'project_{id}', 'document_{id}', or 'code_artifact_{id}'"},
                 status_code=400
             )
 
@@ -448,18 +634,18 @@ def register(mcp: FastMCP):
                 status_code=400
             )
 
-        # Parse node_types parameter
-        node_types_str = params.get("node_types", "memory,entity")
+        # Parse node_types parameter (default: all 5 types)
+        node_types_str = params.get("node_types", "memory,entity,project,document,code_artifact")
         node_types = [t.strip() for t in node_types_str.split(",") if t.strip()]
-        valid_types = {"memory", "entity"}
+        valid_types = {"memory", "entity", "project", "document", "code_artifact"}
         invalid_types = set(node_types) - valid_types
         if invalid_types:
             return JSONResponse(
-                {"error": f"Invalid node_types: {invalid_types}. Valid values: memory, entity"},
+                {"error": f"Invalid node_types: {invalid_types}. Valid values: memory, entity, project, document, code_artifact"},
                 status_code=400
             )
         if not node_types:
-            node_types = ["memory", "entity"]
+            node_types = ["memory", "entity", "project", "document", "code_artifact"]
 
         # Validate max_nodes parameter
         max_nodes_str = params.get("max_nodes", "200")
@@ -485,6 +671,10 @@ def register(mcp: FastMCP):
             return JSONResponse({"error": str(e)}, status_code=400)
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
+        except Exception as e:
+            # Log and return detailed error for debugging
+            logger.exception(f"Subgraph query failed: {e}")
+            return JSONResponse({"error": f"Internal error: {str(e)}"}, status_code=500)
 
         # Convert Pydantic models to dicts for JSON response
         return JSONResponse({

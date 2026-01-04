@@ -161,7 +161,13 @@ async def lifespan(app):
     code_artifact_service = CodeArtifactService(repos["code_artifact"])
     document_service = DocumentService(repos["document"])
     entity_service = EntityService(repos["entity"])
-    graph_service = GraphService(repos["memory"], repos["entity"])
+    graph_service = GraphService(
+        repos["memory"],
+        repos["entity"],
+        project_service=project_service,
+        document_service=document_service,
+        code_artifact_service=code_artifact_service,
+    )
 
     mcp.user_service = user_service
     mcp.memory_service = memory_service

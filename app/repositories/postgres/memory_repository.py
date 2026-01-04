@@ -861,137 +861,294 @@ class PostgresMemoryRepository:
         depth: int,
         include_memories: bool,
         include_entities: bool,
+        include_projects: bool,
+        include_documents: bool,
+        include_code_artifacts: bool,
         max_nodes: int
     ) -> Tuple[List[Dict[str, Any]], bool]:
         """
         Traverse graph using recursive CTE from center node.
 
-        Uses a single recursive CTE query to traverse all edge types:
+        Uses PostgreSQL's CROSS JOIN LATERAL pattern for recursive CTEs with multiple
+        edge types. PostgreSQL only allows ONE recursive reference per recursion level,
+        so instead of multiple UNION ALL branches at the CTE level, we use a single
+        recursive term with CROSS JOIN LATERAL that contains all edge traversals.
+
+        Edge types traversed (when corresponding node types are included):
         - memory_links (memory <-> memory)
         - memory_entity_association (memory <-> entity)
         - entity_relationships (entity <-> entity)
+        - memory_project_association (memory <-> project)
+        - document.project_id (document -> project)
+        - code_artifact.project_id (code_artifact -> project)
+        - memory_document_association (memory <-> document)
+        - memory_code_artifact_association (memory <-> code_artifact)
 
         PostgreSQL-specific implementation using ARRAY for path tracking
         and = ANY() for cycle detection.
 
         Args:
             user_id: User ID for ownership filtering
-            center_type: "memory" or "entity"
+            center_type: "memory", "entity", "project", "document", or "code_artifact"
             center_id: ID of the center node
             depth: Maximum traversal depth (1-3)
             include_memories: Whether to include memory nodes in traversal
             include_entities: Whether to include entity nodes in traversal
+            include_projects: Whether to include project nodes in traversal
+            include_documents: Whether to include document nodes in traversal
+            include_code_artifacts: Whether to include code_artifact nodes in traversal
             max_nodes: Maximum nodes to return
 
         Returns:
             Tuple of (nodes_list, truncated) where nodes_list contains dicts
             with node_id, node_type, and depth fields
         """
-        # Build the recursive CTE query with PostgreSQL-specific syntax
-        # Uses ARRAY for path tracking and = ANY() for cycle detection
-        query = text("""
-            WITH RECURSIVE graph_traverse(node_id, node_type, depth, path) AS (
-                -- Anchor: the center node
-                SELECT
-                    :center_id::INTEGER AS node_id,
-                    :center_type::TEXT AS node_type,
-                    0 AS depth,
-                    ARRAY[:center_type || '_' || :center_id::TEXT] AS path
+        # Pre-compute the initial path value
+        initial_path = f"{center_type}_{center_id}"
 
-                UNION ALL
+        # Build edge traversal queries for LATERAL subquery.
+        # Each edge type is a SELECT that will be UNION ALL'd together inside LATERAL.
+        # The key insight: PostgreSQL allows only ONE recursive reference per level,
+        # but inside LATERAL we can reference the current row (gt) without restriction.
+        edge_queries = []
 
-                -- Memory -> Memory via memory_links
+        # Memory -> Memory via memory_links
+        if include_memories:
+            edge_queries.append("""
                 SELECT
-                    CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END,
-                    'memory'::TEXT,
-                    gt.depth + 1,
-                    gt.path || ARRAY['memory_' || (CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END)::TEXT]
-                FROM graph_traverse gt
-                INNER JOIN memory_links ml ON (
-                    gt.node_type = 'memory'
-                    AND (ml.source_id = gt.node_id OR ml.target_id = gt.node_id)
-                    AND ml.user_id = :user_id
-                )
-                INNER JOIN memories m ON m.id = CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END
-                WHERE gt.depth < :max_depth
+                    CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END AS target_id,
+                    'memory'::TEXT AS target_type
+                FROM memory_links ml
+                INNER JOIN memories m ON m.id = (CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END)
+                WHERE gt.node_type = 'memory'
+                  AND (ml.source_id = gt.node_id OR ml.target_id = gt.node_id)
+                  AND ml.user_id = :user_id
                   AND m.user_id = :user_id
                   AND m.is_obsolete = false
-                  AND :include_memories = true
-                  AND NOT ('memory_' || (CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END)::TEXT) = ANY(gt.path)
+            """)
 
-                UNION ALL
-
-                -- Memory -> Entity via memory_entity_association
+        # Memory -> Entity via memory_entity_association
+        if include_memories and include_entities:
+            edge_queries.append("""
                 SELECT
-                    mea.entity_id,
-                    'entity'::TEXT,
-                    gt.depth + 1,
-                    gt.path || ARRAY['entity_' || mea.entity_id::TEXT]
-                FROM graph_traverse gt
-                INNER JOIN memory_entity_association mea ON (
-                    gt.node_type = 'memory'
-                    AND mea.memory_id = gt.node_id
-                )
+                    mea.entity_id AS target_id,
+                    'entity'::TEXT AS target_type
+                FROM memory_entity_association mea
                 INNER JOIN entities e ON e.id = mea.entity_id
-                WHERE gt.depth < :max_depth
+                WHERE gt.node_type = 'memory'
+                  AND mea.memory_id = gt.node_id
                   AND e.user_id = :user_id
-                  AND :include_entities = true
-                  AND NOT ('entity_' || mea.entity_id::TEXT) = ANY(gt.path)
+            """)
 
-                UNION ALL
-
-                -- Entity -> Memory via memory_entity_association
+        # Entity -> Memory via memory_entity_association
+        if include_memories and include_entities:
+            edge_queries.append("""
                 SELECT
-                    mea.memory_id,
-                    'memory'::TEXT,
-                    gt.depth + 1,
-                    gt.path || ARRAY['memory_' || mea.memory_id::TEXT]
-                FROM graph_traverse gt
-                INNER JOIN memory_entity_association mea ON (
-                    gt.node_type = 'entity'
-                    AND mea.entity_id = gt.node_id
-                )
+                    mea.memory_id AS target_id,
+                    'memory'::TEXT AS target_type
+                FROM memory_entity_association mea
                 INNER JOIN memories m ON m.id = mea.memory_id
-                WHERE gt.depth < :max_depth
+                WHERE gt.node_type = 'entity'
+                  AND mea.entity_id = gt.node_id
                   AND m.user_id = :user_id
                   AND m.is_obsolete = false
-                  AND :include_memories = true
-                  AND NOT ('memory_' || mea.memory_id::TEXT) = ANY(gt.path)
+            """)
+
+        # Entity -> Entity via entity_relationships
+        if include_entities:
+            edge_queries.append("""
+                SELECT
+                    CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END AS target_id,
+                    'entity'::TEXT AS target_type
+                FROM entity_relationships er
+                INNER JOIN entities e ON e.id = (CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END)
+                WHERE gt.node_type = 'entity'
+                  AND (er.source_entity_id = gt.node_id OR er.target_entity_id = gt.node_id)
+                  AND er.user_id = :user_id
+                  AND e.user_id = :user_id
+            """)
+
+        # Memory -> Project via memory_project_association
+        if include_memories and include_projects:
+            edge_queries.append("""
+                SELECT
+                    mpa.project_id AS target_id,
+                    'project'::TEXT AS target_type
+                FROM memory_project_association mpa
+                INNER JOIN projects p ON p.id = mpa.project_id
+                WHERE gt.node_type = 'memory'
+                  AND mpa.memory_id = gt.node_id
+                  AND p.user_id = :user_id
+            """)
+
+        # Project -> Memory via memory_project_association
+        if include_memories and include_projects:
+            edge_queries.append("""
+                SELECT
+                    mpa.memory_id AS target_id,
+                    'memory'::TEXT AS target_type
+                FROM memory_project_association mpa
+                INNER JOIN memories m ON m.id = mpa.memory_id
+                WHERE gt.node_type = 'project'
+                  AND mpa.project_id = gt.node_id
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = false
+            """)
+
+        # Memory -> Document via memory_document_association
+        if include_memories and include_documents:
+            edge_queries.append("""
+                SELECT
+                    mda.document_id AS target_id,
+                    'document'::TEXT AS target_type
+                FROM memory_document_association mda
+                INNER JOIN documents d ON d.id = mda.document_id
+                WHERE gt.node_type = 'memory'
+                  AND mda.memory_id = gt.node_id
+                  AND d.user_id = :user_id
+            """)
+
+        # Document -> Memory via memory_document_association
+        if include_memories and include_documents:
+            edge_queries.append("""
+                SELECT
+                    mda.memory_id AS target_id,
+                    'memory'::TEXT AS target_type
+                FROM memory_document_association mda
+                INNER JOIN memories m ON m.id = mda.memory_id
+                WHERE gt.node_type = 'document'
+                  AND mda.document_id = gt.node_id
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = false
+            """)
+
+        # Memory -> CodeArtifact via memory_code_artifact_association
+        if include_memories and include_code_artifacts:
+            edge_queries.append("""
+                SELECT
+                    mca.code_artifact_id AS target_id,
+                    'code_artifact'::TEXT AS target_type
+                FROM memory_code_artifact_association mca
+                INNER JOIN code_artifacts ca ON ca.id = mca.code_artifact_id
+                WHERE gt.node_type = 'memory'
+                  AND mca.memory_id = gt.node_id
+                  AND ca.user_id = :user_id
+            """)
+
+        # CodeArtifact -> Memory via memory_code_artifact_association
+        if include_memories and include_code_artifacts:
+            edge_queries.append("""
+                SELECT
+                    mca.memory_id AS target_id,
+                    'memory'::TEXT AS target_type
+                FROM memory_code_artifact_association mca
+                INNER JOIN memories m ON m.id = mca.memory_id
+                WHERE gt.node_type = 'code_artifact'
+                  AND mca.code_artifact_id = gt.node_id
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = false
+            """)
+
+        # Document -> Project via documents.project_id FK
+        if include_documents and include_projects:
+            edge_queries.append("""
+                SELECT
+                    d.project_id AS target_id,
+                    'project'::TEXT AS target_type
+                FROM documents d
+                INNER JOIN projects p ON p.id = d.project_id
+                WHERE gt.node_type = 'document'
+                  AND d.id = gt.node_id
+                  AND d.project_id IS NOT NULL
+                  AND p.user_id = :user_id
+            """)
+
+        # Project -> Document via documents.project_id FK
+        if include_documents and include_projects:
+            edge_queries.append("""
+                SELECT
+                    d.id AS target_id,
+                    'document'::TEXT AS target_type
+                FROM documents d
+                WHERE gt.node_type = 'project'
+                  AND d.project_id = gt.node_id
+                  AND d.user_id = :user_id
+            """)
+
+        # CodeArtifact -> Project via code_artifacts.project_id FK
+        if include_code_artifacts and include_projects:
+            edge_queries.append("""
+                SELECT
+                    ca.project_id AS target_id,
+                    'project'::TEXT AS target_type
+                FROM code_artifacts ca
+                INNER JOIN projects p ON p.id = ca.project_id
+                WHERE gt.node_type = 'code_artifact'
+                  AND ca.id = gt.node_id
+                  AND ca.project_id IS NOT NULL
+                  AND p.user_id = :user_id
+            """)
+
+        # Project -> CodeArtifact via code_artifacts.project_id FK
+        if include_code_artifacts and include_projects:
+            edge_queries.append("""
+                SELECT
+                    ca.id AS target_id,
+                    'code_artifact'::TEXT AS target_type
+                FROM code_artifacts ca
+                WHERE gt.node_type = 'project'
+                  AND ca.project_id = gt.node_id
+                  AND ca.user_id = :user_id
+            """)
+
+        # If no edges to traverse, just return the center node
+        if not edge_queries:
+            return [{"node_id": center_id, "node_type": center_type, "depth": 0}], False
+
+        # Build the LATERAL subquery by joining all edge queries with UNION ALL
+        lateral_subquery = " UNION ALL ".join(edge_queries)
+
+        # Build final query using CROSS JOIN LATERAL pattern
+        # This allows PostgreSQL to handle multiple edge types in a single recursive term
+        query_str = f"""
+            WITH RECURSIVE graph_traverse(node_id, node_type, depth, path) AS (
+                -- Anchor: the center node (non-recursive term)
+                SELECT
+                    CAST(:center_id AS INTEGER) AS node_id,
+                    CAST(:center_type AS TEXT) AS node_type,
+                    0 AS depth,
+                    ARRAY[:initial_path] AS path
 
                 UNION ALL
 
-                -- Entity -> Entity via entity_relationships
+                -- Recursive term: traverse all edge types via LATERAL
                 SELECT
-                    CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END,
-                    'entity'::TEXT,
+                    edges.target_id,
+                    edges.target_type,
                     gt.depth + 1,
-                    gt.path || ARRAY['entity_' || (CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END)::TEXT]
+                    gt.path || ARRAY[edges.target_type || '_' || edges.target_id::TEXT]
                 FROM graph_traverse gt
-                INNER JOIN entity_relationships er ON (
-                    gt.node_type = 'entity'
-                    AND (er.source_entity_id = gt.node_id OR er.target_entity_id = gt.node_id)
-                    AND er.user_id = :user_id
-                )
-                INNER JOIN entities e ON e.id = CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END
+                CROSS JOIN LATERAL (
+                    {lateral_subquery}
+                ) edges
                 WHERE gt.depth < :max_depth
-                  AND e.user_id = :user_id
-                  AND :include_entities = true
-                  AND NOT ('entity_' || (CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END)::TEXT) = ANY(gt.path)
+                  AND NOT (edges.target_type || '_' || edges.target_id::TEXT) = ANY(gt.path)
             )
             SELECT node_id, node_type, MIN(depth) as depth
             FROM graph_traverse
             GROUP BY node_id, node_type
             ORDER BY depth, node_type, node_id
             LIMIT :limit_plus_one
-        """)
+        """
+
+        query = text(query_str)
 
         params = {
             "center_id": center_id,
             "center_type": center_type,
-            "user_id": user_id,  # PostgreSQL handles UUID natively
+            "initial_path": initial_path,
+            "user_id": user_id,
             "max_depth": depth,
-            "include_memories": include_memories,
-            "include_entities": include_entities,
             "limit_plus_one": max_nodes + 1,  # +1 to detect truncation
         }
 

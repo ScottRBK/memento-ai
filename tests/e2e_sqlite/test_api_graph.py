@@ -1121,3 +1121,424 @@ class TestSubgraphEndpoint:
         assert "entity_relationship_count" in meta
         assert "entity_memory_count" in meta
         assert "truncated" in meta
+
+
+class TestGraphNewNodeTypes:
+    """Tests for project, document, and code_artifact node types in graph API."""
+
+    @pytest.mark.asyncio
+    async def test_graph_includes_project_nodes(self, http_client):
+        """GET /api/v1/graph includes project nodes when projects exist."""
+        # Create a project
+        project_resp = await http_client.post("/api/v1/projects", json={
+            "name": "Test Project",
+            "description": "Project for graph test",
+            "project_type": "development"
+        })
+        assert project_resp.status_code in [200, 201]
+        project_id = project_resp.json()["id"]
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check project node exists
+        project_nodes = [n for n in data["nodes"] if n["type"] == "project"]
+        assert len(project_nodes) >= 1
+        assert any(n["data"]["id"] == project_id for n in project_nodes)
+
+        # Check meta includes project_count
+        assert "project_count" in data["meta"]
+        assert data["meta"]["project_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_includes_document_nodes(self, http_client):
+        """GET /api/v1/graph includes document nodes when documents exist."""
+        # Create a document
+        doc_resp = await http_client.post("/api/v1/documents", json={
+            "title": "Test Document",
+            "description": "Document for graph test",
+            "content": "This is the document content for testing graph API",
+            "document_type": "text",
+            "tags": ["test"]
+        })
+        assert doc_resp.status_code in [200, 201]
+        document_id = doc_resp.json()["id"]
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check document node exists
+        document_nodes = [n for n in data["nodes"] if n["type"] == "document"]
+        assert len(document_nodes) >= 1
+        assert any(n["data"]["id"] == document_id for n in document_nodes)
+
+        # Check meta includes document_count
+        assert "document_count" in data["meta"]
+        assert data["meta"]["document_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_includes_code_artifact_nodes(self, http_client):
+        """GET /api/v1/graph includes code_artifact nodes when artifacts exist."""
+        # Create a code artifact
+        artifact_resp = await http_client.post("/api/v1/code-artifacts", json={
+            "title": "Test Artifact",
+            "description": "Code artifact for graph test",
+            "code": "def hello(): return 'world'",
+            "language": "python",
+            "tags": ["test"]
+        })
+        assert artifact_resp.status_code in [200, 201]
+        artifact_id = artifact_resp.json()["id"]
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check code_artifact node exists
+        artifact_nodes = [n for n in data["nodes"] if n["type"] == "code_artifact"]
+        assert len(artifact_nodes) >= 1
+        assert any(n["data"]["id"] == artifact_id for n in artifact_nodes)
+
+        # Check meta includes code_artifact_count
+        assert "code_artifact_count" in data["meta"]
+        assert data["meta"]["code_artifact_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_memory_project_edges(self, http_client):
+        """Graph includes memory_project edges when memory linked to project."""
+        # Create project
+        project_resp = await http_client.post("/api/v1/projects", json={
+            "name": "Edge Test Project",
+            "description": "Project for edge test",
+            "project_type": "development"
+        })
+        project_id = project_resp.json()["id"]
+
+        # Create memory with project_ids
+        await http_client.post("/api/v1/memories", json={
+            "title": "Project Linked Memory",
+            "content": "Memory linked to project",
+            "context": "Testing memory_project edges",
+            "keywords": ["project"],
+            "tags": ["project-test"],
+            "importance": 7,
+            "project_ids": [project_id]
+        })
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check memory_project edge exists
+        memory_project_edges = [e for e in data["edges"] if e["type"] == "memory_project"]
+        assert len(memory_project_edges) >= 1
+
+        # Check meta includes count
+        assert "memory_project_count" in data["meta"]
+        assert data["meta"]["memory_project_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_document_project_edges(self, http_client):
+        """Graph includes document_project edges when document linked to project."""
+        # Create project
+        project_resp = await http_client.post("/api/v1/projects", json={
+            "name": "Document Edge Project",
+            "description": "Project for document edge test",
+            "project_type": "development"
+        })
+        project_id = project_resp.json()["id"]
+
+        # Create document with project_id
+        await http_client.post("/api/v1/documents", json={
+            "title": "Project Linked Document",
+            "description": "Document linked to project",
+            "content": "Document content for edge testing",
+            "document_type": "text",
+            "tags": ["test"],
+            "project_id": project_id
+        })
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check document_project edge exists
+        document_project_edges = [e for e in data["edges"] if e["type"] == "document_project"]
+        assert len(document_project_edges) >= 1
+
+        # Check meta includes count
+        assert "document_project_count" in data["meta"]
+        assert data["meta"]["document_project_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_code_artifact_project_edges(self, http_client):
+        """Graph includes code_artifact_project edges when artifact linked to project."""
+        # Create project
+        project_resp = await http_client.post("/api/v1/projects", json={
+            "name": "Artifact Edge Project",
+            "description": "Project for artifact edge test",
+            "project_type": "development"
+        })
+        project_id = project_resp.json()["id"]
+
+        # Create code artifact with project_id
+        await http_client.post("/api/v1/code-artifacts", json={
+            "title": "Project Linked Artifact",
+            "description": "Artifact linked to project",
+            "code": "print('hello')",
+            "language": "python",
+            "tags": ["test"],
+            "project_id": project_id
+        })
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check code_artifact_project edge exists
+        artifact_project_edges = [e for e in data["edges"] if e["type"] == "code_artifact_project"]
+        assert len(artifact_project_edges) >= 1
+
+        # Check meta includes count
+        assert "code_artifact_project_count" in data["meta"]
+        assert data["meta"]["code_artifact_project_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_memory_document_edges(self, http_client):
+        """Graph includes memory_document edges when memory linked to document."""
+        # Create document
+        doc_resp = await http_client.post("/api/v1/documents", json={
+            "title": "Document for Memory Link",
+            "description": "Document to be linked",
+            "content": "Document content",
+            "document_type": "text",
+            "tags": ["test"]
+        })
+        document_id = doc_resp.json()["id"]
+
+        # Create memory with document_ids
+        await http_client.post("/api/v1/memories", json={
+            "title": "Document Linked Memory",
+            "content": "Memory linked to document",
+            "context": "Testing memory_document edges",
+            "keywords": ["document"],
+            "tags": ["document-test"],
+            "importance": 7,
+            "document_ids": [document_id]
+        })
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check memory_document edge exists
+        memory_document_edges = [e for e in data["edges"] if e["type"] == "memory_document"]
+        assert len(memory_document_edges) >= 1
+
+        # Check meta includes count
+        assert "memory_document_count" in data["meta"]
+        assert data["meta"]["memory_document_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_memory_code_artifact_edges(self, http_client):
+        """Graph includes memory_code_artifact edges when memory linked to artifact."""
+        # Create code artifact
+        artifact_resp = await http_client.post("/api/v1/code-artifacts", json={
+            "title": "Artifact for Memory Link",
+            "description": "Artifact to be linked",
+            "code": "x = 1",
+            "language": "python",
+            "tags": ["test"]
+        })
+        artifact_id = artifact_resp.json()["id"]
+
+        # Create memory with code_artifact_ids
+        await http_client.post("/api/v1/memories", json={
+            "title": "Artifact Linked Memory",
+            "content": "Memory linked to artifact",
+            "context": "Testing memory_code_artifact edges",
+            "keywords": ["artifact"],
+            "tags": ["artifact-test"],
+            "importance": 7,
+            "code_artifact_ids": [artifact_id]
+        })
+
+        # Get graph
+        response = await http_client.get("/api/v1/graph")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check memory_code_artifact edge exists
+        memory_artifact_edges = [e for e in data["edges"] if e["type"] == "memory_code_artifact"]
+        assert len(memory_artifact_edges) >= 1
+
+        # Check meta includes count
+        assert "memory_code_artifact_count" in data["meta"]
+        assert data["meta"]["memory_code_artifact_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_graph_node_types_filter_excludes_projects(self, http_client):
+        """node_types parameter can exclude project nodes."""
+        # Create a project
+        await http_client.post("/api/v1/projects", json={
+            "name": "Filter Test Project",
+            "description": "Project for filter test",
+            "project_type": "development"
+        })
+
+        # Get graph without projects
+        response = await http_client.get("/api/v1/graph?node_types=memory,entity")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have no project nodes
+        project_nodes = [n for n in data["nodes"] if n["type"] == "project"]
+        assert len(project_nodes) == 0
+
+    @pytest.mark.asyncio
+    async def test_subgraph_from_project_center(self, http_client):
+        """Subgraph can be centered on a project node."""
+        # Create project
+        project_resp = await http_client.post("/api/v1/projects", json={
+            "name": "Center Project",
+            "description": "Project to center subgraph on",
+            "project_type": "development"
+        })
+        project_id = project_resp.json()["id"]
+
+        # Create memory linked to project
+        await http_client.post("/api/v1/memories", json={
+            "title": "Project Related Memory",
+            "content": "Memory for project subgraph test",
+            "context": "Testing subgraph from project center",
+            "keywords": ["project"],
+            "tags": ["test"],
+            "importance": 7,
+            "project_ids": [project_id]
+        })
+
+        # Get subgraph centered on project
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=project_{project_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Center should be the project
+        assert data["meta"]["center_node_id"] == f"project_{project_id}"
+
+        # Should include the linked memory
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        assert len(memory_nodes) >= 1
+
+    @pytest.mark.asyncio
+    async def test_subgraph_from_document_center(self, http_client):
+        """Subgraph can be centered on a document node."""
+        # Create document
+        doc_resp = await http_client.post("/api/v1/documents", json={
+            "title": "Center Document",
+            "description": "Document to center subgraph on",
+            "content": "Document content for subgraph test",
+            "document_type": "text",
+            "tags": ["test"]
+        })
+        document_id = doc_resp.json()["id"]
+
+        # Create memory linked to document
+        await http_client.post("/api/v1/memories", json={
+            "title": "Document Related Memory",
+            "content": "Memory for document subgraph test",
+            "context": "Testing subgraph from document center",
+            "keywords": ["document"],
+            "tags": ["test"],
+            "importance": 7,
+            "document_ids": [document_id]
+        })
+
+        # Get subgraph centered on document
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=document_{document_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Center should be the document
+        assert data["meta"]["center_node_id"] == f"document_{document_id}"
+
+        # Should include the linked memory
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        assert len(memory_nodes) >= 1
+
+    @pytest.mark.asyncio
+    async def test_subgraph_from_code_artifact_center(self, http_client):
+        """Subgraph can be centered on a code_artifact node."""
+        # Create code artifact
+        artifact_resp = await http_client.post("/api/v1/code-artifacts", json={
+            "title": "Center Artifact",
+            "description": "Artifact to center subgraph on",
+            "code": "result = 42",
+            "language": "python",
+            "tags": ["test"]
+        })
+        artifact_id = artifact_resp.json()["id"]
+
+        # Create memory linked to artifact
+        await http_client.post("/api/v1/memories", json={
+            "title": "Artifact Related Memory",
+            "content": "Memory for artifact subgraph test",
+            "context": "Testing subgraph from artifact center",
+            "keywords": ["artifact"],
+            "tags": ["test"],
+            "importance": 7,
+            "code_artifact_ids": [artifact_id]
+        })
+
+        # Get subgraph centered on artifact
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=code_artifact_{artifact_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Center should be the code artifact
+        assert data["meta"]["center_node_id"] == f"code_artifact_{artifact_id}"
+
+        # Should include the linked memory
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        assert len(memory_nodes) >= 1
+
+    @pytest.mark.asyncio
+    async def test_subgraph_meta_includes_new_counts(self, http_client):
+        """Subgraph meta includes counts for all new node and edge types."""
+        # Create memory for starting point
+        mem_resp = await http_client.post("/api/v1/memories", json={
+            "title": "Meta Test Memory",
+            "content": "Memory for meta fields test",
+            "context": "Testing new meta fields",
+            "keywords": ["meta"],
+            "tags": ["test"],
+            "importance": 7
+        })
+        memory_id = mem_resp.json()["id"]
+
+        # Get subgraph
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{memory_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        meta = data["meta"]
+
+        # Check new node count fields exist
+        assert "project_count" in meta
+        assert "document_count" in meta
+        assert "code_artifact_count" in meta
+
+        # Check new edge count fields exist
+        assert "memory_project_count" in meta
+        assert "document_project_count" in meta
+        assert "code_artifact_project_count" in meta
+        assert "memory_document_count" in meta
+        assert "memory_code_artifact_count" in meta

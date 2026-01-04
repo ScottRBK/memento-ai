@@ -580,15 +580,33 @@ Delete a code artifact.
 
 ### GET /api/v1/graph
 
-Get graph data for visualization (nodes and edges).
+Get full knowledge graph for visualization. Returns all nodes and edges for the user.
 
 **Query Parameters:**
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `node_types` | string | `memory,entity,project,document,code_artifact` | Comma-separated list of node types to include |
 | `project_id` | int | - | Filter to specific project |
-| `include_entities` | bool | true | Include entity nodes |
+| `include_entities` | bool | true | Include entity nodes (deprecated, use `node_types`) |
 | `limit` | int | 100 | Max memories to include (max 500) |
+
+**Node Types:**
+- `memory` - Knowledge memories
+- `entity` - People, organizations, devices
+- `project` - Project contexts
+- `document` - Long-form documents
+- `code_artifact` - Code snippets
+
+**Edge Types:**
+- `memory_link` - Memory-to-memory connections
+- `entity_memory` - Entity linked to memory
+- `entity_relationship` - Entity-to-entity relationship
+- `memory_project` - Memory linked to project
+- `document_project` - Document belongs to project
+- `code_artifact_project` - Code artifact belongs to project
+- `memory_document` - Memory linked to document
+- `memory_code_artifact` - Memory linked to code artifact
 
 **Response:**
 ```json
@@ -615,6 +633,17 @@ Get graph data for visualization (nodes and edges).
         "name": "Entity Name",
         "entity_type": "Individual"
       }
+    },
+    {
+      "id": "project_1",
+      "type": "project",
+      "label": "Project Name",
+      "data": {
+        "id": 1,
+        "name": "Project Name",
+        "project_type": "development",
+        "status": "active"
+      }
     }
   ],
   "edges": [
@@ -623,17 +652,94 @@ Get graph data for visualization (nodes and edges).
       "source": "memory_1",
       "target": "memory_2",
       "type": "memory_link"
+    },
+    {
+      "id": "memory_1_project_1",
+      "source": "memory_1",
+      "target": "project_1",
+      "type": "memory_project"
     }
   ],
   "meta": {
     "memory_count": 50,
     "entity_count": 10,
-    "edge_count": 25
+    "project_count": 3,
+    "document_count": 5,
+    "code_artifact_count": 8,
+    "edge_count": 75,
+    "memory_link_count": 25,
+    "entity_relationship_count": 5,
+    "entity_memory_count": 15,
+    "memory_project_count": 12,
+    "document_project_count": 5,
+    "code_artifact_project_count": 8,
+    "memory_document_count": 3,
+    "memory_code_artifact_count": 2
+  }
+}
+```
+
+### GET /api/v1/graph/subgraph
+
+Get subgraph centered on a specific node using efficient CTE traversal.
+This is the recommended endpoint for graph visualization with depth-limited traversal.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `node_id` | string | *required* | Center node (e.g., `memory_1`, `entity_5`, `project_3`, `document_2`, `code_artifact_4`) |
+| `depth` | int | 2 | Traversal depth (1-3, clamped) |
+| `node_types` | string | `memory,entity,project,document,code_artifact` | Comma-separated list of types to traverse |
+| `max_nodes` | int | 200 | Maximum nodes to return (max 500) |
+
+**Response:**
+```json
+{
+  "nodes": [
+    {
+      "id": "memory_1",
+      "type": "memory",
+      "depth": 0,
+      "label": "Center Memory",
+      "data": {...}
+    },
+    {
+      "id": "memory_2",
+      "type": "memory",
+      "depth": 1,
+      "label": "Linked Memory",
+      "data": {...}
+    }
+  ],
+  "edges": [...],
+  "meta": {
+    "center_node_id": "memory_1",
+    "depth": 2,
+    "node_types": ["memory", "entity"],
+    "max_nodes": 200,
+    "memory_count": 5,
+    "entity_count": 2,
+    "project_count": 0,
+    "document_count": 0,
+    "code_artifact_count": 0,
+    "edge_count": 6,
+    "memory_link_count": 3,
+    "entity_relationship_count": 1,
+    "entity_memory_count": 2,
+    "memory_project_count": 0,
+    "document_project_count": 0,
+    "code_artifact_project_count": 0,
+    "memory_document_count": 0,
+    "memory_code_artifact_count": 0,
+    "truncated": false
   }
 }
 ```
 
 ### GET /api/v1/graph/memory/{id}
+
+**Deprecated:** Use `/api/v1/graph/subgraph?node_id=memory_{id}` instead.
 
 Get subgraph centered on a specific memory.
 

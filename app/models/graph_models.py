@@ -12,11 +12,11 @@ class SubgraphNode(BaseModel):
 
     id: str = Field(
         ...,
-        description="Prefixed node ID in format 'memory_123' or 'entity_456'"
+        description="Prefixed node ID in format 'memory_123', 'entity_456', 'project_789', 'document_123', or 'code_artifact_456'"
     )
-    type: Literal["memory", "entity"] = Field(
+    type: Literal["memory", "entity", "project", "document", "code_artifact"] = Field(
         ...,
-        description="Node type: 'memory' or 'entity'"
+        description="Node type: 'memory', 'entity', 'project', 'document', or 'code_artifact'"
     )
     depth: int = Field(
         ...,
@@ -25,7 +25,7 @@ class SubgraphNode(BaseModel):
     )
     label: str = Field(
         ...,
-        description="Display label (memory title or entity name)"
+        description="Display label (memory title, entity name, project name, document title, or artifact title)"
     )
     data: Dict[str, Any] = Field(
         default_factory=dict,
@@ -48,7 +48,16 @@ class SubgraphEdge(BaseModel):
         ...,
         description="Target node ID (prefixed)"
     )
-    type: Literal["memory_link", "entity_memory", "entity_relationship"] = Field(
+    type: Literal[
+        "memory_link",
+        "entity_memory",
+        "entity_relationship",
+        "memory_project",
+        "document_project",
+        "code_artifact_project",
+        "memory_document",
+        "memory_code_artifact"
+    ] = Field(
         ...,
         description="Edge type indicating relationship kind"
     )
@@ -77,6 +86,7 @@ class SubgraphMeta(BaseModel):
         ...,
         description="Maximum nodes limit used"
     )
+    # Node counts
     memory_count: int = Field(
         ...,
         ge=0,
@@ -87,6 +97,22 @@ class SubgraphMeta(BaseModel):
         ge=0,
         description="Number of entity nodes in result"
     )
+    project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of project nodes in result"
+    )
+    document_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of document nodes in result"
+    )
+    code_artifact_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of code artifact nodes in result"
+    )
+    # Edge counts
     edge_count: int = Field(
         ...,
         ge=0,
@@ -106,6 +132,31 @@ class SubgraphMeta(BaseModel):
         ...,
         ge=0,
         description="Number of entity-to-memory edges"
+    )
+    memory_project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of memory-to-project edges"
+    )
+    document_project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of document-to-project edges"
+    )
+    code_artifact_project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of code_artifact-to-project edges"
+    )
+    memory_document_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of memory-to-document edges"
+    )
+    memory_code_artifact_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of memory-to-code_artifact edges"
     )
     truncated: bool = Field(
         False,

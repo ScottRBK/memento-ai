@@ -135,7 +135,13 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
             code_artifact_service = CodeArtifactService(code_artifact_repository)
             document_service = DocumentService(document_repository)
             entity_service = EntityService(entity_repository)
-            graph_service = GraphService(memory_repository, entity_repository)
+            graph_service = GraphService(
+                memory_repository,
+                entity_repository,
+                project_service=project_service,
+                document_service=document_service,
+                code_artifact_service=code_artifact_service,
+            )
 
             # Store services on FastMCP instance for tool access
             mcp.user_service = user_service

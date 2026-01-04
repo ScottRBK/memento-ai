@@ -905,6 +905,9 @@ class SqliteMemoryRepository:
         depth: int,
         include_memories: bool,
         include_entities: bool,
+        include_projects: bool,
+        include_documents: bool,
+        include_code_artifacts: bool,
         max_nodes: int
     ) -> Tuple[List[Dict[str, Any]], bool]:
         """
@@ -914,14 +917,22 @@ class SqliteMemoryRepository:
         - memory_links (memory <-> memory)
         - memory_entity_association (memory <-> entity)
         - entity_relationships (entity <-> entity)
+        - memory_project_association (memory <-> project)
+        - document.project_id (document -> project)
+        - code_artifact.project_id (code_artifact -> project)
+        - memory_document_association (memory <-> document)
+        - memory_code_artifact_association (memory <-> code_artifact)
 
         Args:
             user_id: User ID for ownership filtering
-            center_type: "memory" or "entity"
+            center_type: "memory", "entity", "project", "document", or "code_artifact"
             center_id: ID of the center node
             depth: Maximum traversal depth (1-3)
             include_memories: Whether to include memory nodes in traversal
             include_entities: Whether to include entity nodes in traversal
+            include_projects: Whether to include project nodes in traversal
+            include_documents: Whether to include document nodes in traversal
+            include_code_artifacts: Whether to include code_artifact nodes in traversal
             max_nodes: Maximum nodes to return
 
         Returns:
@@ -1018,6 +1029,199 @@ class SqliteMemoryRepository:
                   AND e.user_id = :user_id
                   AND :include_entities = 1
                   AND instr(gt.path, 'entity_' || CAST(CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Memory -> Project via memory_project_association
+                SELECT
+                    mpa.project_id,
+                    'project',
+                    gt.depth + 1,
+                    gt.path || ',' || 'project_' || CAST(mpa.project_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_project_association mpa ON (
+                    gt.node_type = 'memory'
+                    AND mpa.memory_id = gt.node_id
+                )
+                INNER JOIN projects p ON p.id = mpa.project_id
+                WHERE gt.depth < :max_depth
+                  AND p.user_id = :user_id
+                  AND :include_projects = 1
+                  AND instr(gt.path, 'project_' || CAST(mpa.project_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Project -> Memory via memory_project_association
+                SELECT
+                    mpa.memory_id,
+                    'memory',
+                    gt.depth + 1,
+                    gt.path || ',' || 'memory_' || CAST(mpa.memory_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_project_association mpa ON (
+                    gt.node_type = 'project'
+                    AND mpa.project_id = gt.node_id
+                )
+                INNER JOIN memories m ON m.id = mpa.memory_id
+                WHERE gt.depth < :max_depth
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = 0
+                  AND :include_memories = 1
+                  AND instr(gt.path, 'memory_' || CAST(mpa.memory_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Memory -> Document via memory_document_association
+                SELECT
+                    mda.document_id,
+                    'document',
+                    gt.depth + 1,
+                    gt.path || ',' || 'document_' || CAST(mda.document_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_document_association mda ON (
+                    gt.node_type = 'memory'
+                    AND mda.memory_id = gt.node_id
+                )
+                INNER JOIN documents d ON d.id = mda.document_id
+                WHERE gt.depth < :max_depth
+                  AND d.user_id = :user_id
+                  AND :include_documents = 1
+                  AND instr(gt.path, 'document_' || CAST(mda.document_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Document -> Memory via memory_document_association
+                SELECT
+                    mda.memory_id,
+                    'memory',
+                    gt.depth + 1,
+                    gt.path || ',' || 'memory_' || CAST(mda.memory_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_document_association mda ON (
+                    gt.node_type = 'document'
+                    AND mda.document_id = gt.node_id
+                )
+                INNER JOIN memories m ON m.id = mda.memory_id
+                WHERE gt.depth < :max_depth
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = 0
+                  AND :include_memories = 1
+                  AND instr(gt.path, 'memory_' || CAST(mda.memory_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Memory -> CodeArtifact via memory_code_artifact_association
+                SELECT
+                    mca.code_artifact_id,
+                    'code_artifact',
+                    gt.depth + 1,
+                    gt.path || ',' || 'code_artifact_' || CAST(mca.code_artifact_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_code_artifact_association mca ON (
+                    gt.node_type = 'memory'
+                    AND mca.memory_id = gt.node_id
+                )
+                INNER JOIN code_artifacts ca ON ca.id = mca.code_artifact_id
+                WHERE gt.depth < :max_depth
+                  AND ca.user_id = :user_id
+                  AND :include_code_artifacts = 1
+                  AND instr(gt.path, 'code_artifact_' || CAST(mca.code_artifact_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- CodeArtifact -> Memory via memory_code_artifact_association
+                SELECT
+                    mca.memory_id,
+                    'memory',
+                    gt.depth + 1,
+                    gt.path || ',' || 'memory_' || CAST(mca.memory_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_code_artifact_association mca ON (
+                    gt.node_type = 'code_artifact'
+                    AND mca.code_artifact_id = gt.node_id
+                )
+                INNER JOIN memories m ON m.id = mca.memory_id
+                WHERE gt.depth < :max_depth
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = 0
+                  AND :include_memories = 1
+                  AND instr(gt.path, 'memory_' || CAST(mca.memory_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Document -> Project via documents.project_id FK
+                SELECT
+                    d.project_id,
+                    'project',
+                    gt.depth + 1,
+                    gt.path || ',' || 'project_' || CAST(d.project_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN documents d ON (
+                    gt.node_type = 'document'
+                    AND d.id = gt.node_id
+                    AND d.project_id IS NOT NULL
+                )
+                INNER JOIN projects p ON p.id = d.project_id
+                WHERE gt.depth < :max_depth
+                  AND p.user_id = :user_id
+                  AND :include_projects = 1
+                  AND instr(gt.path, 'project_' || CAST(d.project_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Project -> Document via documents.project_id FK
+                SELECT
+                    d.id,
+                    'document',
+                    gt.depth + 1,
+                    gt.path || ',' || 'document_' || CAST(d.id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN documents d ON (
+                    gt.node_type = 'project'
+                    AND d.project_id = gt.node_id
+                )
+                WHERE gt.depth < :max_depth
+                  AND d.user_id = :user_id
+                  AND :include_documents = 1
+                  AND instr(gt.path, 'document_' || CAST(d.id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- CodeArtifact -> Project via code_artifacts.project_id FK
+                SELECT
+                    ca.project_id,
+                    'project',
+                    gt.depth + 1,
+                    gt.path || ',' || 'project_' || CAST(ca.project_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN code_artifacts ca ON (
+                    gt.node_type = 'code_artifact'
+                    AND ca.id = gt.node_id
+                    AND ca.project_id IS NOT NULL
+                )
+                INNER JOIN projects p ON p.id = ca.project_id
+                WHERE gt.depth < :max_depth
+                  AND p.user_id = :user_id
+                  AND :include_projects = 1
+                  AND instr(gt.path, 'project_' || CAST(ca.project_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Project -> CodeArtifact via code_artifacts.project_id FK
+                SELECT
+                    ca.id,
+                    'code_artifact',
+                    gt.depth + 1,
+                    gt.path || ',' || 'code_artifact_' || CAST(ca.id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN code_artifacts ca ON (
+                    gt.node_type = 'project'
+                    AND ca.project_id = gt.node_id
+                )
+                WHERE gt.depth < :max_depth
+                  AND ca.user_id = :user_id
+                  AND :include_code_artifacts = 1
+                  AND instr(gt.path, 'code_artifact_' || CAST(ca.id AS TEXT)) = 0
             )
             SELECT node_id, node_type, MIN(depth) as depth
             FROM graph_traverse
@@ -1033,6 +1237,9 @@ class SqliteMemoryRepository:
             "max_depth": depth,
             "include_memories": 1 if include_memories else 0,
             "include_entities": 1 if include_entities else 0,
+            "include_projects": 1 if include_projects else 0,
+            "include_documents": 1 if include_documents else 0,
+            "include_code_artifacts": 1 if include_code_artifacts else 0,
             "limit_plus_one": max_nodes + 1,  # +1 to detect truncation
         }
 
