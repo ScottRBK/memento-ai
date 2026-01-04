@@ -656,3 +656,468 @@ class TestGraphEntityEdges:
         entity_rel_edges = [e for e in data["edges"] if e["type"] == "entity_relationship"]
         assert len(entity_rel_edges) == 1
         assert entity_rel_edges[0]["data"]["relationship_type"] == "collaborates_with"
+
+
+class TestSubgraphEndpoint:
+    """Test GET /api/v1/graph/subgraph endpoint with recursive CTE traversal."""
+
+    @pytest.mark.asyncio
+    async def test_subgraph_from_memory_center(self, http_client):
+        """Subgraph traversal starting from a memory node."""
+        # Create a memory
+        mem_response = await http_client.post("/api/v1/memories", json={
+            "title": "CTE Center Memory",
+            "content": "Memory at the center of CTE subgraph",
+            "context": "Testing CTE subgraph",
+            "keywords": ["cte_center"],
+            "tags": ["cte-test"],
+            "importance": 7
+        })
+        memory_id = mem_response.json()["id"]
+
+        # Get subgraph
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{memory_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "nodes" in data
+        assert "edges" in data
+        assert "meta" in data
+        assert data["meta"]["center_node_id"] == f"memory_{memory_id}"
+
+        # Should include the center memory with depth 0
+        node_ids = [n["id"] for n in data["nodes"]]
+        assert f"memory_{memory_id}" in node_ids
+
+        center_node = next(n for n in data["nodes"] if n["id"] == f"memory_{memory_id}")
+        assert center_node["depth"] == 0
+
+    @pytest.mark.asyncio
+    async def test_subgraph_from_entity_center(self, http_client):
+        """Subgraph traversal starting from an entity node."""
+        # Create an entity
+        entity_response = await http_client.post("/api/v1/entities", json={
+            "name": "CTE Center Entity",
+            "entity_type": "Organization",
+            "notes": "Entity at center of CTE subgraph"
+        })
+        entity_id = entity_response.json()["id"]
+
+        # Get subgraph
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=entity_{entity_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["meta"]["center_node_id"] == f"entity_{entity_id}"
+
+        # Should include the center entity with depth 0
+        node_ids = [n["id"] for n in data["nodes"]]
+        assert f"entity_{entity_id}" in node_ids
+
+        center_node = next(n for n in data["nodes"] if n["id"] == f"entity_{entity_id}")
+        assert center_node["depth"] == 0
+
+    @pytest.mark.asyncio
+    async def test_subgraph_depth_limits(self, http_client):
+        """Depth parameter controls traversal depth."""
+        # Disable auto-linking for this test to control exact graph structure
+        from app.config.settings import settings
+        original_auto_link = settings.MEMORY_NUM_AUTO_LINK
+        settings.MEMORY_NUM_AUTO_LINK = 0
+
+        try:
+            # Create chain of linked memories: M1 -> M2 -> M3
+            mem1_response = await http_client.post("/api/v1/memories", json={
+                "title": "Antarctic Penguin Migration",
+                "content": "Emperor penguins travel 70km across ice to breeding grounds",
+                "context": "Wildlife documentary research",
+                "keywords": ["penguin", "antarctica", "migration"],
+                "tags": ["depth-test"],
+                "importance": 7
+            })
+            mem1_id = mem1_response.json()["id"]
+
+            mem2_response = await http_client.post("/api/v1/memories", json={
+                "title": "Quantum Entanglement Properties",
+                "content": "Particles maintain correlated states regardless of distance",
+                "context": "Physics lecture notes",
+                "keywords": ["quantum", "physics", "entanglement"],
+                "tags": ["depth-test"],
+                "importance": 7
+            })
+            mem2_id = mem2_response.json()["id"]
+
+            mem3_response = await http_client.post("/api/v1/memories", json={
+                "title": "Renaissance Art Techniques",
+                "content": "Sfumato technique developed by Leonardo da Vinci for soft edges",
+                "context": "Art history seminar",
+                "keywords": ["art", "renaissance", "painting"],
+                "tags": ["depth-test"],
+                "importance": 7
+            })
+            mem3_id = mem3_response.json()["id"]
+
+            # Link: M1 -> M2 -> M3
+            await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
+                "related_ids": [mem2_id]
+            })
+            await http_client.post(f"/api/v1/memories/{mem2_id}/links", json={
+                "related_ids": [mem3_id]
+            })
+
+            # Depth 1: Should get M1 and M2 only
+            response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{mem1_id}&depth=1")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["meta"]["depth"] == 1
+
+            node_ids = {n["id"] for n in data["nodes"]}
+            assert f"memory_{mem1_id}" in node_ids
+            assert f"memory_{mem2_id}" in node_ids
+            # M3 should NOT be present at depth 1
+            assert f"memory_{mem3_id}" not in node_ids
+
+            # Depth 2: Should get all three
+            response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{mem1_id}&depth=2")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["meta"]["depth"] == 2
+
+            node_ids = {n["id"] for n in data["nodes"]}
+            assert f"memory_{mem1_id}" in node_ids
+            assert f"memory_{mem2_id}" in node_ids
+            assert f"memory_{mem3_id}" in node_ids
+        finally:
+            # Restore original auto-link setting
+            settings.MEMORY_NUM_AUTO_LINK = original_auto_link
+
+    @pytest.mark.asyncio
+    async def test_subgraph_cycle_detection(self, http_client):
+        """Cycles in graph don't cause infinite loops."""
+        # Create memories that form a cycle: A -> B -> C -> A
+        mem_a = await http_client.post("/api/v1/memories", json={
+            "title": "Cycle Node A",
+            "content": "Node A in cycle",
+            "context": "Testing cycle detection",
+            "keywords": ["cycle_a"],
+            "tags": ["cycle"],
+            "importance": 7
+        })
+        mem_a_id = mem_a.json()["id"]
+
+        mem_b = await http_client.post("/api/v1/memories", json={
+            "title": "Cycle Node B",
+            "content": "Node B in cycle",
+            "context": "Testing cycle detection",
+            "keywords": ["cycle_b"],
+            "tags": ["cycle"],
+            "importance": 7
+        })
+        mem_b_id = mem_b.json()["id"]
+
+        mem_c = await http_client.post("/api/v1/memories", json={
+            "title": "Cycle Node C",
+            "content": "Node C in cycle",
+            "context": "Testing cycle detection",
+            "keywords": ["cycle_c"],
+            "tags": ["cycle"],
+            "importance": 7
+        })
+        mem_c_id = mem_c.json()["id"]
+
+        # Create cycle: A -> B -> C -> A
+        await http_client.post(f"/api/v1/memories/{mem_a_id}/links", json={
+            "related_ids": [mem_b_id]
+        })
+        await http_client.post(f"/api/v1/memories/{mem_b_id}/links", json={
+            "related_ids": [mem_c_id]
+        })
+        await http_client.post(f"/api/v1/memories/{mem_c_id}/links", json={
+            "related_ids": [mem_a_id]
+        })
+
+        # Should complete without infinite loop, even with depth=3
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{mem_a_id}&depth=3")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have all three nodes, each appearing once
+        node_ids = [n["id"] for n in data["nodes"]]
+        assert f"memory_{mem_a_id}" in node_ids
+        assert f"memory_{mem_b_id}" in node_ids
+        assert f"memory_{mem_c_id}" in node_ids
+        assert len(data["nodes"]) == 3  # No duplicates
+
+    @pytest.mark.asyncio
+    async def test_subgraph_node_types_filter(self, http_client):
+        """node_types parameter filters which node types to include."""
+        # Create memory and entity linked together
+        mem_response = await http_client.post("/api/v1/memories", json={
+            "title": "Filter Test Memory",
+            "content": "Memory for filter test",
+            "context": "Testing node_types filter",
+            "keywords": ["filter"],
+            "tags": ["filter-test"],
+            "importance": 7
+        })
+        memory_id = mem_response.json()["id"]
+
+        entity_response = await http_client.post("/api/v1/entities", json={
+            "name": "Filter Test Entity",
+            "entity_type": "Organization"
+        })
+        entity_id = entity_response.json()["id"]
+
+        # Link entity to memory
+        await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
+            "memory_id": memory_id
+        })
+
+        # With node_types=memory only - should not traverse to entity
+        response = await http_client.get(
+            f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should only have the memory node
+        entity_nodes = [n for n in data["nodes"] if n["type"] == "entity"]
+        assert len(entity_nodes) == 0
+
+        # With node_types=memory,entity - should traverse to entity
+        response = await http_client.get(
+            f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory,entity"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        entity_nodes = [n for n in data["nodes"] if n["type"] == "entity"]
+        assert len(entity_nodes) >= 1
+
+    @pytest.mark.asyncio
+    async def test_subgraph_max_nodes_truncation(self, http_client):
+        """max_nodes limit causes truncation with truncated flag set."""
+        # Create multiple linked memories
+        mem_ids = []
+        for i in range(5):
+            mem_response = await http_client.post("/api/v1/memories", json={
+                "title": f"Truncation Test Memory {i}",
+                "content": f"Memory {i} for truncation test",
+                "context": "Testing max_nodes",
+                "keywords": [f"truncation_{i}"],
+                "tags": ["truncation"],
+                "importance": 7
+            })
+            mem_ids.append(mem_response.json()["id"])
+
+        # Link all to first
+        for i in range(1, len(mem_ids)):
+            await http_client.post(f"/api/v1/memories/{mem_ids[0]}/links", json={
+                "related_ids": [mem_ids[i]]
+            })
+
+        # Request with very low max_nodes
+        response = await http_client.get(
+            f"/api/v1/graph/subgraph?node_id=memory_{mem_ids[0]}&max_nodes=2"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should respect max_nodes limit
+        assert len(data["nodes"]) <= 2
+        # Should indicate truncation
+        assert data["meta"]["truncated"] is True
+
+    @pytest.mark.asyncio
+    async def test_subgraph_depth_field_on_nodes(self, http_client):
+        """Each node has correct depth value."""
+        # Create linked memories: Center -> Neighbor
+        center_response = await http_client.post("/api/v1/memories", json={
+            "title": "Depth Center",
+            "content": "Center memory for depth test",
+            "context": "Testing depth field",
+            "keywords": ["depth_center"],
+            "tags": ["depth"],
+            "importance": 7
+        })
+        center_id = center_response.json()["id"]
+
+        neighbor_response = await http_client.post("/api/v1/memories", json={
+            "title": "Depth Neighbor",
+            "content": "Neighbor memory for depth test",
+            "context": "Testing depth field",
+            "keywords": ["depth_neighbor"],
+            "tags": ["depth"],
+            "importance": 7
+        })
+        neighbor_id = neighbor_response.json()["id"]
+
+        await http_client.post(f"/api/v1/memories/{center_id}/links", json={
+            "related_ids": [neighbor_id]
+        })
+
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{center_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Center should have depth 0
+        center_node = next(n for n in data["nodes"] if n["id"] == f"memory_{center_id}")
+        assert center_node["depth"] == 0
+
+        # Neighbor should have depth 1
+        neighbor_node = next(n for n in data["nodes"] if n["id"] == f"memory_{neighbor_id}")
+        assert neighbor_node["depth"] == 1
+
+    @pytest.mark.asyncio
+    async def test_subgraph_all_edge_types(self, http_client):
+        """Response includes all edge types: memory_link, entity_memory, entity_relationship."""
+        # Create memories
+        mem1 = await http_client.post("/api/v1/memories", json={
+            "title": "Edge Test Memory 1",
+            "content": "Memory 1 for edge test",
+            "context": "Testing edge types",
+            "keywords": ["edge1"],
+            "tags": ["edges"],
+            "importance": 7
+        })
+        mem1_id = mem1.json()["id"]
+
+        mem2 = await http_client.post("/api/v1/memories", json={
+            "title": "Edge Test Memory 2",
+            "content": "Memory 2 for edge test",
+            "context": "Testing edge types",
+            "keywords": ["edge2"],
+            "tags": ["edges"],
+            "importance": 7
+        })
+        mem2_id = mem2.json()["id"]
+
+        # Create entities
+        ent1 = await http_client.post("/api/v1/entities", json={
+            "name": "Edge Entity 1",
+            "entity_type": "Individual"
+        })
+        ent1_id = ent1.json()["id"]
+
+        ent2 = await http_client.post("/api/v1/entities", json={
+            "name": "Edge Entity 2",
+            "entity_type": "Individual"
+        })
+        ent2_id = ent2.json()["id"]
+
+        # Create all edge types:
+        # memory_link: mem1 <-> mem2
+        await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
+            "related_ids": [mem2_id]
+        })
+
+        # entity_memory: ent1 -> mem1
+        await http_client.post(f"/api/v1/entities/{ent1_id}/memories", json={
+            "memory_id": mem1_id
+        })
+
+        # entity_relationship: ent1 -> ent2
+        await http_client.post(f"/api/v1/entities/{ent1_id}/relationships", json={
+            "target_entity_id": ent2_id,
+            "relationship_type": "knows"
+        })
+
+        # Link ent2 to mem2 to ensure both entities are in subgraph
+        await http_client.post(f"/api/v1/entities/{ent2_id}/memories", json={
+            "memory_id": mem2_id
+        })
+
+        # Get subgraph
+        response = await http_client.get(
+            f"/api/v1/graph/subgraph?node_id=memory_{mem1_id}&depth=2"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check edge types are present
+        edge_types = {e["type"] for e in data["edges"]}
+        assert "memory_link" in edge_types
+        assert "entity_memory" in edge_types
+        assert "entity_relationship" in edge_types
+
+        # Check meta counts
+        assert data["meta"]["memory_link_count"] >= 1
+        assert data["meta"]["entity_memory_count"] >= 1
+        assert data["meta"]["entity_relationship_count"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_subgraph_invalid_node_id_format(self, http_client):
+        """Returns 400 for invalid node_id format."""
+        response = await http_client.get("/api/v1/graph/subgraph?node_id=invalid_format")
+        assert response.status_code == 400
+        assert "Invalid node_id format" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_subgraph_missing_node_id(self, http_client):
+        """Returns 400 when node_id is not provided."""
+        response = await http_client.get("/api/v1/graph/subgraph")
+        assert response.status_code == 400
+        assert "Missing required parameter" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_subgraph_nonexistent_memory(self, http_client):
+        """Returns 404 for nonexistent memory."""
+        response = await http_client.get("/api/v1/graph/subgraph?node_id=memory_99999")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_subgraph_nonexistent_entity(self, http_client):
+        """Returns 404 for nonexistent entity."""
+        response = await http_client.get("/api/v1/graph/subgraph?node_id=entity_99999")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_subgraph_invalid_depth(self, http_client):
+        """Returns 400 for invalid depth parameter."""
+        response = await http_client.get("/api/v1/graph/subgraph?node_id=memory_1&depth=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid depth" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_subgraph_depth_below_minimum(self, http_client):
+        """Returns 400 for depth < 1."""
+        response = await http_client.get("/api/v1/graph/subgraph?node_id=memory_1&depth=0")
+        assert response.status_code == 400
+        assert "Must be at least 1" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_subgraph_invalid_node_types(self, http_client):
+        """Returns 400 for invalid node_types parameter."""
+        response = await http_client.get("/api/v1/graph/subgraph?node_id=memory_1&node_types=invalid")
+        assert response.status_code == 400
+        assert "Invalid node_types" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_subgraph_meta_includes_all_fields(self, http_client):
+        """Meta object includes all expected fields."""
+        mem_response = await http_client.post("/api/v1/memories", json={
+            "title": "Meta Test Memory",
+            "content": "Memory for meta test",
+            "context": "Testing meta fields",
+            "keywords": ["meta"],
+            "tags": ["meta-test"],
+            "importance": 7
+        })
+        memory_id = mem_response.json()["id"]
+
+        response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{memory_id}")
+        assert response.status_code == 200
+        data = response.json()
+
+        meta = data["meta"]
+        assert "center_node_id" in meta
+        assert "depth" in meta
+        assert "node_types" in meta
+        assert "max_nodes" in meta
+        assert "memory_count" in meta
+        assert "entity_count" in meta
+        assert "edge_count" in meta
+        assert "memory_link_count" in meta
+        assert "entity_relationship_count" in meta
+        assert "entity_memory_count" in meta
+        assert "truncated" in meta

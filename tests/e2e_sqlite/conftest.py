@@ -32,6 +32,7 @@ from app.services.project_service import ProjectService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
+from app.services.graph_service import GraphService
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
@@ -134,6 +135,7 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
             code_artifact_service = CodeArtifactService(code_artifact_repository)
             document_service = DocumentService(document_repository)
             entity_service = EntityService(entity_repository)
+            graph_service = GraphService(memory_repository, entity_repository)
 
             # Store services on FastMCP instance for tool access
             mcp.user_service = user_service
@@ -142,6 +144,7 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
             mcp.code_artifact_service = code_artifact_service
             mcp.document_service = document_service
             mcp.entity_service = entity_service
+            mcp.graph_service = graph_service
 
             # Create and attach registry
             registry = ToolRegistry()

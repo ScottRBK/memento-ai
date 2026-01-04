@@ -397,3 +397,98 @@ def register(mcp: FastMCP):
                 "depth": depth
             }
         })
+
+    @mcp.custom_route("/api/v1/graph/subgraph", methods=["GET"])
+    async def get_subgraph(request: Request) -> JSONResponse:
+        """
+        Get subgraph centered on any node (memory or entity).
+
+        Uses recursive CTE for efficient multi-hop traversal across all edge types.
+        This is the recommended endpoint for graph visualization - replaces the
+        older /graph/memory/{id} endpoint with better performance and entity support.
+
+        Query params:
+            node_id: Center node in format "memory_{id}" or "entity_{id}" (required)
+            depth: Traversal depth 1-3 (default 2)
+            node_types: Comma-separated list "memory,entity" (default both)
+            max_nodes: Safety limit (default 200, max 500)
+
+        Returns:
+            nodes: List with depth field on each node
+            edges: All edges between returned nodes
+            meta: Includes center_node_id and truncated flag
+        """
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        params = request.query_params
+
+        # Validate required node_id parameter
+        node_id = params.get("node_id")
+        if not node_id:
+            return JSONResponse(
+                {"error": "Missing required parameter: node_id. Format: 'memory_{id}' or 'entity_{id}'"},
+                status_code=400
+            )
+
+        # Validate depth parameter
+        depth_str = params.get("depth", "2")
+        try:
+            depth = int(depth_str)
+            if depth < 1:
+                return JSONResponse(
+                    {"error": f"Invalid depth: {depth}. Must be at least 1."},
+                    status_code=400
+                )
+        except ValueError:
+            return JSONResponse(
+                {"error": f"Invalid depth: {depth_str}. Must be an integer."},
+                status_code=400
+            )
+
+        # Parse node_types parameter
+        node_types_str = params.get("node_types", "memory,entity")
+        node_types = [t.strip() for t in node_types_str.split(",") if t.strip()]
+        valid_types = {"memory", "entity"}
+        invalid_types = set(node_types) - valid_types
+        if invalid_types:
+            return JSONResponse(
+                {"error": f"Invalid node_types: {invalid_types}. Valid values: memory, entity"},
+                status_code=400
+            )
+        if not node_types:
+            node_types = ["memory", "entity"]
+
+        # Validate max_nodes parameter
+        max_nodes_str = params.get("max_nodes", "200")
+        try:
+            max_nodes = int(max_nodes_str)
+        except ValueError:
+            return JSONResponse(
+                {"error": f"Invalid max_nodes: {max_nodes_str}. Must be an integer."},
+                status_code=400
+            )
+
+        # Call graph service
+        try:
+            result = await mcp.graph_service.get_subgraph(
+                user_id=user.id,
+                center_node_id=node_id,
+                depth=depth,
+                node_types=node_types,
+                max_nodes=max_nodes,
+            )
+        except ValueError as e:
+            # Invalid node_id format
+            return JSONResponse({"error": str(e)}, status_code=400)
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        # Convert Pydantic models to dicts for JSON response
+        return JSONResponse({
+            "nodes": [node.model_dump() for node in result.nodes],
+            "edges": [edge.model_dump() for edge in result.edges],
+            "meta": result.meta.model_dump()
+        })

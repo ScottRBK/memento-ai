@@ -153,6 +153,7 @@ async def lifespan(app):
     from app.services.code_artifact_service import CodeArtifactService
     from app.services.document_service import DocumentService
     from app.services.entity_service import EntityService
+    from app.services.graph_service import GraphService
 
     user_service = UserService(repos["user"])
     memory_service = MemoryService(repos["memory"])
@@ -160,6 +161,7 @@ async def lifespan(app):
     code_artifact_service = CodeArtifactService(repos["code_artifact"])
     document_service = DocumentService(repos["document"])
     entity_service = EntityService(repos["entity"])
+    graph_service = GraphService(repos["memory"], repos["entity"])
 
     mcp.user_service = user_service
     mcp.memory_service = memory_service
@@ -167,6 +169,7 @@ async def lifespan(app):
     mcp.code_artifact_service = code_artifact_service
     mcp.document_service = document_service
     mcp.entity_service = entity_service
+    mcp.graph_service = graph_service
     logger.info("Services initialized and attached to FastMCP instance")
 
     # Initialize token cache for HTTP auth performance

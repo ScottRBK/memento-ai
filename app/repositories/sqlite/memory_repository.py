@@ -3,7 +3,7 @@ Memory repository for SQLite data access operations with sqlite-vec integration
 """
 from uuid import UUID
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Dict, Any, Tuple
 import sqlite_vec
 
 from sqlalchemy import select, update, or_, text
@@ -896,3 +896,171 @@ class SqliteMemoryRepository:
 
     async def _generate_embeddings(self, text: str) -> List[float]:
         return await self.embedding_adapter.generate_embedding(text=text)
+
+    async def get_subgraph_nodes(
+        self,
+        user_id: UUID,
+        center_type: str,
+        center_id: int,
+        depth: int,
+        include_memories: bool,
+        include_entities: bool,
+        max_nodes: int
+    ) -> Tuple[List[Dict[str, Any]], bool]:
+        """
+        Traverse graph using recursive CTE from center node.
+
+        Uses a single recursive CTE query to traverse all edge types:
+        - memory_links (memory <-> memory)
+        - memory_entity_association (memory <-> entity)
+        - entity_relationships (entity <-> entity)
+
+        Args:
+            user_id: User ID for ownership filtering
+            center_type: "memory" or "entity"
+            center_id: ID of the center node
+            depth: Maximum traversal depth (1-3)
+            include_memories: Whether to include memory nodes in traversal
+            include_entities: Whether to include entity nodes in traversal
+            max_nodes: Maximum nodes to return
+
+        Returns:
+            Tuple of (nodes_list, truncated) where nodes_list contains dicts
+            with node_id, node_type, and depth fields
+        """
+        # Build the recursive CTE query
+        # Each UNION ALL branch handles one edge type
+        query = text("""
+            WITH RECURSIVE graph_traverse(node_id, node_type, depth, path) AS (
+                -- Anchor: the center node
+                SELECT
+                    :center_id AS node_id,
+                    :center_type AS node_type,
+                    0 AS depth,
+                    :center_type || '_' || CAST(:center_id AS TEXT) AS path
+
+                UNION ALL
+
+                -- Memory -> Memory via memory_links
+                SELECT
+                    CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END,
+                    'memory',
+                    gt.depth + 1,
+                    gt.path || ',' || 'memory_' || CAST(CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_links ml ON (
+                    gt.node_type = 'memory'
+                    AND (ml.source_id = gt.node_id OR ml.target_id = gt.node_id)
+                    AND ml.user_id = :user_id
+                )
+                INNER JOIN memories m ON m.id = CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END
+                WHERE gt.depth < :max_depth
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = 0
+                  AND :include_memories = 1
+                  AND instr(gt.path, 'memory_' || CAST(CASE WHEN ml.source_id = gt.node_id THEN ml.target_id ELSE ml.source_id END AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Memory -> Entity via memory_entity_association
+                SELECT
+                    mea.entity_id,
+                    'entity',
+                    gt.depth + 1,
+                    gt.path || ',' || 'entity_' || CAST(mea.entity_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_entity_association mea ON (
+                    gt.node_type = 'memory'
+                    AND mea.memory_id = gt.node_id
+                )
+                INNER JOIN entities e ON e.id = mea.entity_id
+                WHERE gt.depth < :max_depth
+                  AND e.user_id = :user_id
+                  AND :include_entities = 1
+                  AND instr(gt.path, 'entity_' || CAST(mea.entity_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Entity -> Memory via memory_entity_association
+                SELECT
+                    mea.memory_id,
+                    'memory',
+                    gt.depth + 1,
+                    gt.path || ',' || 'memory_' || CAST(mea.memory_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN memory_entity_association mea ON (
+                    gt.node_type = 'entity'
+                    AND mea.entity_id = gt.node_id
+                )
+                INNER JOIN memories m ON m.id = mea.memory_id
+                WHERE gt.depth < :max_depth
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = 0
+                  AND :include_memories = 1
+                  AND instr(gt.path, 'memory_' || CAST(mea.memory_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Entity -> Entity via entity_relationships
+                SELECT
+                    CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END,
+                    'entity',
+                    gt.depth + 1,
+                    gt.path || ',' || 'entity_' || CAST(CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN entity_relationships er ON (
+                    gt.node_type = 'entity'
+                    AND (er.source_entity_id = gt.node_id OR er.target_entity_id = gt.node_id)
+                    AND er.user_id = :user_id
+                )
+                INNER JOIN entities e ON e.id = CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END
+                WHERE gt.depth < :max_depth
+                  AND e.user_id = :user_id
+                  AND :include_entities = 1
+                  AND instr(gt.path, 'entity_' || CAST(CASE WHEN er.source_entity_id = gt.node_id THEN er.target_entity_id ELSE er.source_entity_id END AS TEXT)) = 0
+            )
+            SELECT node_id, node_type, MIN(depth) as depth
+            FROM graph_traverse
+            GROUP BY node_id, node_type
+            ORDER BY depth, node_type, node_id
+            LIMIT :limit_plus_one
+        """)
+
+        params = {
+            "center_id": center_id,
+            "center_type": center_type,
+            "user_id": str(user_id),
+            "max_depth": depth,
+            "include_memories": 1 if include_memories else 0,
+            "include_entities": 1 if include_entities else 0,
+            "limit_plus_one": max_nodes + 1,  # +1 to detect truncation
+        }
+
+        async with self.db_adapter.session(user_id=user_id) as session:
+            result = await session.execute(query, params)
+            rows = result.fetchall()
+
+            # Check if we hit the limit (truncated)
+            truncated = len(rows) > max_nodes
+            if truncated:
+                rows = rows[:max_nodes]
+
+            nodes = [
+                {
+                    "node_id": row.node_id,
+                    "node_type": row.node_type,
+                    "depth": row.depth,
+                }
+                for row in rows
+            ]
+
+            logger.info("Subgraph traversal completed", extra={
+                "user_id": str(user_id),
+                "center_type": center_type,
+                "center_id": center_id,
+                "depth": depth,
+                "nodes_found": len(nodes),
+                "truncated": truncated,
+            })
+
+            return nodes, truncated

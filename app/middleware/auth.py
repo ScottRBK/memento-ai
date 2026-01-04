@@ -60,7 +60,7 @@ class TokenCache:
                 return None
 
             entry = self._cache[key]
-            if time.time() > entry.expires_at:
+            if time.time() >= entry.expires_at:
                 # Expired - remove and return None
                 del self._cache[key]
                 self._misses += 1

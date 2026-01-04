@@ -692,5 +692,5 @@ After each phase, report:
 - Gaps remaining
 - Next phase to execute
 
-Ask user to confirm before proceeding to next phase.
+**Proceed automatically** to the next phase once the checkpoint is met. Do not wait for user confirmation.
 """

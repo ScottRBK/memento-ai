@@ -1,4 +1,4 @@
-from typing import Protocol, List
+from typing import Protocol, List, Dict, Any, Tuple
 from uuid import UUID
 
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
@@ -116,6 +116,39 @@ class MemoryRepository(Protocol):
 
         Returns:
             True if link was removed, False if link didn't exist
+        """
+        ...
+
+    async def get_subgraph_nodes(
+            self,
+            user_id: UUID,
+            center_type: str,
+            center_id: int,
+            depth: int,
+            include_memories: bool,
+            include_entities: bool,
+            max_nodes: int
+    ) -> Tuple[List[Dict[str, Any]], bool]:
+        """
+        Traverse graph using recursive CTE from center node.
+
+        Uses a single recursive CTE query to traverse all edge types:
+        - memory_links (memory <-> memory)
+        - memory_entity_association (memory <-> entity)
+        - entity_relationships (entity <-> entity)
+
+        Args:
+            user_id: User ID for ownership filtering
+            center_type: "memory" or "entity"
+            center_id: ID of the center node
+            depth: Maximum traversal depth (1-3)
+            include_memories: Whether to include memory nodes in traversal
+            include_entities: Whether to include entity nodes in traversal
+            max_nodes: Maximum nodes to return
+
+        Returns:
+            Tuple of (nodes_list, truncated) where nodes_list contains dicts
+            with node_id, node_type, and depth fields
         """
         ...
 

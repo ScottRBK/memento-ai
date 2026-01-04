@@ -17,13 +17,18 @@ from app.config.settings import settings
 
 
 def port_in_use(port: int) -> bool:
-    """Check if a port is already in use"""
+    """Check if a server is actively listening on a port.
+
+    Uses connect() instead of bind() to avoid false positives from
+    TIME_WAIT connections left over from previous test runs.
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
         try:
-            s.bind(("127.0.0.1", port))
-            return False
-        except OSError:
-            return True
+            s.connect(("127.0.0.1", port))
+            return True  # Connection succeeded = something is listening
+        except (ConnectionRefusedError, socket.timeout, OSError):
+            return False  # Nothing listening
 
 
 def wait_for_healthy(container_name: str, timeout: int = 120) -> None:
