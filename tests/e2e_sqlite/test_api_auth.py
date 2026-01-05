@@ -28,7 +28,7 @@ from app.services.entity_service import EntityService
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.api import health, memories
+from app.routes.api import health, auth, memories
 
 
 # Test tokens for StaticTokenVerifier
@@ -130,6 +130,7 @@ async def sqlite_app_with_auth(auth_embedding_adapter):
 
         # Register routes
         health.register(mcp)
+        auth.register(mcp)
         memories.register(mcp)
         meta_tools.register(mcp)
 
@@ -245,3 +246,57 @@ class TestAuthEnabled:
 
         assert response.status_code == 401
         assert "Missing or invalid Authorization header" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_auth_info_accessible_without_token(self, auth_http_client):
+        """/api/v1/auth/info is a public endpoint, accessible without auth."""
+        response = await auth_http_client.get("/api/v1/auth/info")
+
+        assert response.status_code == 200
+        data = response.json()
+        # Auth is enabled in this fixture (StaticTokenVerifier)
+        assert data["authEnabled"] is True
+        assert data["authMode"] == "jwt"  # StaticTokenVerifier is a TokenVerifier
+        assert data["oauthProviders"] == []
+        assert data["loginUrl"] is None
+
+
+# ============================================
+# Auth Info Endpoint Tests (Auth Disabled)
+# ============================================
+
+
+class TestAuthInfoEndpoint:
+    """Test /api/v1/auth/info endpoint with auth disabled (default sqlite_app)."""
+
+    @pytest.mark.asyncio
+    async def test_auth_info_returns_disabled_when_no_auth(self, http_client):
+        """Without auth configured, returns authEnabled=false."""
+        response = await http_client.get("/api/v1/auth/info")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["authEnabled"] is False
+        assert data["authMode"] == "disabled"
+        assert data["oauthProviders"] == []
+        assert data["loginUrl"] is None
+
+    @pytest.mark.asyncio
+    async def test_auth_info_json_schema(self, http_client):
+        """Response includes all required fields."""
+        response = await http_client.get("/api/v1/auth/info")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all required fields are present
+        assert "authEnabled" in data
+        assert "authMode" in data
+        assert "oauthProviders" in data
+        assert "loginUrl" in data
+
+        # Type checks
+        assert isinstance(data["authEnabled"], bool)
+        assert isinstance(data["authMode"], str)
+        assert isinstance(data["oauthProviders"], list)
+        assert data["loginUrl"] is None or isinstance(data["loginUrl"], str)

@@ -36,7 +36,7 @@ from app.services.graph_service import GraphService
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph
+from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph
 
 
 @pytest.fixture(scope="module")
@@ -177,6 +177,7 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
 
         # Register routes
         health.register(mcp)
+        auth.register(mcp)
         memories.register(mcp)
         entities.register(mcp)
         projects.register(mcp)
