@@ -26,6 +26,14 @@ Good memories are:
 
 **Limits:** 200 char title, ~300-400 words content
 
+**Provenance tracking:** Memories can optionally track their origin for traceability:
+- `source_repo` - Repository where the knowledge originated
+- `source_files` - Specific files that informed the memory
+- `source_url` - URL to original source material
+- `confidence` - How confident the encoding agent was (0.0-1.0)
+- `encoding_agent` - Which AI/process created this memory
+- `encoding_version` - Version of the encoding process
+
 ### Entities
 
 **Real-world things** - people, organizations, devices, products.

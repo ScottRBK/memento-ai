@@ -106,7 +106,13 @@ List memories with pagination, sorting, and filtering.
       "created_at": "2024-12-05T10:00:00Z",
       "updated_at": "2024-12-05T10:00:00Z",
       "linked_memory_ids": [2, 3],
-      "project_ids": [1]
+      "project_ids": [1],
+      "source_repo": "owner/repo",
+      "source_files": ["path/to/file.py"],
+      "source_url": "https://example.com/source",
+      "confidence": 0.85,
+      "encoding_agent": "claude-sonnet-4",
+      "encoding_version": "1.0.0"
     }
   ],
   "total": 42,
@@ -134,9 +140,26 @@ Create a new memory.
   "keywords": ["keyword1", "keyword2"],
   "tags": ["tag1"],
   "importance": 7,
-  "project_id": 1
+  "project_id": 1,
+  "source_repo": "owner/repo",
+  "source_files": ["path/to/file.py"],
+  "source_url": "https://example.com/source",
+  "confidence": 0.85,
+  "encoding_agent": "claude-sonnet-4",
+  "encoding_version": "1.0.0"
 }
 ```
+
+**Provenance Fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_repo` | string | Repository source (e.g., 'owner/repo', max 200 chars) |
+| `source_files` | string[] | List of file paths that informed this memory |
+| `source_url` | string | URL to original source material (max 2048 chars) |
+| `confidence` | float | Encoding confidence score (0.0-1.0) |
+| `encoding_agent` | string | Agent/process that created this memory (max 100 chars) |
+| `encoding_version` | string | Version of encoding process/prompt (max 50 chars) |
 
 **Response (201):**
 ```json
@@ -161,9 +184,17 @@ Update an existing memory.
   "title": "Updated title",
   "content": "Updated content",
   "importance": 8,
-  "tags": ["updated-tag"]
+  "tags": ["updated-tag"],
+  "source_repo": "owner/repo",
+  "source_files": ["path/to/file.py"],
+  "source_url": "https://example.com/source",
+  "confidence": 0.9,
+  "encoding_agent": "manual-review",
+  "encoding_version": "1.0.0"
 }
 ```
+
+Provenance fields can be added or updated after memory creation. See POST /api/v1/memories for field descriptions.
 
 **Response:** Updated memory object
 

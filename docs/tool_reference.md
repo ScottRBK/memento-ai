@@ -160,6 +160,14 @@ Create an atomic memory with automatic linking to related memories.
 - `linked_document_id` (optional): Link to parent document
 - `linked_code_artifact_id` (optional): Link to code artifact
 
+**Provenance Tracking (optional):**
+- `source_repo` (optional): Repository source (e.g., 'owner/repo', max 200 chars)
+- `source_files` (optional): List of file paths that informed this memory
+- `source_url` (optional): URL to original source material (max 2048 chars)
+- `confidence` (optional): Encoding confidence score (0.0-1.0)
+- `encoding_agent` (optional): Agent/process that created this memory (max 100 chars)
+- `encoding_version` (optional): Version of encoding process/prompt (max 50 chars)
+
 **Returns:**
 - `memory_id`: Created memory ID
 - `auto_linked_to`: List of automatically linked memory IDs
@@ -179,6 +187,26 @@ memory = execute_forgetful_tool(
     }
 )
 # Returns: {"memory_id": 156, "auto_linked_to": [142, 148, 151], ...}
+```
+
+**Example with provenance:**
+```python
+# Memory created by AI agent with source tracking
+memory = execute_forgetful_tool(
+    "create_memory",
+    {
+        "title": "FastAPI dependency injection pattern",
+        "content": "Use Depends() for request-scoped dependencies. For async database sessions, use async context managers with yield.",
+        "importance": 8,
+        "tags": ["fastapi", "pattern", "dependency-injection"],
+        "source_repo": "tiangolo/fastapi",
+        "source_files": ["docs/tutorial/dependencies.md", "docs/advanced/async-database.md"],
+        "source_url": "https://fastapi.tiangolo.com/tutorial/dependencies/",
+        "confidence": 0.92,
+        "encoding_agent": "claude-sonnet-4-20250514",
+        "encoding_version": "1.0.0"
+    }
+)
 ```
 
 ### `query_memory`
@@ -237,6 +265,14 @@ Update existing memory fields (PATCH semantics - only updates provided fields).
 - `keywords` (optional): Updated keywords
 - `tags` (optional): Updated tags
 
+**Provenance Tracking (optional):**
+- `source_repo` (optional): Repository source (e.g., 'owner/repo')
+- `source_files` (optional): List of file paths
+- `source_url` (optional): URL to source material
+- `confidence` (optional): Confidence score (0.0-1.0)
+- `encoding_agent` (optional): Agent/process identifier
+- `encoding_version` (optional): Version of encoding process
+
 **Returns:**
 - Updated memory object
 
@@ -248,6 +284,20 @@ execute_forgetful_tool(
         "memory_id": 156,
         "importance": 9,  # Increased importance after realizing how critical this is
         "tags": ["api", "security", "performance", "production"]
+    }
+)
+```
+
+**Example - Adding provenance after creation:**
+```python
+# Add provenance to an existing memory
+execute_forgetful_tool(
+    "update_memory",
+    {
+        "memory_id": 156,
+        "source_repo": "company/api-gateway",
+        "confidence": 0.95,
+        "encoding_agent": "manual-review"
     }
 )
 ```
