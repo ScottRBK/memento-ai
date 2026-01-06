@@ -761,3 +761,229 @@ async def test_get_recent_memories_excludes_obsolete_e2e(docker_services, mcp_se
         assert active_memory_id in recent_ids
         # Should NOT include obsolete memory
         assert obsolete_memory_id not in recent_ids
+
+
+# ============================================================================
+# Provenance Tracking Tests (Issue #9) - PostgreSQL E2E
+# ============================================================================
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_create_memory_with_provenance_postgres_e2e(docker_services, mcp_server_url):
+    """Test creating memory with full provenance tracking fields in PostgreSQL"""
+    async with Client(mcp_server_url) as client:
+        result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory',
+            'arguments': {
+                'title': 'AI-Generated Memory Postgres E2E',
+                'content': 'Content extracted from codebase analysis by automated agent',
+                'context': 'Testing provenance tracking in PostgreSQL E2E environment',
+                'keywords': ['ai-generated', 'provenance', 'postgres'],
+                'tags': ['test', 'provenance'],
+                'importance': 8,
+                'source_repo': 'scottrbk/forgetful',
+                'source_files': ['src/main.py', 'tests/test_main.py'],
+                'source_url': 'https://github.com/scottrbk/forgetful/blob/main/src/main.py',
+                'confidence': 0.85,
+                'encoding_agent': 'claude-sonnet-4-20250514',
+                'encoding_version': '0.1.0'
+            }
+        })
+
+        assert result.data is not None
+        memory_id = result.data["id"]
+
+        # Verify provenance fields are returned
+        get_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory',
+            'arguments': {'memory_id': memory_id}
+        })
+
+        assert get_result.data is not None
+        assert get_result.data["source_repo"] == 'scottrbk/forgetful'
+        assert get_result.data["source_files"] == ['src/main.py', 'tests/test_main.py']
+        assert get_result.data["source_url"] == 'https://github.com/scottrbk/forgetful/blob/main/src/main.py'
+        assert get_result.data["confidence"] == 0.85
+        assert get_result.data["encoding_agent"] == 'claude-sonnet-4-20250514'
+        assert get_result.data["encoding_version"] == '0.1.0'
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_create_memory_without_provenance_backward_compat_postgres_e2e(docker_services, mcp_server_url):
+    """Test that memories can still be created without provenance in PostgreSQL (backward compatibility)"""
+    async with Client(mcp_server_url) as client:
+        result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory',
+            'arguments': {
+                'title': 'Manual Memory No Provenance Postgres E2E',
+                'content': 'Content entered manually without provenance tracking',
+                'context': 'Testing backward compatibility in PostgreSQL',
+                'keywords': ['manual', 'no-provenance'],
+                'tags': ['test'],
+                'importance': 7
+            }
+        })
+
+        assert result.data is not None
+        memory_id = result.data["id"]
+
+        # Verify provenance fields are null/not present
+        get_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory',
+            'arguments': {'memory_id': memory_id}
+        })
+
+        assert get_result.data is not None
+        assert get_result.data.get("source_repo") is None
+        assert get_result.data.get("source_files") is None
+        assert get_result.data.get("source_url") is None
+        assert get_result.data.get("confidence") is None
+        assert get_result.data.get("encoding_agent") is None
+        assert get_result.data.get("encoding_version") is None
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_update_memory_add_provenance_postgres_e2e(docker_services, mcp_server_url):
+    """Test adding provenance fields to an existing memory via update in PostgreSQL"""
+    async with Client(mcp_server_url) as client:
+        # Create memory without provenance
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory',
+            'arguments': {
+                'title': 'Memory to Add Provenance Postgres E2E',
+                'content': 'Content without initial provenance',
+                'context': 'Testing provenance addition in PostgreSQL',
+                'keywords': ['update', 'provenance', 'postgres'],
+                'tags': ['test'],
+                'importance': 7
+            }
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data["id"]
+
+        # Update to add provenance
+        update_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'update_memory',
+            'arguments': {
+                'memory_id': memory_id,
+                'source_repo': 'owner/repo',
+                'source_files': ['file1.py'],
+                'confidence': 0.9,
+                'encoding_agent': 'manual-review'
+            }
+        })
+
+        assert update_result.data is not None
+        assert update_result.data["source_repo"] == 'owner/repo'
+        assert update_result.data["source_files"] == ['file1.py']
+        assert update_result.data["confidence"] == 0.9
+        assert update_result.data["encoding_agent"] == 'manual-review'
+        # Other provenance fields should still be None
+        assert update_result.data.get("source_url") is None
+        assert update_result.data.get("encoding_version") is None
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_provenance_in_query_results_postgres_e2e(docker_services, mcp_server_url):
+    """Test that provenance fields are included in query results in PostgreSQL"""
+    async with Client(mcp_server_url) as client:
+        # Create memory with provenance
+        create_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory',
+            'arguments': {
+                'title': 'Provenance Query Test Postgres E2E Unique',
+                'content': 'Testing provenance fields in query results in PostgreSQL',
+                'context': 'PostgreSQL E2E query test for provenance',
+                'keywords': ['provenance', 'query', 'postgres-e2e-unique'],
+                'tags': ['test'],
+                'importance': 8,
+                'source_repo': 'test/query-repo-postgres',
+                'confidence': 0.75,
+                'encoding_agent': 'test-agent-postgres'
+            }
+        })
+
+        assert create_result.data is not None
+        memory_id = create_result.data["id"]
+
+        # Query for the memory
+        query_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'query_memory',
+            'arguments': {
+                'query': 'provenance query postgres e2e unique',
+                'query_context': 'testing provenance in query results in PostgreSQL',
+                'k': 10,
+                'include_links': False
+            }
+        })
+
+        assert query_result.data is not None
+        found_memory = None
+        for m in query_result.data["primary_memories"]:
+            if m["id"] == memory_id:
+                found_memory = m
+                break
+
+        assert found_memory is not None, f"Memory {memory_id} not found in query results"
+        assert found_memory["source_repo"] == 'test/query-repo-postgres'
+        assert found_memory["confidence"] == 0.75
+        assert found_memory["encoding_agent"] == 'test-agent-postgres'
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_provenance_confidence_boundaries_postgres_e2e(docker_services, mcp_server_url):
+    """Test that confidence score boundaries (0.0 and 1.0) work correctly in PostgreSQL"""
+    async with Client(mcp_server_url) as client:
+        # Test minimum confidence (0.0)
+        low_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory',
+            'arguments': {
+                'title': 'Low Confidence Memory Postgres E2E',
+                'content': 'Very uncertain content in PostgreSQL',
+                'context': 'Testing low confidence boundary in PostgreSQL',
+                'keywords': ['low', 'confidence', 'postgres'],
+                'tags': ['test'],
+                'importance': 5,
+                'confidence': 0.0
+            }
+        })
+
+        assert low_result.data is not None
+        low_id = low_result.data["id"]
+
+        # Verify via get_memory
+        get_low = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory',
+            'arguments': {'memory_id': low_id}
+        })
+        assert get_low.data["confidence"] == 0.0
+
+        # Test maximum confidence (1.0)
+        high_result = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'create_memory',
+            'arguments': {
+                'title': 'High Confidence Memory Postgres E2E',
+                'content': 'Very certain content in PostgreSQL',
+                'context': 'Testing high confidence boundary in PostgreSQL',
+                'keywords': ['high', 'confidence', 'postgres'],
+                'tags': ['test'],
+                'importance': 9,
+                'confidence': 1.0
+            }
+        })
+
+        assert high_result.data is not None
+        high_id = high_result.data["id"]
+
+        # Verify via get_memory
+        get_high = await client.call_tool('execute_forgetful_tool', {
+            'tool_name': 'get_memory',
+            'arguments': {'memory_id': high_id}
+        })
+        assert get_high.data["confidence"] == 1.0

@@ -63,6 +63,38 @@ class MemoryCreate(BaseModel):
         description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
     )
 
+    # Provenance tracking fields (optional) - for tracing AI-generated content
+    source_repo: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Repository/project source (e.g., 'owner/repo')"
+    )
+    source_files: List[str] | None = Field(
+        default=None,
+        description="Files that informed this memory (JSON list of paths)"
+    )
+    source_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="URL to original source material"
+    )
+    confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Encoding confidence score (0.0-1.0)"
+    )
+    encoding_agent: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Agent/process that created this memory"
+    )
+    encoding_version: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Version of encoding process/prompt"
+    )
+
     @field_validator("keywords", "tags")
     @classmethod
     def validate_lists(cls, v, info):
@@ -76,6 +108,14 @@ class MemoryCreate(BaseModel):
             raise ValueError(f"Too many {field_name} ({len(cleaned)}, max {max_count})")
 
         return cleaned
+
+    @field_validator("source_files")
+    @classmethod
+    def validate_source_files(cls, v):
+        """Clean empty strings from source_files list"""
+        if v is None:
+            return None
+        return [item.strip() for item in v if item.strip()]
 
 class MemoryUpdate(BaseModel):
     """Request model for updating a memory"""
@@ -126,6 +166,37 @@ class MemoryUpdate(BaseModel):
         description="New document links. Replaces existing if provided, unchanged if null."
     )
 
+    # Provenance tracking fields (optional) - for tracing AI-generated content
+    source_repo: str | None = Field(
+        None,
+        max_length=200,
+        description="New repository/project source. Unchanged if null."
+    )
+    source_files: List[str] | None = Field(
+        None,
+        description="New source files list. Replaces existing if provided, unchanged if null."
+    )
+    source_url: str | None = Field(
+        None,
+        max_length=2048,
+        description="New URL to source material. Unchanged if null."
+    )
+    confidence: float | None = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="New encoding confidence score (0.0-1.0). Unchanged if null."
+    )
+    encoding_agent: str | None = Field(
+        None,
+        max_length=100,
+        description="New agent/process identifier. Unchanged if null."
+    )
+    encoding_version: str | None = Field(
+        None,
+        max_length=50,
+        description="New encoding process version. Unchanged if null."
+    )
 
     @field_validator("keywords", "tags")
     @classmethod
@@ -143,7 +214,15 @@ class MemoryUpdate(BaseModel):
             raise ValueError(f"Too many {field_name} ({len(cleaned)}, max {max_count})")
 
         return cleaned
-    
+
+    @field_validator("source_files")
+    @classmethod
+    def validate_source_files(cls, v):
+        """Clean empty strings from source_files list"""
+        if v is None:
+            return None
+        return [item.strip() for item in v if item.strip()]
+
 class Memory(MemoryCreate):
     id: int
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True)

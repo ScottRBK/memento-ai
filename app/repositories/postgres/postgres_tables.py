@@ -139,6 +139,14 @@ class MemoryTable(Base):
     importance: Mapped[int] = mapped_column(Integer, nullable=False)
     embedding: Mapped[Vector] = mapped_column(Vector(settings.EMBEDDING_DIMENSIONS), nullable=False)
 
+    # Provenance tracking (optional) - for tracing AI-generated content
+    source_repo: Mapped[str] = mapped_column(Text, nullable=True)
+    source_files: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=True)
+    confidence: Mapped[float] = mapped_column(nullable=True)
+    encoding_agent: Mapped[str] = mapped_column(Text, nullable=True)
+    encoding_version: Mapped[str] = mapped_column(Text, nullable=True)
+
     # Lifecycle Management
     is_obsolete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     obsolete_reason: Mapped[str] = mapped_column(Text, nullable=True)
@@ -298,6 +306,7 @@ class MemoryTable(Base):
         Index("ix_memories_embedding", "embedding", postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"}),
         Index("ix_memories_is_obsolete", "is_obsolete"),
         Index("ix_memories_superseded_by", "superseded_by"),
+        Index("ix_memories_confidence", "confidence"),
     )
     
 class MemoryLinkTable(Base):

@@ -690,3 +690,255 @@ async def test_get_recent_memories_excludes_obsolete_e2e(mcp_client):
     assert active_memory_id in recent_ids
     # Should NOT include obsolete memory
     assert obsolete_memory_id not in recent_ids
+
+
+# ============================================================================
+# Provenance Tracking Tests (Issue #9)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_create_memory_with_provenance_e2e(mcp_client):
+    """Test creating memory with full provenance tracking fields"""
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'AI-Generated Memory E2E',
+            'content': 'Content extracted from codebase analysis by automated agent',
+            'context': 'Testing provenance tracking in E2E environment',
+            'keywords': ['ai-generated', 'provenance', 'test'],
+            'tags': ['test', 'provenance'],
+            'importance': 8,
+            'source_repo': 'scottrbk/forgetful',
+            'source_files': ['src/main.py', 'tests/test_main.py'],
+            'source_url': 'https://github.com/scottrbk/forgetful/blob/main/src/main.py',
+            'confidence': 0.85,
+            'encoding_agent': 'claude-sonnet-4-20250514',
+            'encoding_version': '0.1.0'
+        }
+    })
+
+    assert result.data is not None
+    memory_id = result.data["id"]
+
+    # Verify provenance fields are returned
+    get_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_memory',
+        'arguments': {'memory_id': memory_id}
+    })
+
+    assert get_result.data is not None
+    assert get_result.data["source_repo"] == 'scottrbk/forgetful'
+    assert get_result.data["source_files"] == ['src/main.py', 'tests/test_main.py']
+    assert get_result.data["source_url"] == 'https://github.com/scottrbk/forgetful/blob/main/src/main.py'
+    assert get_result.data["confidence"] == 0.85
+    assert get_result.data["encoding_agent"] == 'claude-sonnet-4-20250514'
+    assert get_result.data["encoding_version"] == '0.1.0'
+
+
+@pytest.mark.asyncio
+async def test_create_memory_without_provenance_backward_compat_e2e(mcp_client):
+    """Test that memories can still be created without provenance (backward compatibility)"""
+    result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'Manual Memory No Provenance E2E',
+            'content': 'Content entered manually without provenance tracking',
+            'context': 'Testing backward compatibility',
+            'keywords': ['manual', 'no-provenance'],
+            'tags': ['test'],
+            'importance': 7
+        }
+    })
+
+    assert result.data is not None
+    memory_id = result.data["id"]
+
+    # Verify provenance fields are null/not present
+    get_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_memory',
+        'arguments': {'memory_id': memory_id}
+    })
+
+    assert get_result.data is not None
+    assert get_result.data.get("source_repo") is None
+    assert get_result.data.get("source_files") is None
+    assert get_result.data.get("source_url") is None
+    assert get_result.data.get("confidence") is None
+    assert get_result.data.get("encoding_agent") is None
+    assert get_result.data.get("encoding_version") is None
+
+
+@pytest.mark.asyncio
+async def test_update_memory_add_provenance_e2e(mcp_client):
+    """Test adding provenance fields to an existing memory via update"""
+    # Create memory without provenance
+    create_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'Memory to Add Provenance E2E',
+            'content': 'Content without initial provenance',
+            'context': 'Testing provenance addition',
+            'keywords': ['update', 'provenance'],
+            'tags': ['test'],
+            'importance': 7
+        }
+    })
+
+    assert create_result.data is not None
+    memory_id = create_result.data["id"]
+
+    # Update to add provenance
+    update_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'update_memory',
+        'arguments': {
+            'memory_id': memory_id,
+            'source_repo': 'owner/repo',
+            'source_files': ['file1.py'],
+            'confidence': 0.9,
+            'encoding_agent': 'manual-review'
+        }
+    })
+
+    assert update_result.data is not None
+    assert update_result.data["source_repo"] == 'owner/repo'
+    assert update_result.data["source_files"] == ['file1.py']
+    assert update_result.data["confidence"] == 0.9
+    assert update_result.data["encoding_agent"] == 'manual-review'
+    # Other provenance fields should still be None
+    assert update_result.data.get("source_url") is None
+    assert update_result.data.get("encoding_version") is None
+
+
+@pytest.mark.asyncio
+async def test_update_memory_modify_provenance_e2e(mcp_client):
+    """Test modifying existing provenance fields"""
+    # Create memory with initial provenance
+    create_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'Memory to Modify Provenance E2E',
+            'content': 'Content with initial provenance',
+            'context': 'Testing provenance modification',
+            'keywords': ['modify', 'provenance'],
+            'tags': ['test'],
+            'importance': 7,
+            'confidence': 0.5,
+            'encoding_agent': 'old-agent'
+        }
+    })
+
+    assert create_result.data is not None
+    memory_id = create_result.data["id"]
+
+    # Update provenance fields
+    update_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'update_memory',
+        'arguments': {
+            'memory_id': memory_id,
+            'confidence': 0.95,
+            'encoding_agent': 'verified-by-human'
+        }
+    })
+
+    assert update_result.data is not None
+    assert update_result.data["confidence"] == 0.95
+    assert update_result.data["encoding_agent"] == 'verified-by-human'
+
+
+@pytest.mark.asyncio
+async def test_provenance_in_query_results_e2e(mcp_client):
+    """Test that provenance fields are included in query results"""
+    # Create memory with provenance
+    create_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'Provenance Query Test E2E Unique',
+            'content': 'Testing provenance fields in query results',
+            'context': 'E2E query test for provenance',
+            'keywords': ['provenance', 'query', 'e2e-unique'],
+            'tags': ['test'],
+            'importance': 8,
+            'source_repo': 'test/query-repo',
+            'confidence': 0.75,
+            'encoding_agent': 'test-agent'
+        }
+    })
+
+    assert create_result.data is not None
+    memory_id = create_result.data["id"]
+
+    # Query for the memory
+    query_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'query_memory',
+        'arguments': {
+            'query': 'provenance query e2e unique',
+            'query_context': 'testing provenance in query results',
+            'k': 10,
+            'include_links': False
+        }
+    })
+
+    assert query_result.data is not None
+    found_memory = None
+    for m in query_result.data["primary_memories"]:
+        if m["id"] == memory_id:
+            found_memory = m
+            break
+
+    assert found_memory is not None, f"Memory {memory_id} not found in query results"
+    assert found_memory["source_repo"] == 'test/query-repo'
+    assert found_memory["confidence"] == 0.75
+    assert found_memory["encoding_agent"] == 'test-agent'
+
+
+@pytest.mark.asyncio
+async def test_provenance_confidence_boundaries_e2e(mcp_client):
+    """Test that confidence score boundaries (0.0 and 1.0) work correctly"""
+    # Test minimum confidence (0.0)
+    low_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'Low Confidence Memory E2E',
+            'content': 'Very uncertain content',
+            'context': 'Testing low confidence boundary',
+            'keywords': ['low', 'confidence'],
+            'tags': ['test'],
+            'importance': 5,
+            'confidence': 0.0
+        }
+    })
+
+    assert low_result.data is not None
+    low_id = low_result.data["id"]
+
+    # Verify via get_memory
+    get_low = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_memory',
+        'arguments': {'memory_id': low_id}
+    })
+    assert get_low.data["confidence"] == 0.0
+
+    # Test maximum confidence (1.0)
+    high_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_memory',
+        'arguments': {
+            'title': 'High Confidence Memory E2E',
+            'content': 'Very certain content',
+            'context': 'Testing high confidence boundary',
+            'keywords': ['high', 'confidence'],
+            'tags': ['test'],
+            'importance': 9,
+            'confidence': 1.0
+        }
+    })
+
+    assert high_result.data is not None
+    high_id = high_result.data["id"]
+
+    # Verify via get_memory
+    get_high = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'get_memory',
+        'arguments': {'memory_id': high_id}
+    })
+    assert get_high.data["confidence"] == 1.0

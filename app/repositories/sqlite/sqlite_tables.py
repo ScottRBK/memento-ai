@@ -145,6 +145,14 @@ class MemoryTable(Base):
     importance: Mapped[int] = mapped_column(Integer, nullable=False)
     # Note: embedding is NOT stored here - it's in vec_memories virtual table
 
+    # Provenance tracking (optional) - for tracing AI-generated content
+    source_repo: Mapped[str] = mapped_column(Text, nullable=True)
+    source_files: Mapped[List[str]] = mapped_column(JSON, nullable=True)
+    source_url: Mapped[str] = mapped_column(Text, nullable=True)
+    confidence: Mapped[float] = mapped_column(nullable=True)
+    encoding_agent: Mapped[str] = mapped_column(Text, nullable=True)
+    encoding_version: Mapped[str] = mapped_column(Text, nullable=True)
+
     # Lifecycle Management
     is_obsolete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     obsolete_reason: Mapped[str] = mapped_column(Text, nullable=True)
@@ -301,6 +309,7 @@ class MemoryTable(Base):
         # JSON columns can be indexed but differently
         Index("ix_memories_is_obsolete", "is_obsolete"),
         Index("ix_memories_superseded_by", "superseded_by"),
+        Index("ix_memories_confidence", "confidence"),
     )
 
 

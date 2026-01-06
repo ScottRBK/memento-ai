@@ -50,14 +50,19 @@ def register(mcp: FastMCP):
         - update_user_notes: Store user preferences/notes
 
         **Memory Tools** - Atomic knowledge storage (<400 words per memory)
-        - create_memory: Store a single concept with auto-linking to similar memories
+        - create_memory: Store a single concept with auto-linking to similar memories (supports provenance tracking)
         - query_memory: Semantic search across memories (use query_context for better ranking)
         - get_memory: Retrieve memory by ID
-        - update_memory: Modify memory fields (PATCH semantics)
+        - update_memory: Modify memory fields (PATCH semantics, supports provenance tracking)
         - link_memories: Manually connect related memories bidirectionally
         - unlink_memories: Remove link between memories
         - mark_memory_obsolete: Soft-delete with audit trail and optional superseded_by
         - get_recent_memories: Get newest memories (timeline view)
+
+        **Provenance Tracking** (optional fields for create_memory/update_memory):
+        - source_repo, source_files, source_url: Track where knowledge came from
+        - confidence: Reliability score (0.0-1.0) for AI-generated content
+        - encoding_agent, encoding_version: Track which agent/version created the memory
 
         **Project Tools** - Organize memories by context/scope
         - create_project: Create project container (development, personal, work, etc.)
@@ -199,6 +204,7 @@ def register(mcp: FastMCP):
         **Memory Operations:**
         - Search: execute_forgetful_tool("query_memory", {"query": "search terms", "query_context": "why searching"})
         - Create: execute_forgetful_tool("create_memory", {"title": "Short title", "content": "Memory content (<2000 chars)", "context": "Why this matters", "keywords": ["kw1", "kw2"], "tags": ["tag1"], "importance": 7, "project_ids": [1]})
+        - Create with provenance: execute_forgetful_tool("create_memory", {"title": "...", "content": "...", "context": "...", "keywords": [...], "tags": [...], "importance": 7, "source_repo": "owner/repo", "source_files": ["src/main.py"], "confidence": 0.85, "encoding_agent": "claude-sonnet-4"})
         - Update: execute_forgetful_tool("update_memory", {"memory_id": 1, "content": "new content"})
         - Get: execute_forgetful_tool("get_memory", {"memory_id": 1})
         - Link: execute_forgetful_tool("link_memories", {"memory_id": 1, "related_ids": [2, 3]})

@@ -508,3 +508,242 @@ async def test_unlink_memories_not_found(test_memory_service):
     )
 
     assert success is False
+
+
+# ============================================================================
+# Provenance Tracking Tests (Issue #9)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_create_memory_with_provenance(test_memory_service):
+    """Test creating memory with full provenance tracking fields"""
+    user_id = uuid4()
+
+    memory_data = MemoryCreate(
+        title="AI-Generated Memory",
+        content="Content extracted from codebase analysis",
+        context="Automated knowledge extraction",
+        keywords=["ai-generated", "code-analysis"],
+        tags=["provenance-test"],
+        importance=7,
+        source_repo="scottrbk/forgetful",
+        source_files=["src/main.py", "tests/test_main.py"],
+        source_url="https://github.com/scottrbk/forgetful/blob/main/src/main.py",
+        confidence=0.85,
+        encoding_agent="claude-sonnet-4-20250514",
+        encoding_version="0.1.0"
+    )
+
+    memory, _ = await test_memory_service.create_memory(
+        user_id=user_id,
+        memory_data=memory_data
+    )
+
+    assert memory is not None
+    assert memory.source_repo == "scottrbk/forgetful"
+    assert memory.source_files == ["src/main.py", "tests/test_main.py"]
+    assert memory.source_url == "https://github.com/scottrbk/forgetful/blob/main/src/main.py"
+    assert memory.confidence == 0.85
+    assert memory.encoding_agent == "claude-sonnet-4-20250514"
+    assert memory.encoding_version == "0.1.0"
+
+
+@pytest.mark.asyncio
+async def test_create_memory_without_provenance(test_memory_service):
+    """Test that memories can still be created without provenance (backward compatibility)"""
+    user_id = uuid4()
+
+    memory_data = MemoryCreate(
+        title="Manual Memory",
+        content="Content entered by user",
+        context="User-provided knowledge",
+        keywords=["manual", "user"],
+        tags=["no-provenance"],
+        importance=7
+        # No provenance fields - should default to None
+    )
+
+    memory, _ = await test_memory_service.create_memory(
+        user_id=user_id,
+        memory_data=memory_data
+    )
+
+    assert memory is not None
+    assert memory.source_repo is None
+    assert memory.source_files is None
+    assert memory.source_url is None
+    assert memory.confidence is None
+    assert memory.encoding_agent is None
+    assert memory.encoding_version is None
+
+
+@pytest.mark.asyncio
+async def test_update_memory_add_provenance(test_memory_service):
+    """Test adding provenance fields to an existing memory via update"""
+    user_id = uuid4()
+
+    # Create memory without provenance
+    memory_data = MemoryCreate(
+        title="Memory Without Provenance",
+        content="Content without source tracking",
+        context="Initial creation",
+        keywords=["no-provenance"],
+        tags=["test"],
+        importance=7
+    )
+    memory, _ = await test_memory_service.create_memory(user_id, memory_data)
+
+    assert memory.source_repo is None
+
+    # Update to add provenance
+    memory_update = MemoryUpdate(
+        source_repo="owner/repo",
+        source_files=["file1.py"],
+        confidence=0.9,
+        encoding_agent="manual-review"
+    )
+
+    updated_memory = await test_memory_service.update_memory(
+        user_id=user_id,
+        memory_id=memory.id,
+        updated_memory=memory_update
+    )
+
+    assert updated_memory.source_repo == "owner/repo"
+    assert updated_memory.source_files == ["file1.py"]
+    assert updated_memory.confidence == 0.9
+    assert updated_memory.encoding_agent == "manual-review"
+    # Other provenance fields should still be None
+    assert updated_memory.source_url is None
+    assert updated_memory.encoding_version is None
+
+
+@pytest.mark.asyncio
+async def test_update_memory_modify_provenance(test_memory_service):
+    """Test modifying existing provenance fields"""
+    user_id = uuid4()
+
+    # Create memory with initial provenance
+    memory_data = MemoryCreate(
+        title="Memory With Provenance",
+        content="Content with source tracking",
+        context="Initial creation with provenance",
+        keywords=["provenance"],
+        tags=["test"],
+        importance=7,
+        confidence=0.5,
+        encoding_agent="old-agent"
+    )
+    memory, _ = await test_memory_service.create_memory(user_id, memory_data)
+
+    assert memory.confidence == 0.5
+    assert memory.encoding_agent == "old-agent"
+
+    # Update provenance fields
+    memory_update = MemoryUpdate(
+        confidence=0.95,
+        encoding_agent="verified-by-human"
+    )
+
+    updated_memory = await test_memory_service.update_memory(
+        user_id=user_id,
+        memory_id=memory.id,
+        updated_memory=memory_update
+    )
+
+    assert updated_memory.confidence == 0.95
+    assert updated_memory.encoding_agent == "verified-by-human"
+
+
+@pytest.mark.asyncio
+async def test_provenance_fields_in_query_results(test_memory_service):
+    """Test that provenance fields are included in query results"""
+    user_id = uuid4()
+
+    # Create memory with provenance
+    memory_data = MemoryCreate(
+        title="Provenance Query Test",
+        content="Test content for query verification",
+        context="Testing provenance in search results",
+        keywords=["provenance", "query", "test"],
+        tags=["test"],
+        importance=8,
+        source_repo="test/repo",
+        confidence=0.75,
+        encoding_agent="test-agent"
+    )
+    await test_memory_service.create_memory(user_id, memory_data)
+
+    # Query for the memory
+    query_request = MemoryQueryRequest(
+        query="provenance query test",
+        query_context="testing provenance fields in results",
+        k=5,
+        include_links=False
+    )
+
+    result = await test_memory_service.query_memory(user_id, query_request)
+
+    assert len(result.primary_memories) >= 1
+    found_memory = next(
+        (m for m in result.primary_memories if m.title == "Provenance Query Test"),
+        None
+    )
+    assert found_memory is not None
+    assert found_memory.source_repo == "test/repo"
+    assert found_memory.confidence == 0.75
+    assert found_memory.encoding_agent == "test-agent"
+
+
+@pytest.mark.asyncio
+async def test_confidence_validation(test_memory_service):
+    """Test that confidence score is validated between 0.0 and 1.0"""
+    user_id = uuid4()
+
+    # Valid confidence at boundaries
+    memory_data_low = MemoryCreate(
+        title="Low Confidence Memory",
+        content="Very uncertain content",
+        context="Testing low confidence",
+        keywords=["low"],
+        tags=["test"],
+        importance=5,
+        confidence=0.0  # Minimum valid
+    )
+    memory_low, _ = await test_memory_service.create_memory(user_id, memory_data_low)
+    assert memory_low.confidence == 0.0
+
+    memory_data_high = MemoryCreate(
+        title="High Confidence Memory",
+        content="Very certain content",
+        context="Testing high confidence",
+        keywords=["high"],
+        tags=["test"],
+        importance=9,
+        confidence=1.0  # Maximum valid
+    )
+    memory_high, _ = await test_memory_service.create_memory(user_id, memory_data_high)
+    assert memory_high.confidence == 1.0
+
+
+@pytest.mark.asyncio
+async def test_source_files_empty_string_cleaning(test_memory_service):
+    """Test that empty strings are cleaned from source_files list"""
+    user_id = uuid4()
+
+    memory_data = MemoryCreate(
+        title="Source Files Cleaning Test",
+        content="Testing source files validation",
+        context="Validation test",
+        keywords=["validation"],
+        tags=["test"],
+        importance=7,
+        source_files=["file1.py", "", "  ", "file2.py", "   file3.py   "]
+    )
+
+    memory, _ = await test_memory_service.create_memory(user_id, memory_data)
+
+    # Empty strings and whitespace-only strings should be removed
+    # Strings with content should be trimmed
+    assert memory.source_files == ["file1.py", "file2.py", "file3.py"]

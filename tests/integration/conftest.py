@@ -180,6 +180,13 @@ class InMemoryMemoryRepository(MemoryRepository):
             code_artifact_ids=memory.code_artifact_ids or [],
             document_ids=memory.document_ids or [],
             linked_memory_ids=[],
+            # Provenance tracking fields
+            source_repo=memory.source_repo,
+            source_files=memory.source_files,
+            source_url=memory.source_url,
+            confidence=memory.confidence,
+            encoding_agent=memory.encoding_agent,
+            encoding_version=memory.encoding_version,
             created_at=now,
             updated_at=now,
         )

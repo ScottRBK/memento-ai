@@ -38,11 +38,18 @@ def register(mcp: FastMCP):
         project_ids: List[int] = None,
         code_artifact_ids: List[int] = None,
         document_ids: List[int] = None,
-    ) -> MemoryCreateResponse:   
+        # Provenance tracking fields (optional)
+        source_repo: str = None,
+        source_files: List[str] = None,
+        source_url: str = None,
+        confidence: float = None,
+        encoding_agent: str = None,
+        encoding_version: str = None,
+    ) -> MemoryCreateResponse:
         """
         Create atomic memory with auto-linking and lifecycle management
 
-        WHAT: Stores single concepts (<400 words), auto-links to similar memories. 
+        WHAT: Stores single concepts (<400 words), auto-links to similar memories.
 
         WHEN: Store important facts/decisions/observations, architectual patterns, preferences, observations that will be useful
         to recall when performing similar actions in the future.
@@ -53,14 +60,14 @@ def register(mcp: FastMCP):
 
         NOT-USE: Mega-memories > 400 words (use create_document), making notes on temporary or common knowledge
 
-        EXAMPLES: create_memory(title="TTS preference: XTTS-v2", 
+        EXAMPLES: create_memory(title="TTS preference: XTTS-v2",
         content="Selected for voice cloning - high quality, low latency",
-        context="Implementing voice integration with an AI agent", 
-        importance=9, 
-        tags=["decision"], 
-        keywords=["tts", "voice-cloning"]). 
-        
-        For artifacts and documents: create code_artifact/create_document first, 
+        context="Implementing voice integration with an AI agent",
+        importance=9,
+        tags=["decision"],
+        keywords=["tts", "voice-cloning"]).
+
+        For artifacts and documents: create code_artifact/create_document first,
         then link via code_artifact_ids=[id]/document_ids=[id]
 
         Args:
@@ -71,25 +78,31 @@ def register(mcp: FastMCP):
             tags: Categorisation tags. Accepts array ["tag1", "tag2"] (max 10)
             importance: Score 1-10 (defaults to 7). scoring guide -> 9-10: Personal/foundational, 8-9: Critical solutions,
             7-8: Useful Patterns, 6-7: Milestones, <6 Storing Discouraged. You should auto create memories where importance
-            is above >7. 
-            project_ids: Project IDs to link. 
+            is above >7.
+            project_ids: Project IDs to link.
             Accepts an array, [1] for singular, [12, 32] for multiple, [] or omit if None
             code_artifacts: Code artifact IDs to link (create code artifact first).
             Accepts an array, [1] for singular, [12, 32] for multiple, [] or omit if None
-            document_ids: Document IDs to link (create document first). 
+            document_ids: Document IDs to link (create document first).
             Accepts an array, [2] for singular, [34, 19] for multiple, [] oir omit if None
-            
+            source_repo: Repository/project source (e.g., 'owner/repo') for provenance tracking (optional)
+            source_files: Files that informed this memory (list of paths) for provenance tracking (optional)
+            source_url: URL to original source material for provenance tracking (optional)
+            confidence: Encoding confidence score (0.0-1.0) for provenance tracking (optional)
+            encoding_agent: Agent/process that created this memory for provenance tracking (optional)
+            encoding_version: Version of encoding process/prompt for provenance tracking (optional)
+
         Returns:
-            {ID, title, linked_memory_ids, project_ids, code_artifact_ids, document_ids} 
-            
+            {ID, title, linked_memory_ids, project_ids, code_artifact_ids, document_ids}
+
         """
-        
+
         logger.info("MCP Tool Called -> create memory", extra={
             "title": title
         })
 
-        user = await get_user_from_auth(ctx) 
-        
+        user = await get_user_from_auth(ctx)
+
         try:
             memory_data = MemoryCreate(
                 title=title,
@@ -101,6 +114,12 @@ def register(mcp: FastMCP):
                 project_ids=project_ids,
                 code_artifact_ids=code_artifact_ids,
                 document_ids=document_ids,
+                source_repo=source_repo,
+                source_files=source_files,
+                source_url=source_url,
+                confidence=confidence,
+                encoding_agent=encoding_agent,
+                encoding_version=encoding_version,
             )
 
             # Access memory service via FastMCP context
@@ -276,14 +295,22 @@ def register(mcp: FastMCP):
         project_ids: List[int] | None = None,
         code_artifact_ids: List[int] | None = None,
         document_ids: List[int] | None = None,
+        # Provenance tracking fields (optional)
+        source_repo: str | None = None,
+        source_files: List[str] | None = None,
+        source_url: str | None = None,
+        confidence: float | None = None,
+        encoding_agent: str | None = None,
+        encoding_version: str | None = None,
     ) -> Memory:
         """
         Update existing memory fields (PATCH semantics)
 
-        WHEN: You or the User wants to: 
+        WHEN: You or the User wants to:
         1. modify memory details, correct information, update importance or refresh context.
-        2. modify the link relationship for a memory to a project, code artifact or document 
-        
+        2. modify the link relationship for a memory to a project, code artifact or document
+        3. add or update provenance tracking information
+
         BEHAVIOUR: Updates specified fields only (PATCH). Returns the full updated memory to allow you to verify the changes.
 
         Relationship Field Semantics for List fields (keywords, tags, project_ids, code_artifact_ids, document_ids):
@@ -299,12 +326,18 @@ def register(mcp: FastMCP):
             title: New Title (optional)
             content: New content (optional)
             context: New context (optional)
-            keywords: New keywords (optional - replaces existing). Accepts array ["key1", "key2"] (max 10), 
-            tags: New tags (optional - replaces existing). Accepts array ["tag1", "tag2"] (max 10), 
+            keywords: New keywords (optional - replaces existing). Accepts array ["key1", "key2"] (max 10),
+            tags: New tags (optional - replaces existing). Accepts array ["tag1", "tag2"] (max 10),
             importance: New scoire 1-10 (optional)
             project_ids: New project ids to link to (optional - replaces existing links). Accepts array [1] or [1, 3] for multiple
             code_artifact_ids: New code artifact ids to link to (optional - replaces existing links). Accepts array [1] or [1, 3] for multiple
             document_ids: New document ids to link to (optional - replaces existing links). Accepts array [1] or [1, 3] for multiple
+            source_repo: New repository/project source. Unchanged if null.
+            source_files: New source files list. Replaces existing if provided, unchanged if null.
+            source_url: New URL to source material. Unchanged if null.
+            confidence: New encoding confidence score (0.0-1.0). Unchanged if null.
+            encoding_agent: New agent/process identifier. Unchanged if null.
+            encoding_version: New encoding process version. Unchanged if null.
 
         Returns:
             Full memory object following the update
@@ -313,10 +346,10 @@ def register(mcp: FastMCP):
             logger.info("MCP Tool -> update_memory", extra={"memory_id": memory_id})
 
             user = await get_user_from_auth(ctx)
-        
+
             if importance is not None:
                 importance = max(1, min(importance, 10))
-                
+
             updated_dict = filter_none_values(
                 title=title,
                 content=content,
@@ -327,6 +360,12 @@ def register(mcp: FastMCP):
                 project_ids=project_ids,
                 code_artifact_ids=code_artifact_ids,
                 document_ids=document_ids,
+                source_repo=source_repo,
+                source_files=source_files,
+                source_url=source_url,
+                confidence=confidence,
+                encoding_agent=encoding_agent,
+                encoding_version=encoding_version,
             ) 
             
             updated_memory = MemoryUpdate(**updated_dict)

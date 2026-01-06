@@ -121,6 +121,13 @@ class MemoryToolAdapters:
         project_ids: Optional[List[int]] = None,
         code_artifact_ids: Optional[List[int]] = None,
         document_ids: Optional[List[int]] = None,
+        # Provenance tracking fields
+        source_repo: Optional[str] = None,
+        source_files: Optional[List[str]] = None,
+        source_url: Optional[str] = None,
+        confidence: Optional[float] = None,
+        encoding_agent: Optional[str] = None,
+        encoding_version: Optional[str] = None,
     ) -> MemoryCreateResponse:
         """Adapter for create_memory tool"""
         logger.info("MCP Tool Called -> create memory", extra={"title": title})
@@ -137,6 +144,12 @@ class MemoryToolAdapters:
             project_ids=project_ids,
             code_artifact_ids=code_artifact_ids,
             document_ids=document_ids,
+            source_repo=source_repo,
+            source_files=source_files,
+            source_url=source_url,
+            confidence=confidence,
+            encoding_agent=encoding_agent,
+            encoding_version=encoding_version,
         )
 
         memory, similar_memories = await self.memory_service.create_memory(
@@ -227,6 +240,13 @@ class MemoryToolAdapters:
         project_ids: Optional[List[int]] = None,
         code_artifact_ids: Optional[List[int]] = None,
         document_ids: Optional[List[int]] = None,
+        # Provenance tracking fields
+        source_repo: Optional[str] = None,
+        source_files: Optional[List[str]] = None,
+        source_url: Optional[str] = None,
+        confidence: Optional[float] = None,
+        encoding_agent: Optional[str] = None,
+        encoding_version: Optional[str] = None,
     ) -> Memory:
         """Adapter for update_memory tool"""
         logger.info("MCP Tool -> update_memory", extra={"memory_id": memory_id})
@@ -246,6 +266,12 @@ class MemoryToolAdapters:
             project_ids=project_ids,
             code_artifact_ids=code_artifact_ids,
             document_ids=document_ids,
+            source_repo=source_repo,
+            source_files=source_files,
+            source_url=source_url,
+            confidence=confidence,
+            encoding_agent=encoding_agent,
+            encoding_version=encoding_version,
         )
 
         updated_memory = MemoryUpdate(**updated_dict)

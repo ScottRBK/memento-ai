@@ -222,6 +222,54 @@ def register_memory_tools_metadata(
                     "default": None,
                     "example": [2]
                 },
+                {
+                    "name": "source_repo",
+                    "type": "Optional[str]",
+                    "description": "Repository/project source (e.g., 'owner/repo') for provenance tracking",
+                    "required": False,
+                    "default": None,
+                    "example": "scottrbk/forgetful"
+                },
+                {
+                    "name": "source_files",
+                    "type": "Optional[List[str]]",
+                    "description": "Files that informed this memory (list of paths) for provenance tracking",
+                    "required": False,
+                    "default": None,
+                    "example": ["src/main.py", "tests/test.py"]
+                },
+                {
+                    "name": "source_url",
+                    "type": "Optional[str]",
+                    "description": "URL to original source material for provenance tracking",
+                    "required": False,
+                    "default": None,
+                    "example": "https://github.com/owner/repo/blob/main/README.md"
+                },
+                {
+                    "name": "confidence",
+                    "type": "Optional[float]",
+                    "description": "Encoding confidence score (0.0-1.0) for provenance tracking",
+                    "required": False,
+                    "default": None,
+                    "example": 0.85
+                },
+                {
+                    "name": "encoding_agent",
+                    "type": "Optional[str]",
+                    "description": "Agent/process that created this memory for provenance tracking",
+                    "required": False,
+                    "default": None,
+                    "example": "claude-sonnet-4-20250514"
+                },
+                {
+                    "name": "encoding_version",
+                    "type": "Optional[str]",
+                    "description": "Version of encoding process/prompt for provenance tracking",
+                    "required": False,
+                    "default": None,
+                    "example": "0.1.0"
+                },
             ],
             "returns": "MemoryCreateResponse with id, title, linked_memory_ids, similar_memories",
             "examples": [
@@ -397,6 +445,54 @@ def register_memory_tools_metadata(
                     "required": False,
                     "default": None,
                     "example": [3]
+                },
+                {
+                    "name": "source_repo",
+                    "type": "Optional[str]",
+                    "description": "New repository/project source. Unchanged if null.",
+                    "required": False,
+                    "default": None,
+                    "example": "scottrbk/forgetful"
+                },
+                {
+                    "name": "source_files",
+                    "type": "Optional[List[str]]",
+                    "description": "New source files list. Replaces existing if provided, unchanged if null.",
+                    "required": False,
+                    "default": None,
+                    "example": ["src/main.py", "tests/test.py"]
+                },
+                {
+                    "name": "source_url",
+                    "type": "Optional[str]",
+                    "description": "New URL to source material. Unchanged if null.",
+                    "required": False,
+                    "default": None,
+                    "example": "https://github.com/owner/repo/blob/main/README.md"
+                },
+                {
+                    "name": "confidence",
+                    "type": "Optional[float]",
+                    "description": "New encoding confidence score (0.0-1.0). Unchanged if null.",
+                    "required": False,
+                    "default": None,
+                    "example": 0.85
+                },
+                {
+                    "name": "encoding_agent",
+                    "type": "Optional[str]",
+                    "description": "New agent/process identifier. Unchanged if null.",
+                    "required": False,
+                    "default": None,
+                    "example": "claude-sonnet-4-20250514"
+                },
+                {
+                    "name": "encoding_version",
+                    "type": "Optional[str]",
+                    "description": "New encoding process version. Unchanged if null.",
+                    "required": False,
+                    "default": None,
+                    "example": "0.1.0"
                 },
             ],
             "returns": "Full Memory object after update",
