@@ -52,6 +52,7 @@ class SubgraphEdge(BaseModel):
         "memory_link",
         "entity_memory",
         "entity_relationship",
+        "entity_project",
         "memory_project",
         "document_project",
         "code_artifact_project",
@@ -132,6 +133,11 @@ class SubgraphMeta(BaseModel):
         ...,
         ge=0,
         description="Number of entity-to-memory edges"
+    )
+    entity_project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of entity-to-project edges"
     )
     memory_project_count: int = Field(
         default=0,

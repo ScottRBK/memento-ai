@@ -13,7 +13,8 @@ from app.repositories.postgres.postgres_tables import (
     EntityRelationshipsTable,
     MemoryTable,
     ProjectsTable,
-    memory_entity_association
+    memory_entity_association,
+    entity_project_association
 )
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.models.entity_models import (
@@ -966,6 +967,51 @@ class PostgresEntityRepository:
         except Exception as e:
             logger.error(
                 "Failed to get all entity-memory links",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "error": str(e)
+                }
+            )
+            raise
+
+    async def get_all_entity_project_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-project associations for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, project_id) tuples representing all links
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                # Query the association table with ownership verification
+                stmt = select(
+                    entity_project_association.c.entity_id,
+                    entity_project_association.c.project_id
+                ).select_from(
+                    entity_project_association
+                ).join(
+                    EntitiesTable,
+                    EntitiesTable.id == entity_project_association.c.entity_id
+                ).join(
+                    ProjectsTable,
+                    ProjectsTable.id == entity_project_association.c.project_id
+                ).where(
+                    EntitiesTable.user_id == user_id,
+                    ProjectsTable.user_id == user_id
+                )
+
+                result = await session.execute(stmt)
+                return [(row.entity_id, row.project_id) for row in result]
+
+        except Exception as e:
+            logger.error(
+                "Failed to get all entity-project links",
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),

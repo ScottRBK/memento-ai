@@ -202,6 +202,7 @@ class GraphService:
         memory_link_count = len([e for e in edges if e.type == "memory_link"])
         entity_relationship_count = len([e for e in edges if e.type == "entity_relationship"])
         entity_memory_count = len([e for e in edges if e.type == "entity_memory"])
+        entity_project_count = len([e for e in edges if e.type == "entity_project"])
         memory_project_count = len([e for e in edges if e.type == "memory_project"])
         document_project_count = len([e for e in edges if e.type == "document_project"])
         code_artifact_project_count = len([e for e in edges if e.type == "code_artifact_project"])
@@ -222,6 +223,7 @@ class GraphService:
             memory_link_count=memory_link_count,
             entity_relationship_count=entity_relationship_count,
             entity_memory_count=entity_memory_count,
+            entity_project_count=entity_project_count,
             memory_project_count=memory_project_count,
             document_project_count=document_project_count,
             code_artifact_project_count=code_artifact_project_count,
@@ -609,6 +611,23 @@ class GraphService:
                                 "confidence": rel.confidence,
                                 "metadata": rel.metadata,
                             }
+                        ))
+
+        # Fetch entity-to-project edges
+        if entity_ids and project_ids:
+            entity_project_links = await self.entity_repo.get_all_entity_project_links(
+                user_id=user_id
+            )
+            for entity_id, proj_id in entity_project_links:
+                if entity_id in entity_id_set and proj_id in project_id_set:
+                    edge_id = f"entity_{entity_id}_project_{proj_id}"
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append(SubgraphEdge(
+                            id=edge_id,
+                            source=f"entity_{entity_id}",
+                            target=f"project_{proj_id}",
+                            type="entity_project",
                         ))
 
         # Fetch document-to-project edges
