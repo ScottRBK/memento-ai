@@ -1222,6 +1222,46 @@ class SqliteMemoryRepository:
                   AND ca.user_id = :user_id
                   AND :include_code_artifacts = 1
                   AND instr(gt.path, 'code_artifact_' || CAST(ca.id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Entity -> Project via entity_project_association
+                SELECT
+                    epa.project_id,
+                    'project',
+                    gt.depth + 1,
+                    gt.path || ',' || 'project_' || CAST(epa.project_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN entity_project_association epa ON (
+                    gt.node_type = 'entity'
+                    AND epa.entity_id = gt.node_id
+                )
+                INNER JOIN projects p ON p.id = epa.project_id
+                WHERE gt.depth < :max_depth
+                  AND p.user_id = :user_id
+                  AND :include_entities = 1
+                  AND :include_projects = 1
+                  AND instr(gt.path, 'project_' || CAST(epa.project_id AS TEXT)) = 0
+
+                UNION ALL
+
+                -- Project -> Entity via entity_project_association
+                SELECT
+                    epa.entity_id,
+                    'entity',
+                    gt.depth + 1,
+                    gt.path || ',' || 'entity_' || CAST(epa.entity_id AS TEXT)
+                FROM graph_traverse gt
+                INNER JOIN entity_project_association epa ON (
+                    gt.node_type = 'project'
+                    AND epa.project_id = gt.node_id
+                )
+                INNER JOIN entities e ON e.id = epa.entity_id
+                WHERE gt.depth < :max_depth
+                  AND e.user_id = :user_id
+                  AND :include_entities = 1
+                  AND :include_projects = 1
+                  AND instr(gt.path, 'entity_' || CAST(epa.entity_id AS TEXT)) = 0
             )
             SELECT node_id, node_type, MIN(depth) as depth
             FROM graph_traverse

@@ -1101,6 +1101,32 @@ class PostgresMemoryRepository:
                   AND ca.user_id = :user_id
             """)
 
+        # Entity -> Project via entity_project_association
+        if include_entities and include_projects:
+            edge_queries.append("""
+                SELECT
+                    epa.project_id AS target_id,
+                    'project'::TEXT AS target_type
+                FROM entity_project_association epa
+                INNER JOIN projects p ON p.id = epa.project_id
+                WHERE gt.node_type = 'entity'
+                  AND epa.entity_id = gt.node_id
+                  AND p.user_id = :user_id
+            """)
+
+        # Project -> Entity via entity_project_association
+        if include_entities and include_projects:
+            edge_queries.append("""
+                SELECT
+                    epa.entity_id AS target_id,
+                    'entity'::TEXT AS target_type
+                FROM entity_project_association epa
+                INNER JOIN entities e ON e.id = epa.entity_id
+                WHERE gt.node_type = 'project'
+                  AND epa.project_id = gt.node_id
+                  AND e.user_id = :user_id
+            """)
+
         # If no edges to traverse, just return the center node
         if not edge_queries:
             return [{"node_id": center_id, "node_type": center_type, "depth": 0}], False

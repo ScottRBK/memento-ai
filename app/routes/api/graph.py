@@ -319,6 +319,23 @@ def register(mcp: FastMCP):
                             "type": "code_artifact_project"
                         })
 
+        # Add entity-project edges (from entity_project_association)
+        if include_entities and include_projects:
+            entity_project_links = await mcp.entity_service.get_all_entity_project_links(
+                user_id=user.id
+            )
+            for entity_id, proj_id in entity_project_links:
+                if entity_id in seen_entity_ids and proj_id in seen_project_ids:
+                    edge_id = f"entity_{entity_id}_project_{proj_id}"
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append({
+                            "id": edge_id,
+                            "source": f"entity_{entity_id}",
+                            "target": f"project_{proj_id}",
+                            "type": "entity_project"
+                        })
+
         # Add memory-document edges (from memory.document_ids)
         if include_memories and include_documents:
             for memory in memories:
@@ -353,6 +370,7 @@ def register(mcp: FastMCP):
         memory_link_count = len([e for e in edges if e["type"] == "memory_link"])
         entity_relationship_count = len([e for e in edges if e["type"] == "entity_relationship"])
         entity_memory_count = len([e for e in edges if e["type"] == "entity_memory"])
+        entity_project_count = len([e for e in edges if e["type"] == "entity_project"])
         memory_project_count = len([e for e in edges if e["type"] == "memory_project"])
         document_project_count = len([e for e in edges if e["type"] == "document_project"])
         code_artifact_project_count = len([e for e in edges if e["type"] == "code_artifact_project"])
@@ -372,6 +390,7 @@ def register(mcp: FastMCP):
                 "memory_link_count": memory_link_count,
                 "entity_relationship_count": entity_relationship_count,
                 "entity_memory_count": entity_memory_count,
+                "entity_project_count": entity_project_count,
                 "memory_project_count": memory_project_count,
                 "document_project_count": document_project_count,
                 "code_artifact_project_count": code_artifact_project_count,

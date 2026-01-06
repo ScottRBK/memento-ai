@@ -670,6 +670,37 @@ class EntityService:
 
         return links
 
+    async def get_all_entity_project_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-project links for graph visualization
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, project_id) tuples
+        """
+        logger.info(
+            "getting all entity-project links for graph",
+            extra={"user_id": str(user_id)}
+        )
+
+        links = await self.entity_repo.get_all_entity_project_links(
+            user_id=user_id
+        )
+
+        logger.info(
+            "entity-project links retrieved for graph",
+            extra={
+                "count": len(links),
+                "user_id": str(user_id)
+            }
+        )
+
+        return links
+
     async def get_entity_memories(
         self,
         user_id: UUID,
