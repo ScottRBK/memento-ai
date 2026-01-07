@@ -16,6 +16,13 @@ from pathlib import Path
 from app.config.settings import settings
 
 
+# Default environment overrides for ALL E2E tests
+# Enable activity tracking so all tests exercise the full event-driven architecture
+DEFAULT_ENV_OVERRIDE = {
+    "ACTIVITY_ENABLED": "true",
+}
+
+
 def port_in_use(port: int) -> bool:
     """Check if a server is actively listening on a port.
 
@@ -113,13 +120,16 @@ def docker_services(request):
         shutil.copy(env_example, env_file)
         print(f"✓ Copied {env_example} to {env_file} for testing")
 
-    # Check for environment variable overrides from test module
-    override_file = None
+    # Build environment overrides: start with defaults, then merge module-specific
+    env_override = DEFAULT_ENV_OVERRIDE.copy()
     if hasattr(request, 'module') and hasattr(request.module, 'DOCKER_ENV_OVERRIDE'):
-        env_override = request.module.DOCKER_ENV_OVERRIDE
+        env_override.update(request.module.DOCKER_ENV_OVERRIDE)
+
+    # Create a temporary docker-compose override file
+    override_file = None
+    if env_override:
         print(f"📝 Applying environment overrides: {env_override}")
 
-        # Create a temporary docker-compose override file
         override_config = {
             'services': {
                 'forgetful-service': {

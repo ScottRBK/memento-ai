@@ -95,6 +95,11 @@ class Settings(BaseSettings):
     ENTITY_AKA_MAX_COUNT: int = 10               # Maximum alternative names per entity
     ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH: int = 100  # e.g., "works_at", "owns", "manages"
 
+    # Activity Tracking Configuration
+    ACTIVITY_ENABLED: bool = False               # Enable activity event tracking
+    ACTIVITY_RETENTION_DAYS: int | None = None   # Days to keep activity events (None = forever)
+    ACTIVITY_TRACK_READS: bool = False           # Track read/query operations (opt-in)
+
     # Search Configuration
     EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"

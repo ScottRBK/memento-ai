@@ -22,6 +22,7 @@ from app.repositories.sqlite.project_repository import SqliteProjectRepository
 from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
 from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
+from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 
 # Shared imports
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
@@ -33,10 +34,12 @@ from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
 from app.services.graph_service import GraphService
+from app.services.activity_service import ActivityService
+from app.events import EventBus
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph
+from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
 
 
 @pytest.fixture(scope="module")
@@ -122,15 +125,27 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
         code_artifact_repository = SqliteCodeArtifactRepository(db_adapter=db_adapter)
         document_repository = SqliteDocumentRepository(db_adapter=db_adapter)
         entity_repository = SqliteEntityRepository(db_adapter=db_adapter)
+        activity_repository = SqliteActivityRepository(db_adapter=db_adapter)
 
         @asynccontextmanager
         async def lifespan(app):
             """Application lifecycle with SQLite initialization"""
             # Database already initialized above
 
+            # Create event bus for activity tracking
+            # NOTE: We do NOT subscribe to events here because async event handling
+            # conflicts with SQLite's StaticPool (in-memory mode shares one connection).
+            # Activity tracking is tested via PostgreSQL E2E tests.
+            event_bus = EventBus()
+
+            # Create activity service (for HTTP API route testing, not event-driven)
+            activity_service = ActivityService(activity_repository)
+            # Deliberately NOT subscribing: event_bus.subscribe("*.*", ...)
+
             # Create services after DB is initialized
             user_service = UserService(user_repository)
-            memory_service = MemoryService(memory_repository)
+            # Pass event_bus=None to avoid async event emission conflicts with SQLite
+            memory_service = MemoryService(memory_repository, event_bus=None)
             project_service = ProjectService(project_repository)
             code_artifact_service = CodeArtifactService(code_artifact_repository)
             document_service = DocumentService(document_repository)
@@ -151,6 +166,8 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
             mcp.document_service = document_service
             mcp.entity_service = entity_service
             mcp.graph_service = graph_service
+            mcp.activity_service = activity_service
+            mcp.event_bus = event_bus
 
             # Create and attach registry
             registry = ToolRegistry()
@@ -184,6 +201,7 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
         documents.register(mcp)
         code_artifacts.register(mcp)
         graph.register(mcp)
+        activity.register(mcp)
         meta_tools.register(mcp)
 
         yield mcp

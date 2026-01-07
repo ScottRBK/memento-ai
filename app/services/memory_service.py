@@ -8,7 +8,7 @@ This service implements the primary functionality for the Forgetful Memory Syste
     - Manual linking between memories
     - Retrieval with project associations
 """
-from typing import List
+from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 from app.config.logging_config import logging
@@ -22,9 +22,13 @@ from app.models.memory_models import (
     LinkedMemory,
     MemorySummary
 )
+from app.models.activity_models import ActivityEvent, EntityType, ActionType, ActorType
 from app.config.settings import settings
 from app.utils.token_counter import TokenCounter
 from app.utils.pydantic_helper import get_changed_fields
+
+if TYPE_CHECKING:
+    from app.events import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +38,14 @@ class MemoryService:
     Service layer for memory operations
 
     Handles business logic for creating, updating, querying and linking memories.
-    Uses repository protocol for data access
+    Uses repository protocol for data access.
+
+    Optionally emits activity events via event bus for tracking.
     """
-    
-    def __init__(self, memory_repo: MemoryRepository):
+
+    def __init__(self, memory_repo: MemoryRepository, event_bus: "EventBus | None" = None):
         self.memory_repo = memory_repo
+        self._event_bus = event_bus
         logger.info("Memory service initialised")    
         
     async def query_memory(
@@ -180,6 +187,15 @@ class MemoryService:
                     "number linked": len(target_ids)
                 })
 
+        # Emit created event
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=EntityType.MEMORY,
+            entity_id=memory.id,
+            action=ActionType.CREATED,
+            snapshot=memory.model_dump(mode="json"),
+        )
+
         return memory, similar_memories 
     
     async def update_memory(
@@ -224,9 +240,24 @@ class MemoryService:
             user_id=user_id,
             updated_memory=updated_memory,
             existing_memory=existing_memory,
-            search_fields_changed=search_fields_changed 
+            search_fields_changed=search_fields_changed
         )
-        
+
+        # Emit updated event with changes
+        if modified_memory:
+            changes_dict = {
+                field: {"old": old, "new": new}
+                for field, (old, new) in changed_fields.items()
+            }
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.MEMORY,
+                entity_id=memory_id,
+                action=ActionType.UPDATED,
+                snapshot=modified_memory.model_dump(mode="json"),
+                changes=changes_dict,
+            )
+
         return modified_memory
 
     async def mark_memory_obsolete(
@@ -253,14 +284,33 @@ class MemoryService:
             "memory_id": memory_id,
             "user_id": user_id
         })
-        
+
+        # Get memory before marking obsolete for snapshot
+        memory = await self.memory_repo.get_memory_by_id(
+            memory_id=memory_id,
+            user_id=user_id
+        )
+
         success = await self.memory_repo.mark_obsolete(
             memory_id=memory_id,
             user_id=user_id,
             reason=reason,
             superseded_by=superseded_by
-        ) 
-        
+        )
+
+        # Emit deleted event with snapshot
+        if success and memory:
+            snapshot = memory.model_dump(mode="json")
+            snapshot["obsolete_reason"] = reason
+            snapshot["superseded_by"] = superseded_by
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.MEMORY,
+                entity_id=memory_id,
+                action=ActionType.DELETED,
+                snapshot=snapshot,
+            )
+
         return success
 
     async def get_memory(
@@ -353,6 +403,17 @@ class MemoryService:
             target_ids=related_ids,
         )
 
+        # Emit link.created events for each link
+        for target_id in links_created:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.LINK,
+                entity_id=0,  # Links use metadata for source/target
+                action=ActionType.CREATED,
+                snapshot={"source_id": memory_id, "target_id": target_id},
+                metadata={"source_id": memory_id, "target_id": target_id},
+            )
+
         return links_created
 
     async def unlink_memories(
@@ -378,11 +439,24 @@ class MemoryService:
         # Verify source memory exists (raises NotFoundError if not)
         await self.get_memory(user_id=user_id, memory_id=memory_id)
 
-        return await self.memory_repo.unlink_memories(
+        success = await self.memory_repo.unlink_memories(
             user_id=user_id,
             source_id=memory_id,
             target_id=target_id
         )
+
+        # Emit link.deleted event
+        if success:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.LINK,
+                entity_id=0,
+                action=ActionType.DELETED,
+                snapshot={"source_id": memory_id, "target_id": target_id},
+                metadata={"source_id": memory_id, "target_id": target_id},
+            )
+
+        return success
 
     async def _fetch_linked_memories(
             self,
@@ -568,6 +642,45 @@ class MemoryService:
 
             selected.append(memory)
             running_total += memory_tokens
-            
+
         return selected, running_total, False
-               
+
+    async def _emit_event(
+            self,
+            user_id: UUID,
+            entity_type: EntityType,
+            entity_id: int,
+            action: ActionType,
+            snapshot: dict,
+            changes: dict | None = None,
+            metadata: dict | None = None,
+    ) -> None:
+        """
+        Emit an activity event to the event bus.
+
+        This is a no-op if no event bus is configured.
+
+        Args:
+            user_id: User ID for the event
+            entity_type: Type of entity (memory, link, etc.)
+            entity_id: ID of the entity
+            action: Action that occurred (created, updated, deleted)
+            snapshot: Full entity state at event time
+            changes: Field changes for updates
+            metadata: Additional context
+        """
+        if self._event_bus is None:
+            return
+
+        event = ActivityEvent(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            changes=changes,
+            snapshot=snapshot,
+            actor=ActorType.USER,
+            metadata=metadata,
+            user_id=str(user_id),
+        )
+
+        await self._event_bus.emit(event)

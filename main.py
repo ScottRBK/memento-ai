@@ -10,7 +10,7 @@ from starlette.responses import JSONResponse
 
 from app.config.settings import settings
 from app.version import get_version
-from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph, auth
+from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph, auth, activity
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
@@ -65,6 +65,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
         from app.repositories.postgres.code_artifact_repository import PostgresCodeArtifactRepository
         from app.repositories.postgres.document_repository import PostgresDocumentRepository
         from app.repositories.postgres.entity_repository import PostgresEntityRepository
+        from app.repositories.postgres.activity_repository import PostgresActivityRepository
 
         return {
             "user": PostgresUserRepository(db_adapter=db_adapter),
@@ -77,6 +78,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             "code_artifact": PostgresCodeArtifactRepository(db_adapter=db_adapter),
             "document": PostgresDocumentRepository(db_adapter=db_adapter),
             "entity": PostgresEntityRepository(db_adapter=db_adapter),
+            "activity": PostgresActivityRepository(db_adapter=db_adapter),
         }
     elif settings.DATABASE == "SQLite":
         from app.repositories.sqlite.user_repository import SqliteUserRepository
@@ -85,6 +87,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
         from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
         from app.repositories.sqlite.document_repository import SqliteDocumentRepository
         from app.repositories.sqlite.entity_repository import SqliteEntityRepository
+        from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 
         return {
             "user": SqliteUserRepository(db_adapter=db_adapter),
@@ -97,6 +100,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             "code_artifact": SqliteCodeArtifactRepository(db_adapter=db_adapter),
             "document": SqliteDocumentRepository(db_adapter=db_adapter),
             "entity": SqliteEntityRepository(db_adapter=db_adapter),
+            "activity": SqliteActivityRepository(db_adapter=db_adapter),
         }
     else:
         raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
@@ -154,9 +158,23 @@ async def lifespan(app):
     from app.services.document_service import DocumentService
     from app.services.entity_service import EntityService
     from app.services.graph_service import GraphService
+    from app.services.activity_service import ActivityService
+    from app.events import EventBus
+
+    # Create activity service (always available for API queries)
+    # Event bus only created when activity tracking is enabled
+    activity_service = ActivityService(repos["activity"])
+    event_bus = None
+
+    if settings.ACTIVITY_ENABLED:
+        event_bus = EventBus()
+        event_bus.subscribe("*.*", activity_service.handle_event)
+        logger.info("Activity tracking enabled - event bus initialized")
+    else:
+        logger.info("Activity tracking disabled (ACTIVITY_ENABLED=false) - API available but no events emitted")
 
     user_service = UserService(repos["user"])
-    memory_service = MemoryService(repos["memory"])
+    memory_service = MemoryService(repos["memory"], event_bus=event_bus)
     project_service = ProjectService(repos["project"])
     code_artifact_service = CodeArtifactService(repos["code_artifact"])
     document_service = DocumentService(repos["document"])
@@ -176,6 +194,8 @@ async def lifespan(app):
     mcp.document_service = document_service
     mcp.entity_service = entity_service
     mcp.graph_service = graph_service
+    mcp.activity_service = activity_service
+    mcp.event_bus = event_bus
     logger.info("Services initialized and attached to FastMCP instance")
 
     # Initialize token cache for HTTP auth performance
@@ -243,6 +263,7 @@ projects.register(mcp)
 documents.register(mcp)
 code_artifacts.register(mcp)
 graph.register(mcp)
+activity.register(mcp)
 
 meta_tools.register(mcp)
 

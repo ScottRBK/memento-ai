@@ -796,6 +796,152 @@ Get subgraph centered on a specific memory.
 
 ---
 
+## Activity
+
+> **Experimental Feature**
+>
+> Activity logging is an experimental feature. The async event-driven architecture may cause
+> issues with SQLite backends due to connection pooling conflicts. **If you are using SQLite
+> and do not intend to use activity tracking, leave it disabled by not configuring the
+> activity-related settings.** PostgreSQL users can enable this feature but please be advised it is still experimental 
+>
+> Known limitations:
+> - SQLite in-memory mode (testing): Events may conflict with concurrent database operations
+
+The Activity API provides read access to the activity log, which tracks all entity lifecycle events (created, updated, deleted) and optionally read/query operations.
+
+### Configuration
+
+Activity tracking is controlled by these settings:
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `ACTIVITY_RETENTION_DAYS` | int | None | Days to keep events (None = forever). Cleanup happens lazily on API access. |
+| `ACTIVITY_TRACK_READS` | bool | false | Track read/query operations (opt-in, can be high volume) |
+
+### GET /api/v1/activity
+
+List activity events with filtering and pagination.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `entity_type` | string | - | Filter by type: `memory`, `project`, `document`, `code_artifact`, `entity`, `link` |
+| `action` | string | - | Filter by action: `created`, `updated`, `deleted`, `read`, `queried` |
+| `entity_id` | int | - | Filter by specific entity ID |
+| `actor` | string | - | Filter by actor: `user`, `system`, `llm-maintenance` |
+| `since` | datetime | - | Only events after this timestamp (ISO 8601) |
+| `until` | datetime | - | Only events before this timestamp (ISO 8601) |
+| `limit` | int | 50 | Results per page (1-100) |
+| `offset` | int | 0 | Skip N results |
+
+**Response:**
+```json
+{
+  "events": [
+    {
+      "id": 123,
+      "entity_type": "memory",
+      "entity_id": 1,
+      "action": "updated",
+      "changes": {
+        "title": {"old": "Old Title", "new": "New Title"},
+        "importance": {"old": 5, "new": 8}
+      },
+      "snapshot": {
+        "id": 1,
+        "title": "New Title",
+        "content": "...",
+        "importance": 8
+      },
+      "actor": "user",
+      "actor_id": null,
+      "metadata": null,
+      "created_at": "2026-01-06T12:00:00Z"
+    }
+  ],
+  "total": 42,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+### GET /api/v1/activity/{entity_type}/{entity_id}
+
+Get activity history for a specific entity.
+
+**Path Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `entity_type` | string | Entity type: `memory`, `project`, `document`, `code_artifact`, `entity` |
+| `entity_id` | int | Entity ID |
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `limit` | int | 50 | Results per page (1-100) |
+| `offset` | int | 0 | Skip N results |
+
+**Response:** Same format as GET /api/v1/activity
+
+### Event Types
+
+**Entity Types:**
+- `memory` - Knowledge memories
+- `project` - Project containers
+- `document` - Long-form documents
+- `code_artifact` - Code snippets
+- `entity` - People, organizations, devices
+- `link` - Memory-to-memory connections
+
+**Action Types:**
+- `created` - Entity was created
+- `updated` - Entity was modified (includes `changes` diff)
+- `deleted` - Entity was soft-deleted (obsolete)
+- `read` - Entity was read (if `ACTIVITY_TRACK_READS=true`)
+- `queried` - Search was performed (if `ACTIVITY_TRACK_READS=true`)
+
+**Actor Types:**
+- `user` - Human user action
+- `system` - Automated system action
+- `llm-maintenance` - LLM-based maintenance task (future)
+
+### Changes Format
+
+For `updated` events, the `changes` field contains a diff:
+
+```json
+{
+  "changes": {
+    "field_name": {
+      "old": "previous value",
+      "new": "current value"
+    }
+  }
+}
+```
+
+Only modified fields are included. The `snapshot` field contains the full entity state after the change.
+
+### Link Events
+
+Link events (`entity_type: "link"`) use `entity_id: 0` and store source/target in metadata:
+
+```json
+{
+  "entity_type": "link",
+  "entity_id": 0,
+  "action": "created",
+  "snapshot": {"source_id": 1, "target_id": 2},
+  "metadata": {"source_id": 1, "target_id": 2}
+}
+```
+
+---
+
 ## Error Responses
 
 All error responses follow this format:

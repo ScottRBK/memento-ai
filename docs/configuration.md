@@ -558,6 +558,54 @@ These settings control the atomic memory system's behavior and constraints.
 
 ---
 
+## Activity Tracking Configuration
+
+Activity tracking provides an audit log of all entity lifecycle events (created, updated, deleted). This is an **experimental feature**.
+
+> **⚠️ Experimental Feature**
+>
+> Activity tracking uses an async event-driven architecture that may cause issues with SQLite backends due to connection pooling conflicts.
+>
+> **Recommendations:**
+> - **PostgreSQL**: Safe to enable, but still considered experimental
+> - **SQLite**: Leave disabled unless you have a specific need and are prepared to troubleshoot potential issues
+> - **Production**: Test thoroughly before enabling in production environments
+
+### `ACTIVITY_ENABLED`
+- **Default**: `false`
+- **Description**: Enable activity event tracking
+- **Values**: `true`, `false`
+- **Note**: When disabled, no events are recorded and the activity API returns empty results
+- **Example**: `ACTIVITY_ENABLED=true`
+
+### `ACTIVITY_RETENTION_DAYS`
+- **Default**: `null` (forever)
+- **Description**: Number of days to keep activity events before automatic cleanup
+- **Values**:
+  - `null` or omit - Keep events forever
+  - `30` - Keep events for 30 days
+  - `90` - Keep events for 90 days
+- **Behavior**: Cleanup happens lazily on API access (not via scheduled job)
+- **Example**: `ACTIVITY_RETENTION_DAYS=90`
+
+### `ACTIVITY_TRACK_READS`
+- **Default**: `false`
+- **Description**: Track read and query operations (in addition to create/update/delete)
+- **Values**: `true`, `false`
+- **⚠️ Warning**: Enabling this can generate high event volume in active systems
+- **Example**: `ACTIVITY_TRACK_READS=false`
+
+### Example Configuration
+
+```bash
+# Enable activity tracking with 90-day retention
+ACTIVITY_ENABLED=true
+ACTIVITY_RETENTION_DAYS=90
+ACTIVITY_TRACK_READS=false
+```
+
+---
+
 ## Search Configuration
 
 ### `EMBEDDING_PROVIDER`

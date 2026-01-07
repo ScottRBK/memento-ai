@@ -640,3 +640,59 @@ class EntityRelationshipsTable(Base):
         Index("ix_entity_relationships_unique", "source_entity_id", "target_entity_id", "relationship_type", unique=True),
     )
 
+
+class ActivityLogTable(Base):
+    """
+    Table for storing activity events (Issue #7: Event-driven Architecture).
+
+    Tracks all entity lifecycle events (created, updated, deleted) and optionally
+    read/query operations when ACTIVITY_TRACK_READS is enabled.
+
+    Events include:
+    - Full entity snapshots at event time
+    - Change diffs for updates (old vs new values)
+    - Actor tracking (user, system, llm-maintenance)
+    """
+
+    __tablename__ = "activity_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+
+    # Event identification
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)  # memory, project, etc.
+    entity_id: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 0 for links
+    action: Mapped[str] = mapped_column(String(20), nullable=False)  # created, updated, deleted, read, queried
+
+    # Event payload (JSONB for better indexing in Postgres)
+    changes: Mapped[dict] = mapped_column(JSONB, nullable=True)  # {field: {old: x, new: y}} for updates
+    snapshot: Mapped[dict] = mapped_column(JSONB, nullable=False)  # Full entity state at event time
+
+    # Actor tracking
+    actor: Mapped[str] = mapped_column(String(50), nullable=False, default="user")
+    actor_id: Mapped[str] = mapped_column(String(255), nullable=True)
+
+    # Additional context (named event_metadata to avoid SQLAlchemy reserved 'metadata')
+    event_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=True)
+
+    # Timestamp
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        Index("ix_activity_log_user_id", "user_id"),
+        Index("ix_activity_log_entity_type", "entity_type"),
+        Index("ix_activity_log_action", "action"),
+        Index("ix_activity_log_entity_id", "entity_id"),
+        Index("ix_activity_log_created_at", "created_at"),
+        Index("ix_activity_log_actor", "actor"),
+        # Composite indexes for common query patterns
+        Index("ix_activity_log_user_entity", "user_id", "entity_type", "entity_id"),
+        Index("ix_activity_log_user_created", "user_id", "created_at"),
+    )
+
