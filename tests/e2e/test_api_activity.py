@@ -6,7 +6,6 @@ Tests the /api/v1/activity endpoints in a production-like environment.
 
 Note: Activity tracking is enabled by default for all E2E tests via conftest.py
 """
-import asyncio
 import pytest
 import httpx
 

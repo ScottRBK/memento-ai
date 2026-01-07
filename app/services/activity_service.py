@@ -13,7 +13,6 @@ from app.config.settings import settings
 from app.models.activity_models import (
     ActivityEvent,
     ActivityListResponse,
-    ActivityLogEntry,
     EntityType,
     ActionType,
     ActorType,

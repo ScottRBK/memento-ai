@@ -14,7 +14,6 @@ import asyncio
 import fnmatch
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from app.models.activity_models import ActivityEvent
 

@@ -8,7 +8,7 @@ import asyncio
 import pytest
 
 from app.events import EventBus
-from app.models.activity_models import ActivityEvent, EntityType, ActionType, ActorType
+from app.models.activity_models import ActivityEvent, EntityType, ActionType
 
 
 class TestEventBusPatternMatching:
