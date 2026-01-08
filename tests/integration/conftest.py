@@ -47,6 +47,8 @@ from app.protocols.entity_protocol import EntityRepository
 from app.protocols.memory_protocol import MemoryRepository
 from app.protocols.project_protocol import ProjectRepository
 from app.protocols.user_protocol import UserRepository
+from app.events import EventBus
+from app.models.activity_models import ActivityEvent
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
@@ -475,6 +477,26 @@ def mock_memory_repository():
 def test_memory_service(mock_memory_repository):
     """Provides a MemoryService with in-memory repository"""
     return MemoryService(mock_memory_repository)
+
+
+class CollectingEventBus(EventBus):
+    """EventBus that collects emitted events for testing."""
+
+    def __init__(self):
+        super().__init__()
+        self.collected_events: list[ActivityEvent] = []
+
+    async def emit(self, event: ActivityEvent) -> None:
+        self.collected_events.append(event)
+        await super().emit(event)
+
+
+@pytest.fixture
+def test_memory_service_with_event_bus(mock_memory_repository):
+    """Provides a MemoryService with event bus for testing event emission."""
+    event_bus = CollectingEventBus()
+    service = MemoryService(mock_memory_repository, event_bus=event_bus)
+    return service, event_bus
 
 
 # ============ Project Testing Fixtures ============

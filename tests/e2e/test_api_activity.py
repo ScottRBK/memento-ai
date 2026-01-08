@@ -201,6 +201,43 @@ class TestActivityAPIDelete:
 
 
 @pytest.mark.e2e
+class TestActivityAPIReads:
+    """Test activity tracking for read operations."""
+
+    def test_get_memory_generates_read_event(self, docker_services, server_base_url):
+        """GET /api/v1/memories/{id} generates read event when tracking enabled."""
+        # Create a memory
+        create_response = httpx.post(f"{server_base_url}/api/v1/memories", json={
+            "title": "Memory for Read Test",
+            "content": "Content for read event test",
+            "context": "Read test",
+            "keywords": ["read"],
+            "tags": ["test"],
+            "importance": 7
+        })
+        memory_id = create_response.json()["id"]
+
+        # Read the memory (triggers READ event)
+        httpx.get(f"{server_base_url}/api/v1/memories/{memory_id}")
+
+        import time
+        time.sleep(0.5)
+
+        # Check for read event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_id={memory_id}&action=read"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have a read event
+        assert len(data["events"]) >= 1
+        read_event = data["events"][0]
+        assert read_event["action"] == "read"
+        assert read_event["entity_type"] == "memory"
+
+
+@pytest.mark.e2e
 class TestActivityAPIEntityHistory:
     """Test GET /api/v1/activity/{entity_type}/{entity_id} endpoint."""
 

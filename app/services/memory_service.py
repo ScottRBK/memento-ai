@@ -339,11 +339,11 @@ class MemoryService:
 
     async def get_memory(
             self,
-            user_id: int,
+            user_id: UUID,
             memory_id: int
-    )  -> Memory | None:
+    ) -> Memory | None:
         """
-        Retrieve a single emmory by id
+        Retrieve a single memory by id.
 
         Args:
             user_id: User Id
@@ -352,11 +352,22 @@ class MemoryService:
         Returns:
             Memory object or None if not found
         """
-
-        return await self.memory_repo.get_memory_by_id(
+        memory = await self.memory_repo.get_memory_by_id(
             memory_id=memory_id,
             user_id=user_id
         )
+
+        # Emit read event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus and memory:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.MEMORY,
+                entity_id=memory_id,
+                action=ActionType.READ,
+                snapshot=memory.model_dump(mode="json"),
+            )
+
+        return memory
 
     async def get_recent_memories(
             self,

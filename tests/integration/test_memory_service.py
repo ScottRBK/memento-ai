@@ -4,8 +4,11 @@ Integration tests for MemoryService with stubbed database
 Tests critical memory workflows without real PostgreSQL/embeddings dependency
 """
 import pytest
+from unittest.mock import patch
 from uuid import uuid4
 
+from app.config.settings import settings
+from app.models.activity_models import EntityType, ActionType
 from app.models.memory_models import MemoryCreate, MemoryUpdate, MemoryQueryRequest
 
 
@@ -747,3 +750,84 @@ async def test_source_files_empty_string_cleaning(test_memory_service):
     # Empty strings and whitespace-only strings should be removed
     # Strings with content should be trimmed
     assert memory.source_files == ["file1.py", "file2.py", "file3.py"]
+
+
+# ============================================================================
+# Activity Event Emission Tests (get_memory READ events)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_memory_emits_read_event_when_tracking_enabled(
+    test_memory_service_with_event_bus
+):
+    """get_memory() emits READ event when ACTIVITY_TRACK_READS=True."""
+    service, event_bus = test_memory_service_with_event_bus
+    user_id = uuid4()
+
+    # Create a memory first
+    memory_data = MemoryCreate(
+        title="Test Memory",
+        content="Content for testing read events",
+        context="Context",
+        keywords=["test"],
+        tags=["test"],
+        importance=7
+    )
+    memory, _ = await service.create_memory(user_id, memory_data)
+    event_bus.collected_events.clear()  # Clear creation event
+
+    # Read the memory with tracking enabled
+    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+        result = await service.get_memory(user_id, memory.id)
+
+    assert result is not None
+    assert len(event_bus.collected_events) == 1
+    event = event_bus.collected_events[0]
+    assert event.entity_type == EntityType.MEMORY
+    assert event.entity_id == memory.id
+    assert event.action == ActionType.READ
+
+
+@pytest.mark.asyncio
+async def test_get_memory_no_event_when_tracking_disabled(
+    test_memory_service_with_event_bus
+):
+    """get_memory() does not emit event when ACTIVITY_TRACK_READS=False."""
+    service, event_bus = test_memory_service_with_event_bus
+    user_id = uuid4()
+
+    # Create a memory first
+    memory_data = MemoryCreate(
+        title="Test Memory",
+        content="Content",
+        context="Context",
+        keywords=["test"],
+        tags=["test"],
+        importance=7
+    )
+    memory, _ = await service.create_memory(user_id, memory_data)
+    event_bus.collected_events.clear()
+
+    # Read with tracking disabled (default)
+    with patch.object(settings, 'ACTIVITY_TRACK_READS', False):
+        result = await service.get_memory(user_id, memory.id)
+
+    assert result is not None
+    assert len(event_bus.collected_events) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_memory_no_event_when_memory_not_found(
+    test_memory_service_with_event_bus
+):
+    """get_memory() does not emit event when memory doesn't exist."""
+    service, event_bus = test_memory_service_with_event_bus
+    user_id = uuid4()
+    event_bus.collected_events.clear()
+
+    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+        result = await service.get_memory(user_id, 99999)  # Non-existent
+
+    assert result is None
+    assert len(event_bus.collected_events) == 0
