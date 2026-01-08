@@ -8,6 +8,7 @@ Note: Activity tracking is enabled by default for all E2E tests via conftest.py
 """
 import pytest
 import httpx
+import json
 
 
 @pytest.mark.e2e
@@ -287,3 +288,199 @@ class TestActivityAPIValidation:
         response = httpx.get(f"{server_base_url}/api/v1/activity?entity_id=abc")
         assert response.status_code == 400
         assert "entity_id" in response.json()["error"].lower()
+
+
+@pytest.mark.e2e
+class TestActivityAPIStreamSSE:
+    """Test GET /api/v1/activity/stream SSE endpoint."""
+
+    def test_stream_returns_sse_content_type(self, docker_services, server_base_url):
+        """GET /api/v1/activity/stream returns text/event-stream content type."""
+        with httpx.stream("GET", f"{server_base_url}/api/v1/activity/stream", timeout=5.0) as response:
+            assert response.status_code == 200
+            content_type = response.headers.get("content-type", "")
+            assert "text/event-stream" in content_type
+
+    def test_stream_receives_created_event(self, docker_services, server_base_url):
+        """SSE stream receives memory.created event."""
+        import threading
+        import time
+
+        received_events = []
+        stream_started = threading.Event()
+        stop_streaming = threading.Event()
+
+        def stream_collector():
+            try:
+                with httpx.stream(
+                    "GET",
+                    f"{server_base_url}/api/v1/activity/stream",
+                    timeout=10.0
+                ) as response:
+                    stream_started.set()
+                    for line in response.iter_lines():
+                        if stop_streaming.is_set():
+                            break
+                        if line.startswith("data:"):
+                            data = json.loads(line[5:].strip())
+                            received_events.append(data)
+                            if len(received_events) >= 1:
+                                break
+            except Exception as e:
+                print(f"Stream error: {e}")
+
+        # Start stream in background thread
+        thread = threading.Thread(target=stream_collector)
+        thread.start()
+
+        # Wait for stream to start
+        stream_started.wait(timeout=5.0)
+        time.sleep(0.5)  # Extra time for subscription registration
+
+        # Create a memory (should trigger event)
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/memories",
+            json={
+                "title": "Memory for SSE Test",
+                "content": "This should appear in the SSE stream.",
+                "context": "SSE test",
+                "keywords": ["sse", "stream"],
+                "tags": ["test"],
+                "importance": 7
+            }
+        )
+        assert create_response.status_code == 201
+
+        # Wait for event and cleanup
+        thread.join(timeout=5.0)
+        stop_streaming.set()
+
+        # Verify we received the event
+        assert len(received_events) >= 1
+        event = received_events[0]
+        assert "seq" in event
+        assert event["entity_type"] == "memory"
+        assert event["action"] == "created"
+
+    def test_stream_filters_by_entity_type(self, docker_services, server_base_url):
+        """SSE stream respects entity_type query filter."""
+        import threading
+        import time
+
+        received_events = []
+        stream_started = threading.Event()
+        stop_streaming = threading.Event()
+
+        def stream_collector():
+            try:
+                with httpx.stream(
+                    "GET",
+                    f"{server_base_url}/api/v1/activity/stream?entity_type=project",
+                    timeout=10.0
+                ) as response:
+                    stream_started.set()
+                    for line in response.iter_lines():
+                        if stop_streaming.is_set():
+                            break
+                        if line.startswith("data:"):
+                            data = json.loads(line[5:].strip())
+                            received_events.append(data)
+            except Exception as e:
+                print(f"Stream error: {e}")
+
+        # Start stream in background thread
+        thread = threading.Thread(target=stream_collector)
+        thread.start()
+
+        # Wait for stream to start
+        stream_started.wait(timeout=5.0)
+        time.sleep(0.5)
+
+        # Create a memory (should NOT appear - filtered to project only)
+        httpx.post(
+            f"{server_base_url}/api/v1/memories",
+            json={
+                "title": "Memory Should Be Filtered",
+                "content": "This should not appear in project-filtered stream.",
+                "context": "Filter test",
+                "keywords": ["filter"],
+                "tags": ["test"],
+                "importance": 7
+            }
+        )
+
+        # Give time for event to NOT arrive
+        time.sleep(1.0)
+        stop_streaming.set()
+        thread.join(timeout=2.0)
+
+        # Should not have received any events (memory events filtered out)
+        assert len(received_events) == 0
+
+    def test_stream_invalid_entity_type_returns_400(self, docker_services, server_base_url):
+        """SSE stream returns 400 for invalid entity_type filter."""
+        response = httpx.get(f"{server_base_url}/api/v1/activity/stream?entity_type=invalid")
+        assert response.status_code == 400
+        assert "entity_type" in response.json()["error"].lower()
+
+    def test_stream_invalid_action_returns_400(self, docker_services, server_base_url):
+        """SSE stream returns 400 for invalid action filter."""
+        response = httpx.get(f"{server_base_url}/api/v1/activity/stream?action=invalid")
+        assert response.status_code == 400
+        assert "action" in response.json()["error"].lower()
+
+    def test_stream_includes_sequence_numbers(self, docker_services, server_base_url):
+        """SSE events include monotonically increasing sequence numbers."""
+        import threading
+        import time
+
+        received_events = []
+        stream_started = threading.Event()
+
+        def stream_collector():
+            try:
+                with httpx.stream(
+                    "GET",
+                    f"{server_base_url}/api/v1/activity/stream",
+                    timeout=15.0
+                ) as response:
+                    stream_started.set()
+                    for line in response.iter_lines():
+                        if line.startswith("data:"):
+                            data = json.loads(line[5:].strip())
+                            received_events.append(data)
+                            if len(received_events) >= 3:
+                                break
+            except Exception as e:
+                print(f"Stream error: {e}")
+
+        # Start stream in background thread
+        thread = threading.Thread(target=stream_collector)
+        thread.start()
+
+        # Wait for stream to start
+        stream_started.wait(timeout=5.0)
+        time.sleep(0.5)
+
+        # Create 3 memories
+        for i in range(3):
+            httpx.post(
+                f"{server_base_url}/api/v1/memories",
+                json={
+                    "title": f"Sequence Test Memory {i}",
+                    "content": f"Memory {i} for sequence number testing.",
+                    "context": "Sequence test",
+                    "keywords": ["sequence"],
+                    "tags": ["test"],
+                    "importance": 7
+                }
+            )
+            time.sleep(0.1)
+
+        # Wait for events
+        thread.join(timeout=10.0)
+
+        # Verify sequence numbers are monotonically increasing
+        assert len(received_events) >= 3
+        for i in range(1, len(received_events)):
+            assert received_events[i]["seq"] > received_events[i-1]["seq"]

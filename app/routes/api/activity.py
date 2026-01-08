@@ -2,11 +2,14 @@
 REST API endpoints for Activity operations.
 
 Provides read access to the activity log for event-driven architecture (Issue #7).
+Includes SSE streaming endpoint for real-time event updates.
 """
 
 from datetime import datetime
+import json
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+from sse_starlette.sse import EventSourceResponse
 from fastmcp import FastMCP
 import logging
 
@@ -229,3 +232,92 @@ def register(mcp: FastMCP):
         )
 
         return JSONResponse(response.model_dump(mode="json"))
+
+    @mcp.custom_route("/api/v1/activity/stream", methods=["GET"])
+    async def stream_activity(request: Request) -> EventSourceResponse:
+        """
+        Stream activity events via Server-Sent Events (SSE).
+
+        Events are filtered to only those belonging to the authenticated user.
+        Each event includes a sequence number for gap detection.
+        Requires ACTIVITY_ENABLED=true.
+
+        Query params:
+            entity_type: Filter by entity type (optional)
+            action: Filter by action (optional)
+
+        Returns:
+            SSE stream of activity events as JSON with sequence numbers.
+
+        Event format:
+            event: activity
+            data: {"seq": 1, "entity_type": "memory", "action": "created", ...}
+
+        Client recovery:
+            Track 'seq' field to detect gaps. On gap detection,
+            fetch missed events via GET /api/v1/activity endpoint.
+        """
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        event_bus = getattr(mcp, "event_bus", None)
+        if event_bus is None:
+            return JSONResponse(
+                {"error": "Activity streaming not enabled (ACTIVITY_ENABLED=false)"},
+                status_code=503
+            )
+
+        # Optional query param filters
+        params = request.query_params
+        entity_type_filter = params.get("entity_type")
+        action_filter = params.get("action")
+
+        # Validate filters if provided
+        if entity_type_filter:
+            try:
+                EntityType(entity_type_filter)
+            except ValueError:
+                valid = ", ".join(e.value for e in EntityType)
+                return JSONResponse(
+                    {"error": f"Invalid entity_type: {entity_type_filter}. Valid values: {valid}"},
+                    status_code=400
+                )
+
+        if action_filter:
+            try:
+                ActionType(action_filter)
+            except ValueError:
+                valid = ", ".join(a.value for a in ActionType)
+                return JSONResponse(
+                    {"error": f"Invalid action: {action_filter}. Valid values: {valid}"},
+                    status_code=400
+                )
+
+        logger.info(
+            "SSE stream started",
+            extra={
+                "user_id": str(user.id),
+                "entity_type_filter": entity_type_filter,
+                "action_filter": action_filter,
+            }
+        )
+
+        async def event_generator():
+            try:
+                async for event_dict in event_bus.subscribe_stream(user.id):
+                    # Apply optional filters
+                    if entity_type_filter and event_dict.get("entity_type") != entity_type_filter:
+                        continue
+                    if action_filter and event_dict.get("action") != action_filter:
+                        continue
+
+                    yield {
+                        "event": "activity",
+                        "data": json.dumps(event_dict),
+                    }
+            except Exception:
+                logger.exception("Error in SSE event generator")
+
+        return EventSourceResponse(event_generator())

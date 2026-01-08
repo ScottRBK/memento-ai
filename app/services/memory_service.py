@@ -112,6 +112,30 @@ class MemoryService:
         )
         logger.info("token budget applied")
 
+        # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.MEMORY,
+                entity_id=0,  # Query spans multiple memories
+                action=ActionType.QUERIED,
+                snapshot={
+                    "result_ids": [m.id for m in final_primaries],
+                    "linked_ids": [lm.memory.id for lm in final_linked],
+                    "total_count": len(final_primaries) + len(final_linked),
+                    "token_count": token_count,
+                    "truncated": truncated,
+                },
+                metadata={
+                    "query": memory_query.query,
+                    "query_context": memory_query.query_context,
+                    "k": memory_query.k,
+                    "project_ids": memory_query.project_ids,
+                    "importance_threshold": memory_query.importance_threshold,
+                    "include_links": memory_query.include_links,
+                },
+            )
+
         logger.info(
             "returning memories",
             extra={
@@ -121,7 +145,7 @@ class MemoryService:
                 "truncated": truncated
             }
         )
-        
+
         return MemoryQueryResult(
             query=memory_query.query,
             primary_memories=final_primaries,

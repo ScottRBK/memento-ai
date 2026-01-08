@@ -100,6 +100,9 @@ class Settings(BaseSettings):
     ACTIVITY_RETENTION_DAYS: int | None = None   # Days to keep activity events (None = forever)
     ACTIVITY_TRACK_READS: bool = False           # Track read/query operations (opt-in)
 
+    # SSE Streaming Configuration
+    SSE_MAX_QUEUE_SIZE: int = 1000               # Max events per SSE subscriber queue (backpressure)
+
     # Search Configuration
     EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
