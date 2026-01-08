@@ -595,6 +595,16 @@ Activity tracking provides an audit log of all entity lifecycle events (created,
 - **⚠️ Warning**: Enabling this can generate high event volume in active systems
 - **Example**: `ACTIVITY_TRACK_READS=false`
 
+### SSE Streaming Configuration
+
+#### `SSE_MAX_QUEUE_SIZE`
+- **Default**: `1000`
+- **Description**: Maximum events per SSE subscriber queue (backpressure handling)
+- **Purpose**: When the queue is full, new events are dropped to prevent memory exhaustion
+- **Behavior**: Clients can detect dropped events via sequence number gaps and resync via REST API
+- **Note**: Increase for high-throughput scenarios where bulk operations are common
+- **Example**: `SSE_MAX_QUEUE_SIZE=2000`
+
 ### Example Configuration
 
 ```bash

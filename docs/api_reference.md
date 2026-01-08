@@ -940,6 +940,76 @@ Link events (`entity_type: "link"`) use `entity_id: 0` and store source/target i
 }
 ```
 
+### GET /api/v1/activity/stream
+
+Stream activity events in real-time via Server-Sent Events (SSE).
+
+Events are filtered to only those belonging to the authenticated user. Each event includes a sequence number for gap detection and client recovery.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `entity_type` | string | Filter by type (optional) |
+| `action` | string | Filter by action (optional) |
+
+**Response:** SSE stream with `text/event-stream` content type.
+
+**Event Format:**
+```
+event: activity
+data: {"seq": 1, "entity_type": "memory", "action": "created", "entity_id": 42, ...}
+
+event: activity
+data: {"seq": 2, "entity_type": "memory", "action": "updated", "entity_id": 42, ...}
+```
+
+**Sequence Numbers:**
+
+Each event includes a monotonically increasing `seq` field per user. Clients should track this to detect gaps (e.g., receiving seq 45 when last seen was 42 indicates missed events).
+
+**Gap Recovery:**
+
+On gap detection, fetch missed events via the REST API:
+```
+GET /api/v1/activity?since=<last_seen_timestamp>&limit=100
+```
+
+**Configuration:**
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `SSE_MAX_QUEUE_SIZE` | int | 1000 | Max events per subscriber queue (backpressure) |
+
+When the queue is full, new events are dropped with a warning log. Clients can detect this via sequence gaps and resync via REST.
+
+**Example Usage (JavaScript):**
+```javascript
+const events = new EventSource('/api/v1/activity/stream');
+let lastSeq = 0;
+
+events.addEventListener('activity', (e) => {
+  const event = JSON.parse(e.data);
+
+  // Gap detection
+  if (lastSeq > 0 && event.seq > lastSeq + 1) {
+    console.warn(`Gap detected: ${lastSeq} -> ${event.seq}`);
+    // Fetch missed events via REST API
+  }
+
+  lastSeq = event.seq;
+  handleEvent(event);
+});
+```
+
+**Error Responses:**
+
+| Code | Description |
+|------|-------------|
+| 400 | Invalid filter parameter |
+| 401 | Unauthorized |
+| 503 | Activity streaming not enabled (`ACTIVITY_ENABLED=false`) |
+
 ---
 
 ## Error Responses
