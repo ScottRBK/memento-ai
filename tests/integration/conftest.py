@@ -636,6 +636,14 @@ def test_project_service(mock_project_repository):
     return ProjectService(mock_project_repository)
 
 
+@pytest.fixture
+def test_project_service_with_event_bus(mock_project_repository):
+    """Provides a ProjectService with event bus for testing event emission."""
+    event_bus = CollectingEventBus()
+    service = ProjectService(mock_project_repository, event_bus=event_bus)
+    return service, event_bus
+
+
 # ============ Code Artifact Testing Fixtures ============
 
 
@@ -730,6 +738,14 @@ def mock_code_artifact_repository():
 @pytest.fixture
 def test_code_artifact_service(mock_code_artifact_repository):
     return CodeArtifactService(mock_code_artifact_repository)
+
+
+@pytest.fixture
+def test_code_artifact_service_with_event_bus(mock_code_artifact_repository):
+    """Provides a CodeArtifactService with event bus for testing event emission."""
+    event_bus = CollectingEventBus()
+    service = CodeArtifactService(mock_code_artifact_repository, event_bus=event_bus)
+    return service, event_bus
 
 
 # ============ Document Testing Fixtures ============
@@ -832,6 +848,14 @@ def mock_document_repository():
 @pytest.fixture
 def test_document_service(mock_document_repository):
     return DocumentService(mock_document_repository)
+
+
+@pytest.fixture
+def test_document_service_with_event_bus(mock_document_repository):
+    """Provides a DocumentService with event bus for testing event emission."""
+    event_bus = CollectingEventBus()
+    service = DocumentService(mock_document_repository, event_bus=event_bus)
+    return service, event_bus
 
 
 # ============ Entity Testing Fixtures ============
@@ -1148,3 +1172,11 @@ def mock_entity_repository():
 @pytest.fixture
 def test_entity_service(mock_entity_repository):
     return EntityService(mock_entity_repository)
+
+
+@pytest.fixture
+def test_entity_service_with_event_bus(mock_entity_repository):
+    """Provides an EntityService with event bus for testing event emission."""
+    event_bus = CollectingEventBus()
+    service = EntityService(mock_entity_repository, event_bus=event_bus)
+    return service, event_bus

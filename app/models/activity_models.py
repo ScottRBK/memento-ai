@@ -18,7 +18,9 @@ class EntityType(str, Enum):
     DOCUMENT = "document"
     CODE_ARTIFACT = "code_artifact"
     ENTITY = "entity"
-    LINK = "link"
+    LINK = "link"  # Memory-to-memory links
+    ENTITY_MEMORY_LINK = "entity_memory_link"  # Entity-to-memory links
+    ENTITY_RELATIONSHIP = "entity_relationship"  # Entity-to-entity relationships
 
 
 class ActionType(str, Enum):

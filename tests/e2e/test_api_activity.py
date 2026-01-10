@@ -521,3 +521,477 @@ class TestActivityAPIStreamSSE:
         assert len(received_events) >= 3
         for i in range(1, len(received_events)):
             assert received_events[i]["seq"] > received_events[i-1]["seq"]
+
+
+# ============================================================================
+# Project Activity Event Tests
+# ============================================================================
+
+
+@pytest.mark.e2e
+class TestActivityAPIProject:
+    """Test activity tracking for Project operations."""
+
+    def test_project_created_event(self, docker_services, server_base_url):
+        """POST /api/v1/projects generates created event."""
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/projects",
+            json={
+                "name": "Test Project for Activity",
+                "description": "Testing activity tracking for projects",
+                "project_type": "development"
+            }
+        )
+        assert create_response.status_code == 201
+        project_id = create_response.json()["id"]
+
+        import time
+        time.sleep(0.5)
+
+        # Check for created event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=project&entity_id={project_id}&action=created"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "project"
+        assert event["action"] == "created"
+
+    def test_project_updated_event(self, docker_services, server_base_url):
+        """PUT /api/v1/projects/{id} generates updated event with changes."""
+        # Create project
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/projects",
+            json={
+                "name": "Original Project Name",
+                "description": "Original description",
+                "project_type": "development"
+            }
+        )
+        project_id = create_response.json()["id"]
+
+        # Update project
+        httpx.put(
+            f"{server_base_url}/api/v1/projects/{project_id}",
+            json={"name": "Updated Project Name"}
+        )
+
+        import time
+        time.sleep(0.5)
+
+        # Check for updated event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=project&entity_id={project_id}&action=updated"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["action"] == "updated"
+        assert event["changes"] is not None
+        assert "name" in event["changes"]
+
+    def test_project_deleted_event(self, docker_services, server_base_url):
+        """DELETE /api/v1/projects/{id} generates deleted event."""
+        # Create project
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/projects",
+            json={
+                "name": "Project to Delete",
+                "description": "Will be deleted",
+                "project_type": "development"
+            }
+        )
+        project_id = create_response.json()["id"]
+
+        # Delete project
+        httpx.delete(f"{server_base_url}/api/v1/projects/{project_id}")
+
+        import time
+        time.sleep(0.5)
+
+        # Check for deleted event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=project&entity_id={project_id}&action=deleted"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "project"
+        assert event["action"] == "deleted"
+
+
+# ============================================================================
+# Document Activity Event Tests
+# ============================================================================
+
+
+@pytest.mark.e2e
+class TestActivityAPIDocument:
+    """Test activity tracking for Document operations."""
+
+    def test_document_created_event(self, docker_services, server_base_url):
+        """POST /api/v1/documents generates created event."""
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/documents",
+            json={
+                "title": "Test Document for Activity",
+                "description": "Testing activity tracking",
+                "content": "This is the document content for activity tracking test.",
+                "document_type": "text",
+                "tags": ["test", "activity"]
+            }
+        )
+        assert create_response.status_code == 201
+        doc_id = create_response.json()["id"]
+
+        import time
+        time.sleep(0.5)
+
+        # Check for created event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=document&entity_id={doc_id}&action=created"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "document"
+        assert event["action"] == "created"
+
+    def test_document_deleted_event(self, docker_services, server_base_url):
+        """DELETE /api/v1/documents/{id} generates deleted event."""
+        # Create document
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/documents",
+            json={
+                "title": "Document to Delete",
+                "description": "Will be deleted",
+                "content": "Content for deletion test",
+                "document_type": "text",
+                "tags": ["test"]
+            }
+        )
+        doc_id = create_response.json()["id"]
+
+        # Delete document
+        httpx.delete(f"{server_base_url}/api/v1/documents/{doc_id}")
+
+        import time
+        time.sleep(0.5)
+
+        # Check for deleted event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=document&entity_id={doc_id}&action=deleted"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "document"
+        assert event["action"] == "deleted"
+
+
+# ============================================================================
+# Code Artifact Activity Event Tests
+# ============================================================================
+
+
+@pytest.mark.e2e
+class TestActivityAPICodeArtifact:
+    """Test activity tracking for Code Artifact operations."""
+
+    def test_code_artifact_created_event(self, docker_services, server_base_url):
+        """POST /api/v1/code-artifacts generates created event."""
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/code-artifacts",
+            json={
+                "title": "Test Code Artifact",
+                "description": "Testing activity tracking",
+                "code": "def test(): pass",
+                "language": "python",
+                "tags": ["test", "activity"]
+            }
+        )
+        assert create_response.status_code == 201
+        artifact_id = create_response.json()["id"]
+
+        import time
+        time.sleep(0.5)
+
+        # Check for created event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=code_artifact&entity_id={artifact_id}&action=created"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "code_artifact"
+        assert event["action"] == "created"
+
+    def test_code_artifact_deleted_event(self, docker_services, server_base_url):
+        """DELETE /api/v1/code-artifacts/{id} generates deleted event."""
+        # Create artifact
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/code-artifacts",
+            json={
+                "title": "Artifact to Delete",
+                "description": "Will be deleted",
+                "code": "print('hello')",
+                "language": "python",
+                "tags": ["test"]
+            }
+        )
+        artifact_id = create_response.json()["id"]
+
+        # Delete artifact
+        httpx.delete(f"{server_base_url}/api/v1/code-artifacts/{artifact_id}")
+
+        import time
+        time.sleep(0.5)
+
+        # Check for deleted event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=code_artifact&entity_id={artifact_id}&action=deleted"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "code_artifact"
+        assert event["action"] == "deleted"
+
+
+# ============================================================================
+# Entity Activity Event Tests
+# ============================================================================
+
+
+@pytest.mark.e2e
+class TestActivityAPIEntity:
+    """Test activity tracking for Entity operations."""
+
+    def test_entity_created_event(self, docker_services, server_base_url):
+        """POST /api/v1/entities generates created event."""
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Test Entity for Activity",
+                "entity_type": "Individual",
+                "notes": "Testing activity tracking",
+                "tags": ["test"]
+            }
+        )
+        assert create_response.status_code == 201
+        entity_id = create_response.json()["id"]
+
+        import time
+        time.sleep(0.5)
+
+        # Check for created event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=entity&entity_id={entity_id}&action=created"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "entity"
+        assert event["action"] == "created"
+
+    def test_entity_deleted_event(self, docker_services, server_base_url):
+        """DELETE /api/v1/entities/{id} generates deleted event."""
+        # Create entity
+        create_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Entity to Delete",
+                "entity_type": "Individual",
+                "tags": ["test"]
+            }
+        )
+        entity_id = create_response.json()["id"]
+
+        # Delete entity
+        httpx.delete(f"{server_base_url}/api/v1/entities/{entity_id}")
+
+        import time
+        time.sleep(0.5)
+
+        # Check for deleted event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=entity&entity_id={entity_id}&action=deleted"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "entity"
+        assert event["action"] == "deleted"
+
+    def test_entity_memory_link_created_event(self, docker_services, server_base_url):
+        """POST /api/v1/entities/{id}/memories generates entity_memory_link created event."""
+        # Create a memory first
+        memory_response = httpx.post(
+            f"{server_base_url}/api/v1/memories",
+            json={
+                "title": "Memory for Link Test",
+                "content": "Content for entity-memory link test",
+                "context": "Link test",
+                "keywords": ["link"],
+                "tags": ["test"],
+                "importance": 7
+            }
+        )
+        memory_id = memory_response.json()["id"]
+
+        # Create an entity
+        entity_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Entity for Link Test",
+                "entity_type": "Individual",
+                "tags": ["test"]
+            }
+        )
+        entity_id = entity_response.json()["id"]
+
+        # Link entity to memory
+        httpx.post(
+            f"{server_base_url}/api/v1/entities/{entity_id}/memories",
+            json={"memory_id": memory_id}
+        )
+
+        import time
+        time.sleep(0.5)
+
+        # Check for entity_memory_link created event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=entity_memory_link&action=created"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Find the link event for our entity
+        link_events = [
+            e for e in data["events"]
+            if e["snapshot"].get("entity_id") == entity_id
+            and e["snapshot"].get("memory_id") == memory_id
+        ]
+        assert len(link_events) >= 1
+        event = link_events[0]
+        assert event["entity_type"] == "entity_memory_link"
+        assert event["action"] == "created"
+
+    def test_entity_relationship_created_event(self, docker_services, server_base_url):
+        """POST /api/v1/entities/{id}/relationships generates entity_relationship created event."""
+        # Create two entities
+        entity1_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Person for Relationship",
+                "entity_type": "Individual",
+                "tags": ["test"]
+            }
+        )
+        entity1_id = entity1_response.json()["id"]
+
+        entity2_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Company for Relationship",
+                "entity_type": "Organization",
+                "tags": ["test"]
+            }
+        )
+        entity2_id = entity2_response.json()["id"]
+
+        # Create relationship
+        rel_response = httpx.post(
+            f"{server_base_url}/api/v1/entities/{entity1_id}/relationships",
+            json={
+                "target_entity_id": entity2_id,
+                "relationship_type": "works_for"
+            }
+        )
+        assert rel_response.status_code == 201
+        relationship_id = rel_response.json()["id"]
+
+        import time
+        time.sleep(0.5)
+
+        # Check for entity_relationship created event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=entity_relationship&entity_id={relationship_id}&action=created"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "entity_relationship"
+        assert event["action"] == "created"
+
+    def test_entity_relationship_deleted_event(self, docker_services, server_base_url):
+        """DELETE /api/v1/entities/relationships/{id} generates deleted event."""
+        # Create two entities
+        entity1_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Person to Delete Relationship",
+                "entity_type": "Individual",
+                "tags": ["test"]
+            }
+        )
+        entity1_id = entity1_response.json()["id"]
+
+        entity2_response = httpx.post(
+            f"{server_base_url}/api/v1/entities",
+            json={
+                "name": "Company to Delete Relationship",
+                "entity_type": "Organization",
+                "tags": ["test"]
+            }
+        )
+        entity2_id = entity2_response.json()["id"]
+
+        # Create relationship
+        rel_response = httpx.post(
+            f"{server_base_url}/api/v1/entities/{entity1_id}/relationships",
+            json={
+                "target_entity_id": entity2_id,
+                "relationship_type": "works_for"
+            }
+        )
+        relationship_id = rel_response.json()["id"]
+
+        # Delete relationship
+        httpx.delete(f"{server_base_url}/api/v1/entities/relationships/{relationship_id}")
+
+        import time
+        time.sleep(0.5)
+
+        # Check for entity_relationship deleted event
+        response = httpx.get(
+            f"{server_base_url}/api/v1/activity?entity_type=entity_relationship&entity_id={relationship_id}&action=deleted"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["events"]) >= 1
+        event = data["events"][0]
+        assert event["entity_type"] == "entity_relationship"
+        assert event["action"] == "deleted"

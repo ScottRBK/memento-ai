@@ -8,10 +8,17 @@ This service implements functionality for managing entities and their relationsh
     - Memory linking
     - Entity relationship management (knowledge graph)
 """
-from typing import List
+from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 from app.config.logging_config import logging
+from app.config.settings import settings
+from app.models.activity_models import (
+    ActivityEvent,
+    ActorType,
+    ActionType,
+    EntityType as ActivityEntityType,  # Alias to avoid conflict with entity_models.EntityType
+)
 from app.protocols.entity_protocol import EntityRepository
 from app.models.entity_models import (
     Entity,
@@ -24,6 +31,10 @@ from app.models.entity_models import (
     EntityType
 )
 from app.exceptions import NotFoundError
+from app.utils.pydantic_helper import get_changed_fields
+
+if TYPE_CHECKING:
+    from app.events import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +46,60 @@ class EntityService:
     and their relationships. Uses repository protocol for data access.
     """
 
-    def __init__(self, entity_repo: EntityRepository):
+    def __init__(
+        self,
+        entity_repo: EntityRepository,
+        event_bus: "EventBus | None" = None,
+    ):
         """Initialize with repository protocol (not concrete implementation)
 
         Args:
             entity_repo: Entity repository implementing the protocol
+            event_bus: Optional event bus for activity tracking
         """
         self.entity_repo = entity_repo
+        self._event_bus = event_bus
         logger.info("Entity service initialized")
+
+    async def _emit_event(
+        self,
+        user_id: UUID,
+        entity_type: ActivityEntityType,
+        entity_id: int,
+        action: ActionType,
+        snapshot: dict,
+        changes: dict | None = None,
+        metadata: dict | None = None,
+    ) -> None:
+        """
+        Emit an activity event to the event bus.
+
+        This is a no-op if no event bus is configured.
+
+        Args:
+            user_id: User ID for the event
+            entity_type: Type of entity (entity, entity_memory_link, entity_relationship)
+            entity_id: ID of the entity
+            action: Action that occurred (created, updated, deleted, etc.)
+            snapshot: Full entity state at event time
+            changes: Field changes for updates
+            metadata: Additional context
+        """
+        if self._event_bus is None:
+            return
+
+        event = ActivityEvent(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            changes=changes,
+            snapshot=snapshot,
+            actor=ActorType.USER,
+            metadata=metadata,
+            user_id=str(user_id),
+        )
+
+        await self._event_bus.emit(event)
 
     # Entity CRUD operations
 
@@ -80,6 +137,15 @@ class EntityService:
                 "entity_id": entity.id,
                 "user_id": str(user_id)
             }
+        )
+
+        # Emit created event
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=ActivityEntityType.ENTITY,
+            entity_id=entity.id,
+            action=ActionType.CREATED,
+            snapshot=entity.model_dump(mode="json"),
         )
 
         return entity
@@ -124,6 +190,16 @@ class EntityService:
                 "user_id": str(user_id)
             }
         )
+
+        # Emit read event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY,
+                entity_id=entity_id,
+                action=ActionType.READ,
+                snapshot=entity.model_dump(mode="json"),
+            )
 
         return entity
 
@@ -181,6 +257,26 @@ class EntityService:
             }
         )
 
+        # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY,
+                entity_id=0,  # Query spans multiple entities
+                action=ActionType.QUERIED,
+                snapshot={
+                    "result_ids": [e.id for e in entities],
+                    "total_count": total,
+                },
+                metadata={
+                    "project_ids": project_ids,
+                    "entity_type": entity_type.value if entity_type else None,
+                    "tags": tags,
+                    "limit": limit,
+                    "offset": offset,
+                },
+            )
+
         return entities, total
 
     async def search_entities(
@@ -230,6 +326,25 @@ class EntityService:
             }
         )
 
+        # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY,
+                entity_id=0,  # Query spans multiple entities
+                action=ActionType.QUERIED,
+                snapshot={
+                    "result_ids": [e.id for e in entities],
+                    "total_count": len(entities),
+                },
+                metadata={
+                    "search_query": search_query,
+                    "entity_type": entity_type.value if entity_type else None,
+                    "tags": tags,
+                    "limit": limit,
+                },
+            )
+
         return entities
 
     async def update_entity(
@@ -261,6 +376,20 @@ class EntityService:
             }
         )
 
+        # Get existing entity for change detection
+        existing_entity = await self.entity_repo.get_entity_by_id(
+            user_id=user_id,
+            entity_id=entity_id
+        )
+
+        if not existing_entity:
+            raise NotFoundError(f"Entity {entity_id} not found")
+
+        # Detect changes
+        changed_fields = get_changed_fields(
+            input_model=entity_data, existing_model=existing_entity
+        )
+
         entity = await self.entity_repo.update_entity(
             user_id=user_id,
             entity_id=entity_id,
@@ -274,6 +403,21 @@ class EntityService:
                 "user_id": str(user_id)
             }
         )
+
+        # Emit updated event with changes
+        if changed_fields:
+            changes_dict = {
+                field: {"old": old, "new": new}
+                for field, (old, new) in changed_fields.items()
+            }
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY,
+                entity_id=entity_id,
+                action=ActionType.UPDATED,
+                snapshot=entity.model_dump(mode="json"),
+                changes=changes_dict,
+            )
 
         return entity
 
@@ -299,6 +443,12 @@ class EntityService:
             }
         )
 
+        # Fetch entity before deletion for snapshot
+        existing_entity = await self.entity_repo.get_entity_by_id(
+            user_id=user_id,
+            entity_id=entity_id
+        )
+
         success = await self.entity_repo.delete_entity(
             user_id=user_id,
             entity_id=entity_id
@@ -312,6 +462,16 @@ class EntityService:
                     "user_id": str(user_id)
                 }
             )
+
+            # Emit deleted event with pre-deletion snapshot
+            if existing_entity:
+                await self._emit_event(
+                    user_id=user_id,
+                    entity_type=ActivityEntityType.ENTITY,
+                    entity_id=entity_id,
+                    action=ActionType.DELETED,
+                    snapshot=existing_entity.model_dump(mode="json"),
+                )
         else:
             logger.warning(
                 "entity not found for deletion",
@@ -368,6 +528,17 @@ class EntityService:
             }
         )
 
+        # Emit entity-memory link created event
+        if success:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY_MEMORY_LINK,
+                entity_id=0,  # Links use metadata for source/target
+                action=ActionType.CREATED,
+                snapshot={"entity_id": entity_id, "memory_id": memory_id},
+                metadata={"entity_id": entity_id, "memory_id": memory_id},
+            )
+
         return success
 
     async def unlink_entity_from_memory(
@@ -409,6 +580,16 @@ class EntityService:
                     "memory_id": memory_id,
                     "user_id": str(user_id)
                 }
+            )
+
+            # Emit entity-memory link deleted event
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY_MEMORY_LINK,
+                entity_id=0,  # Links use metadata for source/target
+                action=ActionType.DELETED,
+                snapshot={"entity_id": entity_id, "memory_id": memory_id},
+                metadata={"entity_id": entity_id, "memory_id": memory_id},
             )
         else:
             logger.warning(
@@ -464,6 +645,15 @@ class EntityService:
             }
         )
 
+        # Emit entity relationship created event
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=ActivityEntityType.ENTITY_RELATIONSHIP,
+            entity_id=relationship.id,
+            action=ActionType.CREATED,
+            snapshot=relationship.model_dump(mode="json"),
+        )
+
         return relationship
 
     async def get_entity_relationships(
@@ -513,6 +703,9 @@ class EntityService:
             }
         )
 
+        # Note: Optional READ event for relationships could be added here
+        # but skipping for now as graph operations are high-volume
+
         return relationships
 
     async def update_entity_relationship(
@@ -544,6 +737,9 @@ class EntityService:
             }
         )
 
+        # Note: The repo doesn't have a direct get_relationship_by_id, so we'll emit
+        # the event unconditionally without a changes dict
+
         relationship = await self.entity_repo.update_entity_relationship(
             user_id=user_id,
             relationship_id=relationship_id,
@@ -556,6 +752,17 @@ class EntityService:
                 "relationship_id": relationship_id,
                 "user_id": str(user_id)
             }
+        )
+
+        # Emit entity relationship updated event
+        # Note: Change detection would require fetching the relationship first
+        # For now, emit the event without changes dict
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=ActivityEntityType.ENTITY_RELATIONSHIP,
+            entity_id=relationship_id,
+            action=ActionType.UPDATED,
+            snapshot=relationship.model_dump(mode="json"),
         )
 
         return relationship
@@ -582,6 +789,9 @@ class EntityService:
             }
         )
 
+        # Note: We can't easily fetch the relationship before deletion without
+        # a get_relationship_by_id method, so snapshot will be minimal
+
         success = await self.entity_repo.delete_entity_relationship(
             user_id=user_id,
             relationship_id=relationship_id
@@ -594,6 +804,15 @@ class EntityService:
                     "relationship_id": relationship_id,
                     "user_id": str(user_id)
                 }
+            )
+
+            # Emit entity relationship deleted event
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY_RELATIONSHIP,
+                entity_id=relationship_id,
+                action=ActionType.DELETED,
+                snapshot={"id": relationship_id},  # Minimal snapshot
             )
         else:
             logger.warning(

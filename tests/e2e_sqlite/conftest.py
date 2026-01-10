@@ -146,10 +146,10 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
             user_service = UserService(user_repository)
             # Pass event_bus=None to avoid async event emission conflicts with SQLite
             memory_service = MemoryService(memory_repository, event_bus=None)
-            project_service = ProjectService(project_repository)
-            code_artifact_service = CodeArtifactService(code_artifact_repository)
-            document_service = DocumentService(document_repository)
-            entity_service = EntityService(entity_repository)
+            project_service = ProjectService(project_repository, event_bus=None)
+            code_artifact_service = CodeArtifactService(code_artifact_repository, event_bus=None)
+            document_service = DocumentService(document_repository, event_bus=None)
+            entity_service = EntityService(entity_repository, event_bus=None)
             graph_service = GraphService(
                 memory_repository,
                 entity_repository,

@@ -1,7 +1,14 @@
-from typing import List
+from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 from app.config.logging_config import logging
+from app.config.settings import settings
+from app.models.activity_models import (
+    ActivityEvent,
+    ActorType,
+    ActionType,
+    EntityType,
+)
 from app.models.project_models import (
     Project,
     ProjectCreate,
@@ -11,6 +18,9 @@ from app.models.project_models import (
 )
 from app.protocols.project_protocol import ProjectRepository
 from app.utils.pydantic_helper import get_changed_fields
+
+if TYPE_CHECKING:
+    from app.events import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +36,60 @@ class ProjectService:
     with filtering. No embeddings, auto-linking, or token budget management.
     """
 
-    def __init__(self, project_repo: ProjectRepository):
+    def __init__(
+        self,
+        project_repo: ProjectRepository,
+        event_bus: "EventBus | None" = None,
+    ):
         """Initialize project service with repository
 
         Args:
             project_repo: Project repository implementation (protocol-based)
+            event_bus: Optional event bus for activity tracking
         """
         self.project_repo = project_repo
+        self._event_bus = event_bus
         logger.info("Project service initialised")
+
+    async def _emit_event(
+        self,
+        user_id: UUID,
+        entity_type: EntityType,
+        entity_id: int,
+        action: ActionType,
+        snapshot: dict,
+        changes: dict | None = None,
+        metadata: dict | None = None,
+    ) -> None:
+        """
+        Emit an activity event to the event bus.
+
+        This is a no-op if no event bus is configured.
+
+        Args:
+            user_id: User ID for the event
+            entity_type: Type of entity (project)
+            entity_id: ID of the entity
+            action: Action that occurred (created, updated, deleted, etc.)
+            snapshot: Full entity state at event time
+            changes: Field changes for updates
+            metadata: Additional context
+        """
+        if self._event_bus is None:
+            return
+
+        event = ActivityEvent(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            changes=changes,
+            snapshot=snapshot,
+            actor=ActorType.USER,
+            metadata=metadata,
+            user_id=str(user_id),
+        )
+
+        await self._event_bus.emit(event)
 
     async def list_projects(
         self,
@@ -76,6 +132,24 @@ class ProjectService:
             extra={"count": len(projects), "user_id": str(user_id)},
         )
 
+        # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.PROJECT,
+                entity_id=0,  # Query spans multiple projects
+                action=ActionType.QUERIED,
+                snapshot={
+                    "result_ids": [p.id for p in projects],
+                    "total_count": len(projects),
+                },
+                metadata={
+                    "status": status.value if status else None,
+                    "repo_name": repo_name,
+                    "name": name,
+                },
+            )
+
         return projects
 
     async def get_project(self, user_id: UUID, project_id: int) -> Project | None:
@@ -104,6 +178,16 @@ class ProjectService:
                 "project retrieved",
                 extra={"project_id": project_id, "project_name": project.name},
             )
+
+            # Emit read event (opt-in via ACTIVITY_TRACK_READS)
+            if settings.ACTIVITY_TRACK_READS and self._event_bus:
+                await self._emit_event(
+                    user_id=user_id,
+                    entity_type=EntityType.PROJECT,
+                    entity_id=project_id,
+                    action=ActionType.READ,
+                    snapshot=project.model_dump(mode="json"),
+                )
         else:
             logger.info(
                 "project not found",
@@ -150,6 +234,15 @@ class ProjectService:
                 "project_name": project.name,
                 "user_id": str(user_id),
             },
+        )
+
+        # Emit created event
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=EntityType.PROJECT,
+            entity_id=project.id,
+            action=ActionType.CREATED,
+            snapshot=project.model_dump(mode="json"),
         )
 
         return project
@@ -221,6 +314,20 @@ class ProjectService:
             extra={"project_id": project_id, "project_name": updated_project.name},
         )
 
+        # Emit updated event with changes
+        changes_dict = {
+            field: {"old": old, "new": new}
+            for field, (old, new) in changed_fields.items()
+        }
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=EntityType.PROJECT,
+            entity_id=project_id,
+            action=ActionType.UPDATED,
+            snapshot=updated_project.model_dump(mode="json"),
+            changes=changes_dict,
+        )
+
         return updated_project
 
     async def delete_project(self, user_id: UUID, project_id: int) -> bool:
@@ -270,6 +377,15 @@ class ProjectService:
                     "project_name": existing_project.name,
                     "user_id": str(user_id),
                 },
+            )
+
+            # Emit deleted event with pre-deletion snapshot
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.PROJECT,
+                entity_id=project_id,
+                action=ActionType.DELETED,
+                snapshot=existing_project.model_dump(mode="json"),
             )
         else:
             logger.warning(

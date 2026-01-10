@@ -7,10 +7,17 @@ This service implements functionality for managing documents:
     - Project association
     - Memory linking (via memory service)
 """
-from typing import List
+from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 from app.config.logging_config import logging
+from app.config.settings import settings
+from app.models.activity_models import (
+    ActivityEvent,
+    ActorType,
+    ActionType,
+    EntityType,
+)
 from app.protocols.document_protocol import DocumentRepository
 from app.models.document_models import (
     Document,
@@ -19,6 +26,10 @@ from app.models.document_models import (
     DocumentSummary
 )
 from app.exceptions import NotFoundError
+from app.utils.pydantic_helper import get_changed_fields
+
+if TYPE_CHECKING:
+    from app.events import EventBus
 
 logger = logging.getLogger(__name__)
 
@@ -30,14 +41,60 @@ class DocumentService:
     Uses repository protocol for data access.
     """
 
-    def __init__(self, document_repo: DocumentRepository):
+    def __init__(
+        self,
+        document_repo: DocumentRepository,
+        event_bus: "EventBus | None" = None,
+    ):
         """Initialize with repository protocol (not concrete implementation)
 
         Args:
             document_repo: Document repository implementing the protocol
+            event_bus: Optional event bus for activity tracking
         """
         self.document_repo = document_repo
+        self._event_bus = event_bus
         logger.info("Document service initialized")
+
+    async def _emit_event(
+        self,
+        user_id: UUID,
+        entity_type: EntityType,
+        entity_id: int,
+        action: ActionType,
+        snapshot: dict,
+        changes: dict | None = None,
+        metadata: dict | None = None,
+    ) -> None:
+        """
+        Emit an activity event to the event bus.
+
+        This is a no-op if no event bus is configured.
+
+        Args:
+            user_id: User ID for the event
+            entity_type: Type of entity (document)
+            entity_id: ID of the entity
+            action: Action that occurred (created, updated, deleted, etc.)
+            snapshot: Full entity state at event time
+            changes: Field changes for updates
+            metadata: Additional context
+        """
+        if self._event_bus is None:
+            return
+
+        event = ActivityEvent(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            changes=changes,
+            snapshot=snapshot,
+            actor=ActorType.USER,
+            metadata=metadata,
+            user_id=str(user_id),
+        )
+
+        await self._event_bus.emit(event)
 
     async def create_document(
         self,
@@ -73,6 +130,15 @@ class DocumentService:
                 "document_id": document.id,
                 "user_id": str(user_id)
             }
+        )
+
+        # Emit created event
+        await self._emit_event(
+            user_id=user_id,
+            entity_type=EntityType.DOCUMENT,
+            entity_id=document.id,
+            action=ActionType.CREATED,
+            snapshot=document.model_dump(mode="json"),
         )
 
         return document
@@ -117,6 +183,16 @@ class DocumentService:
                 "user_id": str(user_id)
             }
         )
+
+        # Emit read event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.DOCUMENT,
+                entity_id=document_id,
+                action=ActionType.READ,
+                snapshot=document.model_dump(mode="json"),
+            )
 
         return document
 
@@ -163,6 +239,24 @@ class DocumentService:
             }
         )
 
+        # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
+        if settings.ACTIVITY_TRACK_READS and self._event_bus:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.DOCUMENT,
+                entity_id=0,  # Query spans multiple documents
+                action=ActionType.QUERIED,
+                snapshot={
+                    "result_ids": [d.id for d in documents],
+                    "total_count": len(documents),
+                },
+                metadata={
+                    "project_id": project_id,
+                    "document_type": document_type,
+                    "tags": tags,
+                },
+            )
+
         return documents
 
     async def update_document(
@@ -194,6 +288,20 @@ class DocumentService:
             }
         )
 
+        # Get existing document for change detection
+        existing_document = await self.document_repo.get_document_by_id(
+            user_id=user_id,
+            document_id=document_id
+        )
+
+        if not existing_document:
+            raise NotFoundError(f"Document {document_id} not found")
+
+        # Detect changes
+        changed_fields = get_changed_fields(
+            input_model=document_data, existing_model=existing_document
+        )
+
         document = await self.document_repo.update_document(
             user_id=user_id,
             document_id=document_id,
@@ -207,6 +315,21 @@ class DocumentService:
                 "user_id": str(user_id)
             }
         )
+
+        # Emit updated event with changes
+        if changed_fields:
+            changes_dict = {
+                field: {"old": old, "new": new}
+                for field, (old, new) in changed_fields.items()
+            }
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=EntityType.DOCUMENT,
+                entity_id=document_id,
+                action=ActionType.UPDATED,
+                snapshot=document.model_dump(mode="json"),
+                changes=changes_dict,
+            )
 
         return document
 
@@ -232,6 +355,12 @@ class DocumentService:
             }
         )
 
+        # Fetch document before deletion for snapshot
+        existing_document = await self.document_repo.get_document_by_id(
+            user_id=user_id,
+            document_id=document_id
+        )
+
         success = await self.document_repo.delete_document(
             user_id=user_id,
             document_id=document_id
@@ -245,6 +374,16 @@ class DocumentService:
                     "user_id": str(user_id)
                 }
             )
+
+            # Emit deleted event with pre-deletion snapshot
+            if existing_document:
+                await self._emit_event(
+                    user_id=user_id,
+                    entity_type=EntityType.DOCUMENT,
+                    entity_id=document_id,
+                    action=ActionType.DELETED,
+                    snapshot=existing_document.model_dump(mode="json"),
+                )
         else:
             logger.warning(
                 "document not found for deletion",

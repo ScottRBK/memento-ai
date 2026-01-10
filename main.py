@@ -175,10 +175,10 @@ async def lifespan(app):
 
     user_service = UserService(repos["user"])
     memory_service = MemoryService(repos["memory"], event_bus=event_bus)
-    project_service = ProjectService(repos["project"])
-    code_artifact_service = CodeArtifactService(repos["code_artifact"])
-    document_service = DocumentService(repos["document"])
-    entity_service = EntityService(repos["entity"])
+    project_service = ProjectService(repos["project"], event_bus=event_bus)
+    code_artifact_service = CodeArtifactService(repos["code_artifact"], event_bus=event_bus)
+    document_service = DocumentService(repos["document"], event_bus=event_bus)
+    entity_service = EntityService(repos["entity"], event_bus=event_bus)
     graph_service = GraphService(
         repos["memory"],
         repos["entity"],
