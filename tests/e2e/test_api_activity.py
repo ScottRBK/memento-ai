@@ -11,6 +11,13 @@ import httpx
 import json
 
 
+# Enable read/query event tracking for this test module
+# Required for TestActivityAPIReads tests that verify READ events
+DOCKER_ENV_OVERRIDE = {
+    "ACTIVITY_TRACK_READS": "true",
+}
+
+
 @pytest.mark.e2e
 class TestActivityAPIList:
     """Test GET /api/v1/activity endpoint."""
