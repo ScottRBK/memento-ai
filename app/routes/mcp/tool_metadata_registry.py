@@ -1200,6 +1200,34 @@ def register_entity_tools_metadata(
             "tags": ["entity", "memory", "unlink"],
         },
         {
+            "name": "link_entity_to_project",
+            "description": "Link entity to project (organizational grouping)",
+            "parameters": [
+                {"name": "entity_id", "type": "int", "description": "ID of the entity", "required": True, "example": 1},
+                {"name": "project_id", "type": "int", "description": "ID of the project", "required": True, "example": 5},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with link confirmation",
+            "examples": [
+                'execute_forgetful_tool("link_entity_to_project", {"entity_id": 1, "project_id": 5})',
+            ],
+            "tags": ["entity", "project", "link"],
+        },
+        {
+            "name": "unlink_entity_from_project",
+            "description": "Unlink entity from project (removes organizational grouping)",
+            "parameters": [
+                {"name": "entity_id", "type": "int", "description": "ID of the entity", "required": True, "example": 1},
+                {"name": "project_id", "type": "int", "description": "ID of the project", "required": True, "example": 5},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with unlink confirmation",
+            "examples": [
+                'execute_forgetful_tool("unlink_entity_from_project", {"entity_id": 1, "project_id": 5})',
+            ],
+            "tags": ["entity", "project", "unlink"],
+        },
+        {
             "name": "create_entity_relationship",
             "description": "Create typed relationship between two entities (knowledge graph edge)",
             "parameters": [

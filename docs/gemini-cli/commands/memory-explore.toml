@@ -48,6 +48,11 @@ For discovered project_ids, find related entities:
 execute_forgetful_tool("list_entities", {"project_ids": [<ids>]})
 ```
 
+Note: Entities can be explicitly linked to projects for organizational grouping using:
+```
+execute_forgetful_tool("link_entity_to_project", {"entity_id": <id>, "project_id": <id>})
+```
+
 ## Phase 4: Entity Relationships
 
 For each relevant entity, get relationships:

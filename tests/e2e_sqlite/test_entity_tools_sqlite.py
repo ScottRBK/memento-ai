@@ -208,6 +208,59 @@ async def test_unlink_entity_from_memory_e2e(mcp_client):
 
 
 @pytest.mark.asyncio
+async def test_link_entity_to_project_e2e(mcp_client):
+    """Test linking entity to project"""
+    # Create entity
+    entity_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {'name':
+        'Test Entity', 'entity_type': 'Organization', 'tags': []}})
+    entity_id = entity_result.data["id"]
+
+    # Create project
+    project_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_project', 'arguments': {'name':
+        'Test Project', 'description': 'Project for linking test',
+        'project_type': 'development'}})
+    project_id = project_result.data["id"]
+
+    # Link entity to project
+    link_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'link_entity_to_project', 'arguments': {'entity_id':
+        entity_id, 'project_id': project_id}})
+    assert link_result.data is not None
+    assert link_result.data['success'] is True
+
+
+@pytest.mark.asyncio
+async def test_unlink_entity_from_project_e2e(mcp_client):
+    """Test unlinking entity from project"""
+    # Create entity
+    entity_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_entity', 'arguments': {'name':
+        'Test Entity', 'entity_type': 'Organization', 'tags': []}})
+    entity_id = entity_result.data["id"]
+
+    # Create project
+    project_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'create_project', 'arguments': {'name':
+        'Test Project', 'description': 'Project for unlink test',
+        'project_type': 'development'}})
+    project_id = project_result.data["id"]
+
+    # Link first
+    await mcp_client.call_tool('execute_forgetful_tool', {'tool_name':
+        'link_entity_to_project', 'arguments': {'entity_id': entity_id,
+        'project_id': project_id}})
+
+    # Unlink
+    unlink_result = await mcp_client.call_tool('execute_forgetful_tool', {
+        'tool_name': 'unlink_entity_from_project', 'arguments': {
+        'entity_id': entity_id, 'project_id': project_id}})
+    assert unlink_result.data is not None
+    assert unlink_result.data['success'] is True
+
+
+@pytest.mark.asyncio
 async def test_create_entity_relationship_e2e(mcp_client):
     """Test creating relationship between entities"""
     entity1_result = await mcp_client.call_tool('execute_forgetful_tool', {

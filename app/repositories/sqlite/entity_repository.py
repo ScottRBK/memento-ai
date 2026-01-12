@@ -587,6 +587,140 @@ class SqliteEntityRepository:
             )
             raise
 
+    # Entity-Project linking operations
+
+    async def link_entity_to_project(
+        self,
+        user_id: UUID,
+        entity_id: int,
+        project_id: int
+    ) -> bool:
+        """Link entity to project
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to link
+            project_id: Project ID to link
+
+        Returns:
+            True if linked (or already linked)
+
+        Raises:
+            NotFoundError: If entity or project not found or not owned by user
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                # Verify entity exists and is owned by user
+                entity_stmt = select(EntitiesTable).where(
+                    EntitiesTable.id == entity_id,
+                    EntitiesTable.user_id == str(user_id)
+                )
+                entity_result = await session.execute(entity_stmt)
+                entity_table = entity_result.scalar_one_or_none()
+
+                if not entity_table:
+                    raise NotFoundError(f"Entity {entity_id} not found")
+
+                # Verify project exists and is owned by user
+                project_stmt = select(ProjectsTable).where(
+                    ProjectsTable.id == project_id,
+                    ProjectsTable.user_id == str(user_id)
+                )
+                project_result = await session.execute(project_stmt)
+                project_table = project_result.scalar_one_or_none()
+
+                if not project_table:
+                    raise NotFoundError(f"Project {project_id} not found")
+
+                # Load the projects relationship on the entity
+                await session.refresh(entity_table, ["projects"])
+
+                # Add project to entity's projects (if not already linked)
+                if project_table not in entity_table.projects:
+                    entity_table.projects.append(project_table)
+                    await session.commit()
+
+                return True
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to link entity {entity_id} to project {project_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "entity_id": entity_id,
+                    "project_id": project_id,
+                    "error": str(e)
+                }
+            )
+            raise
+
+    async def unlink_entity_from_project(
+        self,
+        user_id: UUID,
+        entity_id: int,
+        project_id: int
+    ) -> bool:
+        """Unlink entity from project
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to unlink
+            project_id: Project ID to unlink
+
+        Returns:
+            True if unlinked, False if link didn't exist
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                # Verify entity exists and is owned by user
+                entity_stmt = select(EntitiesTable).where(
+                    EntitiesTable.id == entity_id,
+                    EntitiesTable.user_id == str(user_id)
+                )
+                entity_result = await session.execute(entity_stmt)
+                entity_table = entity_result.scalar_one_or_none()
+
+                if not entity_table:
+                    return False
+
+                # Verify project exists and is owned by user
+                project_stmt = select(ProjectsTable).where(
+                    ProjectsTable.id == project_id,
+                    ProjectsTable.user_id == str(user_id)
+                )
+                project_result = await session.execute(project_stmt)
+                project_table = project_result.scalar_one_or_none()
+
+                if not project_table:
+                    return False
+
+                # Load the projects relationship on the entity
+                await session.refresh(entity_table, ["projects"])
+
+                # Remove project from entity's projects (if linked)
+                if project_table in entity_table.projects:
+                    entity_table.projects.remove(project_table)
+                    await session.commit()
+                    return True
+
+                return False
+
+        except Exception as e:
+            logger.error(
+                f"Failed to unlink entity {entity_id} from project {project_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "entity_id": entity_id,
+                    "project_id": project_id,
+                    "error": str(e)
+                }
+            )
+            raise
+
     # Entity Relationship operations
 
     async def create_entity_relationship(

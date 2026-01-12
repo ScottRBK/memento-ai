@@ -42,10 +42,18 @@ execute_forgetful_tool("get_memory", {"memory_id": <id>})
 Extract: `document_ids`, `code_artifact_ids`, `project_ids`, additional `linked_memory_ids`.
 
 ### Phase 3: Entity Discovery
-Find entities in discovered projects:
+Find entities linked to discovered projects:
 ```
 execute_forgetful_tool("list_entities", {
   "project_ids": [<discovered project ids>]
+})
+```
+
+You can also explicitly link entities to projects for organizational grouping:
+```
+execute_forgetful_tool("link_entity_to_project", {
+  "entity_id": <id>,
+  "project_id": <id>
 })
 ```
 

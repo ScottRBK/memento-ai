@@ -870,6 +870,9 @@ class InMemoryEntityRepository(EntityRepository):
         self._entity_memory_links: dict[
             int, set[int]
         ] = {}  # entity_id -> set of memory_ids
+        self._entity_project_links: dict[
+            int, set[int]
+        ] = {}  # entity_id -> set of project_ids
         self._next_entity_id = 1
         self._next_relationship_id = 1
 
@@ -1029,6 +1032,31 @@ class InMemoryEntityRepository(EntityRepository):
         if entity_id in self._entity_memory_links:
             if memory_id in self._entity_memory_links[entity_id]:
                 self._entity_memory_links[entity_id].discard(memory_id)
+                return True
+        return False
+
+    async def link_entity_to_project(
+        self, user_id: UUID, entity_id: int, project_id: int
+    ) -> bool:
+        # Verify entity exists
+        entity = await self.get_entity_by_id(user_id, entity_id)
+        if not entity:
+            from app.exceptions import NotFoundError
+
+            raise NotFoundError(f"Entity {entity_id} not found")
+
+        # Add link (mock repo doesn't verify project exists)
+        if entity_id not in self._entity_project_links:
+            self._entity_project_links[entity_id] = set()
+        self._entity_project_links[entity_id].add(project_id)
+        return True
+
+    async def unlink_entity_from_project(
+        self, user_id: UUID, entity_id: int, project_id: int
+    ) -> bool:
+        if entity_id in self._entity_project_links:
+            if project_id in self._entity_project_links[entity_id]:
+                self._entity_project_links[entity_id].discard(project_id)
                 return True
         return False
 

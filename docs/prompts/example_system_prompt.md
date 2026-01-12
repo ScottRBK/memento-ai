@@ -11,7 +11,8 @@ memories linking to it.
 ## Entities vs Memories
 - **Entities**: Concrete things (people, orgs, teams, devices) - use `create_entity`
 - **Memories**: Abstract knowledge (decisions, patterns, learnings)
-- **Link them**: `link_entity_to_memory` connects entities to relevant knowledge
+- **Link to memories**: `link_entity_to_memory` connects entities to relevant knowledge
+- **Link to projects**: `link_entity_to_project` groups entities by project context
 - **Relationships**: `create_entity_relationship` for "works_for", "owns", "manages"
 
 ## Documents vs Memories

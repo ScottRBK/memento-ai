@@ -196,6 +196,47 @@ class EntityRepository(Protocol):
         """
         ...
 
+    # Entity-Project linking operations
+
+    async def link_entity_to_project(
+        self,
+        user_id: UUID,
+        entity_id: int,
+        project_id: int
+    ) -> bool:
+        """Link an entity to a project
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to link
+            project_id: Project ID to link
+
+        Returns:
+            True if linked (or already linked)
+
+        Raises:
+            NotFoundError: If entity or project not found or not owned by user
+        """
+        ...
+
+    async def unlink_entity_from_project(
+        self,
+        user_id: UUID,
+        entity_id: int,
+        project_id: int
+    ) -> bool:
+        """Unlink an entity from a project
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to unlink
+            project_id: Project ID to unlink
+
+        Returns:
+            True if unlinked, False if link didn't exist
+        """
+        ...
+
     # Entity Relationship operations
 
     async def create_entity_relationship(

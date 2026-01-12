@@ -367,6 +367,70 @@ async def test_entity_memory_link_emits_event(test_entity_service_with_event_bus
 
 
 # ============================================================================
+# Entity-Project Link Event Tests
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_entity_project_link_created_emits_event(test_entity_service_with_event_bus):
+    """link_entity_to_project() emits ENTITY_PROJECT_LINK CREATED event."""
+    service, event_bus = test_entity_service_with_event_bus
+    user_id = uuid4()
+
+    # Create entity
+    entity_data = EntityCreate(
+        name="Test Entity",
+        entity_type=EntityKind.INDIVIDUAL,
+        tags=["test"],
+    )
+    entity = await service.create_entity(user_id, entity_data)
+    event_bus.collected_events.clear()
+
+    # Link entity to project (mock repo doesn't verify project exists)
+    project_id = 1
+    await service.link_entity_to_project(user_id, entity.id, project_id)
+
+    # Find the link event
+    link_events = [e for e in event_bus.collected_events if e.entity_type == EntityType.ENTITY_PROJECT_LINK]
+    assert len(link_events) == 1
+    event = link_events[0]
+    assert event.action == ActionType.CREATED
+    assert event.snapshot["entity_id"] == entity.id
+    assert event.snapshot["project_id"] == project_id
+
+
+@pytest.mark.asyncio
+async def test_entity_project_link_deleted_emits_event(test_entity_service_with_event_bus):
+    """unlink_entity_from_project() emits ENTITY_PROJECT_LINK DELETED event."""
+    service, event_bus = test_entity_service_with_event_bus
+    user_id = uuid4()
+
+    # Create entity
+    entity_data = EntityCreate(
+        name="Test Entity",
+        entity_type=EntityKind.INDIVIDUAL,
+        tags=["test"],
+    )
+    entity = await service.create_entity(user_id, entity_data)
+
+    # Link entity to project first
+    project_id = 1
+    await service.link_entity_to_project(user_id, entity.id, project_id)
+    event_bus.collected_events.clear()
+
+    # Unlink entity from project
+    await service.unlink_entity_from_project(user_id, entity.id, project_id)
+
+    # Find the unlink event
+    link_events = [e for e in event_bus.collected_events if e.entity_type == EntityType.ENTITY_PROJECT_LINK]
+    assert len(link_events) == 1
+    event = link_events[0]
+    assert event.action == ActionType.DELETED
+    assert event.snapshot["entity_id"] == entity.id
+    assert event.snapshot["project_id"] == project_id
+
+
+# ============================================================================
 # Entity Relationship Event Tests
 # ============================================================================
 

@@ -603,6 +603,126 @@ class EntityService:
 
         return success
 
+    # Entity-Project linking operations
+
+    async def link_entity_to_project(
+        self,
+        user_id: UUID,
+        entity_id: int,
+        project_id: int
+    ) -> bool:
+        """Link entity to project
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to link
+            project_id: Project ID to link
+
+        Returns:
+            True if linked (or already linked)
+
+        Raises:
+            NotFoundError: If entity or project not found or not owned by user
+        """
+        logger.info(
+            "linking entity to project",
+            extra={
+                "entity_id": entity_id,
+                "project_id": project_id,
+                "user_id": str(user_id)
+            }
+        )
+
+        success = await self.entity_repo.link_entity_to_project(
+            user_id=user_id,
+            entity_id=entity_id,
+            project_id=project_id
+        )
+
+        logger.info(
+            "entity linked to project",
+            extra={
+                "entity_id": entity_id,
+                "project_id": project_id,
+                "user_id": str(user_id)
+            }
+        )
+
+        # Emit entity-project link created event
+        if success:
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY_PROJECT_LINK,
+                entity_id=0,  # Links use metadata for source/target
+                action=ActionType.CREATED,
+                snapshot={"entity_id": entity_id, "project_id": project_id},
+                metadata={"entity_id": entity_id, "project_id": project_id},
+            )
+
+        return success
+
+    async def unlink_entity_from_project(
+        self,
+        user_id: UUID,
+        entity_id: int,
+        project_id: int
+    ) -> bool:
+        """Unlink entity from project
+
+        Args:
+            user_id: User ID for ownership verification
+            entity_id: Entity ID to unlink
+            project_id: Project ID to unlink
+
+        Returns:
+            True if unlinked, False if link didn't exist or entity/project not found
+        """
+        logger.info(
+            "unlinking entity from project",
+            extra={
+                "entity_id": entity_id,
+                "project_id": project_id,
+                "user_id": str(user_id)
+            }
+        )
+
+        success = await self.entity_repo.unlink_entity_from_project(
+            user_id=user_id,
+            entity_id=entity_id,
+            project_id=project_id
+        )
+
+        if success:
+            logger.info(
+                "entity unlinked from project",
+                extra={
+                    "entity_id": entity_id,
+                    "project_id": project_id,
+                    "user_id": str(user_id)
+                }
+            )
+
+            # Emit entity-project link deleted event
+            await self._emit_event(
+                user_id=user_id,
+                entity_type=ActivityEntityType.ENTITY_PROJECT_LINK,
+                entity_id=0,  # Links use metadata for source/target
+                action=ActionType.DELETED,
+                snapshot={"entity_id": entity_id, "project_id": project_id},
+                metadata={"entity_id": entity_id, "project_id": project_id},
+            )
+        else:
+            logger.warning(
+                "entity-project link not found",
+                extra={
+                    "entity_id": entity_id,
+                    "project_id": project_id,
+                    "user_id": str(user_id)
+                }
+            )
+
+        return success
+
     # Entity Relationship operations
 
     async def create_entity_relationship(

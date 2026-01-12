@@ -896,6 +896,9 @@ Get activity history for a specific entity.
 - `code_artifact` - Code snippets
 - `entity` - People, organizations, devices
 - `link` - Memory-to-memory connections
+- `entity_memory_link` - Entity-to-memory connections
+- `entity_project_link` - Entity-to-project connections
+- `entity_relationship` - Entity-to-entity relationships
 
 **Action Types:**
 - `created` - Entity was created

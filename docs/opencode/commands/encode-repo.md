@@ -273,6 +273,17 @@ execute_forgetful_tool("link_entity_to_memory", {
 })
 ```
 
+### Link Entities to Projects
+
+Explicitly link entities to projects for organizational grouping (in addition to the `project_ids` field during creation):
+
+```
+execute_forgetful_tool("link_entity_to_project", {
+  "entity_id": <entity_id>,
+  "project_id": <project_id>
+})
+```
+
 **Checkpoint**:
 ```
 Phase 2B Complete:

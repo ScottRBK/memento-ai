@@ -999,6 +999,30 @@ class EntityToolAdapters:
 
         return {"success": result}
 
+    async def link_entity_to_project(
+        self, entity_id: int, project_id: int, ctx: Context
+    ) -> dict:
+        """Adapter for link_entity_to_project tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.entity_service.link_entity_to_project(
+            user_id=user.id, entity_id=entity_id, project_id=project_id
+        )
+
+        return {"success": result}
+
+    async def unlink_entity_from_project(
+        self, entity_id: int, project_id: int, ctx: Context
+    ) -> dict:
+        """Adapter for unlink_entity_from_project tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.entity_service.unlink_entity_from_project(
+            user_id=user.id, entity_id=entity_id, project_id=project_id
+        )
+
+        return {"success": result}
+
     async def create_entity_relationship(
         self,
         source_entity_id: int,
@@ -1112,6 +1136,8 @@ def create_entity_adapters(
         "delete_entity": adapters.delete_entity,
         "link_entity_to_memory": adapters.link_entity_to_memory,
         "unlink_entity_from_memory": adapters.unlink_entity_from_memory,
+        "link_entity_to_project": adapters.link_entity_to_project,
+        "unlink_entity_from_project": adapters.unlink_entity_from_project,
         "create_entity_relationship": adapters.create_entity_relationship,
         "get_entity_relationships": adapters.get_entity_relationships,
         "update_entity_relationship": adapters.update_entity_relationship,

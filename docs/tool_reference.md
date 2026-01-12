@@ -85,7 +85,7 @@ execute_forgetful_tool(
 
 ## Tool Categories Overview
 
-Forgetful organizes **42 tools** across **6 categories**:
+Forgetful organizes **44 tools** across **6 categories**:
 
 | Category | Tool Count | Purpose |
 |----------|-----------|---------|
@@ -94,7 +94,7 @@ Forgetful organizes **42 tools** across **6 categories**:
 | **Project** | 5 | Project organization and scope management |
 | **Code Artifact** | 5 | Reusable code snippet storage |
 | **Document** | 5 | Long-form content storage (>400 words) |
-| **Entity** | 15 | Real-world entity tracking and knowledge graphs |
+| **Entity** | 17 | Real-world entity tracking and knowledge graphs |
 
 ---
 
@@ -1011,6 +1011,50 @@ Remove entity-memory link.
 execute_forgetful_tool(
     "unlink_entity_from_memory",
     {"entity_id": 42, "memory_id": 156}
+)
+```
+
+### Entity-Project Linking
+
+#### `link_entity_to_project`
+
+Link an entity to a project for organizational grouping.
+
+**Parameters:**
+- `entity_id` (required): Entity ID
+- `project_id` (required): Project ID
+
+**Returns:**
+- `{"success": true}` on success
+
+**Example:**
+```python
+# Link Sarah to the API Gateway project
+execute_forgetful_tool(
+    "link_entity_to_project",
+    {
+        "entity_id": 42,  # Sarah Chen
+        "project_id": 12  # API Gateway project
+    }
+)
+```
+
+#### `unlink_entity_from_project`
+
+Remove entity-project link.
+
+**Parameters:**
+- `entity_id` (required): Entity ID
+- `project_id` (required): Project ID
+
+**Returns:**
+- `{"success": true}` if unlinked, `{"success": false}` if link didn't exist
+
+**Example:**
+```python
+execute_forgetful_tool(
+    "unlink_entity_from_project",
+    {"entity_id": 42, "project_id": 12}
 )
 ```
 

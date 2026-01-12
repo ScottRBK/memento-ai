@@ -94,6 +94,8 @@ def register(mcp: FastMCP):
         - delete_entity: Remove entity (cascades links)
         - link_entity_to_memory: Connect entity to memory
         - unlink_entity_from_memory: Remove entity-memory link
+        - link_entity_to_project: Connect entity to project (organizational grouping)
+        - unlink_entity_from_project: Remove entity-project link
         - get_entity_memories: Get all memories linked to entity
         - create_entity_relationship: Create typed relationship (works_for, owns, etc.)
         - get_entity_relationships: Get relationships for entity
@@ -219,6 +221,9 @@ def register(mcp: FastMCP):
         - Create: execute_forgetful_tool("create_entity", {"name": "Sarah Chen", "entity_type": "Individual", "notes": "Backend developer", "aka": ["Sarah", "S.C."]})
         - Search: execute_forgetful_tool("search_entities", {"query": "Sarah"})  # Searches name AND aka
         - Link to memory: execute_forgetful_tool("link_entity_to_memory", {"entity_id": 1, "memory_id": 1})
+        - Unlink from memory: execute_forgetful_tool("unlink_entity_from_memory", {"entity_id": 1, "memory_id": 1})
+        - Link to project: execute_forgetful_tool("link_entity_to_project", {"entity_id": 1, "project_id": 1})
+        - Unlink from project: execute_forgetful_tool("unlink_entity_from_project", {"entity_id": 1, "project_id": 1})
 
         **Documents (long-form content >300 words):**
         - Create: execute_forgetful_tool("create_document", {"title": "Doc Title", "description": "Brief summary", "content": "Long content...", "document_type": "text", "project_id": 1})
@@ -232,6 +237,7 @@ def register(mcp: FastMCP):
         - When creating code artifacts, link to memories: `create_memory(..., code_artifact_ids=[artifact_id])`
         - Link memories to each other: `link_memories(memory_id=1, related_ids=[2, 3])`
         - Link entities to memories: `link_entity_to_memory(entity_id=1, memory_id=1)`
+        - Link entities to projects: `link_entity_to_project(entity_id=1, project_id=1)`
 
         ## Tool Categories
         memory | project | entity | document | code_artifact | linking | user

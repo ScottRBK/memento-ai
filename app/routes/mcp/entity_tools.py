@@ -578,6 +578,113 @@ def register(mcp: FastMCP):
             logger.error("Failed to unlink entity from memory", exc_info=True)
             raise ToolError(f"Failed to unlink entity from memory: {str(e)}")
 
+    # Entity-Project linking tools
+
+    @mcp.tool()
+    async def link_entity_to_project(
+        entity_id: int,
+        project_id: int,
+        ctx: Context
+    ) -> dict:
+        """
+        Link entity to project (organizational grouping).
+
+        WHEN: When an entity belongs to or is relevant to a specific project.
+        Creates association so the entity can be filtered by project.
+
+        BEHAVIOR: Creates association between entity and project. Idempotent - safe
+        to call multiple times (won't create duplicates). Both entity and project
+        must exist and be owned by the user.
+
+        EXAMPLES:
+        # Associate a team member with a project:
+        link_entity_to_project(entity_id=5, project_id=1)
+
+        # Associate a system/server with an infrastructure project:
+        link_entity_to_project(entity_id=12, project_id=3)
+
+        Args:
+            entity_id: Entity ID to link
+            project_id: Project ID to link
+            ctx: Context (automatically injected)
+
+        Returns:
+            True if linked successfully (or already linked)
+
+        Raises:
+            ToolError: If entity or project not found or not owned by user
+        """
+
+        logger.info("MCP Tool Called -> link_entity_to_project", extra={
+            "entity_id": entity_id,
+            "project_id": project_id
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            entity_service = ctx.fastmcp.entity_service
+            success = await entity_service.link_entity_to_project(
+                user_id=user.id,
+                entity_id=entity_id,
+                project_id=project_id
+            )
+
+            return {"success": success}
+
+        except NotFoundError as e:
+            raise ToolError(str(e))
+        except Exception as e:
+            logger.error("Failed to link entity to project", exc_info=True)
+            raise ToolError(f"Failed to link entity to project: {str(e)}")
+
+    @mcp.tool()
+    async def unlink_entity_from_project(
+        entity_id: int,
+        project_id: int,
+        ctx: Context
+    ) -> dict:
+        """
+        Unlink entity from project (removes organizational grouping).
+
+        WHEN: When an entity-project association is no longer relevant or was created in error.
+
+        BEHAVIOR: Removes association between entity and project. Safe to call even
+        if link doesn't exist (returns False). Entity and project remain intact.
+
+        Args:
+            entity_id: Entity ID to unlink
+            project_id: Project ID to unlink
+            ctx: Context (automatically injected)
+
+        Returns:
+            True if link was removed, False if link didn't exist
+
+        Raises:
+            ToolError: If unlinking fails
+        """
+
+        logger.info("MCP Tool Called -> unlink_entity_from_project", extra={
+            "entity_id": entity_id,
+            "project_id": project_id
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            entity_service = ctx.fastmcp.entity_service
+            success = await entity_service.unlink_entity_from_project(
+                user_id=user.id,
+                entity_id=entity_id,
+                project_id=project_id
+            )
+
+            return {"success": success}
+
+        except Exception as e:
+            logger.error("Failed to unlink entity from project", exc_info=True)
+            raise ToolError(f"Failed to unlink entity from project: {str(e)}")
+
     # Entity Relationship tools
 
     @mcp.tool()

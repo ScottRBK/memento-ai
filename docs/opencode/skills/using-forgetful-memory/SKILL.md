@@ -173,6 +173,9 @@ Common tools you can call directly via `execute_forgetful_tool(tool_name, args)`
 | `create_entity` | `name`, `entity_type` | Create org/person/device |
 | `search_entities` | `query` | Text search by name/aka |
 | `link_entity_to_memory` | `entity_id`, `memory_id` | Link entity<->memory |
+| `unlink_entity_from_memory` | `entity_id`, `memory_id` | Remove entity-memory link |
+| `link_entity_to_project` | `entity_id`, `project_id` | Link entity<->project |
+| `unlink_entity_from_project` | `entity_id`, `project_id` | Remove entity-project link |
 | `get_entity_memories` | `entity_id` | All memories for entity |
 | `create_entity_relationship` | `source_entity_id`, `target_entity_id`, `relationship_type` | Knowledge graph edge |
 
