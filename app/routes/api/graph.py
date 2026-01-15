@@ -34,7 +34,10 @@ def register(mcp: FastMCP):
             node_types: Comma-separated list of node types to include
                        (default: memory,entity,project,document,code_artifact)
             include_entities: Legacy param, deprecated in favor of node_types
-            limit: Max memories to include (default 100)
+            limit: Max memories to include (default 100, max 500)
+            offset: Number of memories to skip for pagination (default 0)
+            sort_by: Sort field - created_at, updated_at, importance (default created_at)
+            sort_order: Sort direction - asc, desc (default desc)
         """
         try:
             user = await get_user_from_request(request, mcp)
@@ -44,6 +47,9 @@ def register(mcp: FastMCP):
         params = request.query_params
         project_id_str = params.get("project_id")
         limit_str = params.get("limit", "100")
+        offset_str = params.get("offset", "0")
+        sort_by = params.get("sort_by", "created_at")
+        sort_order = params.get("sort_order", "desc")
 
         # Parse node_types parameter (new approach)
         node_types_str = params.get("node_types")
@@ -79,6 +85,36 @@ def register(mcp: FastMCP):
                 status_code=400
             )
 
+        # Validate offset parameter
+        try:
+            offset = int(offset_str)
+            if offset < 0:
+                return JSONResponse(
+                    {"error": "offset must be non-negative"},
+                    status_code=400
+                )
+        except ValueError:
+            return JSONResponse(
+                {"error": f"Invalid offset: {offset_str}. Must be an integer."},
+                status_code=400
+            )
+
+        # Validate sort_by parameter
+        VALID_SORT_BY = {"created_at", "updated_at", "importance"}
+        if sort_by not in VALID_SORT_BY:
+            return JSONResponse(
+                {"error": f"sort_by must be one of: {', '.join(sorted(VALID_SORT_BY))}"},
+                status_code=400
+            )
+
+        # Validate sort_order parameter
+        VALID_SORT_ORDER = {"asc", "desc"}
+        if sort_order not in VALID_SORT_ORDER:
+            return JSONResponse(
+                {"error": f"sort_order must be one of: {', '.join(sorted(VALID_SORT_ORDER))}"},
+                status_code=400
+            )
+
         # Validate project_id parameter
         project_ids = None
         if project_id_str:
@@ -99,12 +135,16 @@ def register(mcp: FastMCP):
         seen_code_artifact_ids = set()
         memories = []  # Store for edge building
 
-        # Get memories
+        # Get memories with pagination
+        total_memory_count = 0
         if include_memories:
-            memories, _ = await mcp.memory_service.get_recent_memories(
+            memories, total_memory_count = await mcp.memory_service.get_recent_memories(
                 user_id=user.id,
                 limit=limit,
-                project_ids=project_ids
+                offset=offset,
+                project_ids=project_ids,
+                sort_by=sort_by,
+                sort_order=sort_order,
             )
 
             # Add memory nodes
@@ -377,11 +417,18 @@ def register(mcp: FastMCP):
         memory_document_count = len([e for e in edges if e["type"] == "memory_document"])
         memory_code_artifact_count = len([e for e in edges if e["type"] == "memory_code_artifact"])
 
+        # Calculate memory count for pagination metadata
+        memory_count = len([n for n in nodes if n["type"] == "memory"])
+
         return JSONResponse({
             "nodes": nodes,
             "edges": edges,
             "meta": {
-                "memory_count": len([n for n in nodes if n["type"] == "memory"]),
+                "memory_count": memory_count,
+                "total_memory_count": total_memory_count,
+                "offset": offset,
+                "limit": limit,
+                "has_more": offset + memory_count < total_memory_count,
                 "entity_count": len([n for n in nodes if n["type"] == "entity"]),
                 "project_count": len([n for n in nodes if n["type"] == "project"]),
                 "document_count": len([n for n in nodes if n["type"] == "document"]),

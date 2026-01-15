@@ -621,6 +621,9 @@ Get full knowledge graph for visualization. Returns all nodes and edges for the 
 | `project_id` | int | - | Filter to specific project |
 | `include_entities` | bool | true | Include entity nodes (deprecated, use `node_types`) |
 | `limit` | int | 100 | Max memories to include (max 500) |
+| `offset` | int | 0 | Number of memories to skip for pagination |
+| `sort_by` | string | `created_at` | Sort field: `created_at`, `updated_at`, or `importance` |
+| `sort_order` | string | `desc` | Sort direction: `asc` or `desc` |
 
 **Node Types:**
 - `memory` - Knowledge memories
@@ -693,6 +696,10 @@ Get full knowledge graph for visualization. Returns all nodes and edges for the 
   ],
   "meta": {
     "memory_count": 50,
+    "total_memory_count": 1243,
+    "offset": 0,
+    "limit": 100,
+    "has_more": true,
     "entity_count": 10,
     "project_count": 3,
     "document_count": 5,
@@ -708,6 +715,19 @@ Get full knowledge graph for visualization. Returns all nodes and edges for the 
     "memory_code_artifact_count": 2
   }
 }
+```
+
+**Pagination Examples:**
+
+```bash
+# Get first 50 memories sorted by importance
+GET /api/v1/graph?limit=50&sort_by=importance&sort_order=desc
+
+# Get next page of memories
+GET /api/v1/graph?limit=50&offset=50&sort_by=importance&sort_order=desc
+
+# Filter to project and sort by creation date (oldest first)
+GET /api/v1/graph?project_id=4&sort_by=created_at&sort_order=asc
 ```
 
 ### GET /api/v1/graph/subgraph

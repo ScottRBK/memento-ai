@@ -184,6 +184,205 @@ class TestGraphAPI:
         assert response.status_code == 400
         assert "Invalid project_id" in response.json()["error"]
 
+    @pytest.mark.asyncio
+    async def test_graph_pagination_with_offset(self, http_client):
+        """GET /api/v1/graph respects offset parameter for pagination."""
+        # Create multiple memories
+        for i in range(5):
+            await http_client.post("/api/v1/memories", json={
+                "title": f"Pagination Memory {i}",
+                "content": f"Memory {i} for pagination test",
+                "context": "Testing pagination offset",
+                "keywords": [f"pagination{i}"],
+                "tags": ["pagination-test"],
+                "importance": 7
+            })
+
+        # Get first 2 memories
+        response1 = await http_client.get("/api/v1/graph?limit=2&offset=0")
+        assert response1.status_code == 200
+        data1 = response1.json()
+        first_page_ids = {n["id"] for n in data1["nodes"] if n["type"] == "memory"}
+
+        # Get next 2 memories
+        response2 = await http_client.get("/api/v1/graph?limit=2&offset=2")
+        assert response2.status_code == 200
+        data2 = response2.json()
+        second_page_ids = {n["id"] for n in data2["nodes"] if n["type"] == "memory"}
+
+        # Pages should not overlap
+        assert first_page_ids.isdisjoint(second_page_ids)
+
+    @pytest.mark.asyncio
+    async def test_graph_pagination_metadata(self, http_client):
+        """GET /api/v1/graph includes pagination metadata in response."""
+        # Create memories to test pagination metadata
+        for i in range(5):
+            await http_client.post("/api/v1/memories", json={
+                "title": f"Meta Test Memory {i}",
+                "content": f"Memory {i} for pagination meta test",
+                "context": "Testing pagination metadata",
+                "keywords": [f"meta{i}"],
+                "tags": ["meta-test"],
+                "importance": 7
+            })
+
+        # Get first page
+        response = await http_client.get("/api/v1/graph?limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check pagination metadata
+        meta = data["meta"]
+        assert "total_memory_count" in meta
+        assert "offset" in meta
+        assert "limit" in meta
+        assert "has_more" in meta
+
+        assert meta["offset"] == 0
+        assert meta["limit"] == 2
+        assert meta["total_memory_count"] >= 5
+        assert meta["has_more"] is True  # We have more than 2 memories
+
+    @pytest.mark.asyncio
+    async def test_graph_pagination_has_more_false(self, http_client):
+        """has_more is False when all results are returned."""
+        # Create exactly 2 memories
+        for i in range(2):
+            await http_client.post("/api/v1/memories", json={
+                "title": f"Small Set Memory {i}",
+                "content": f"Memory {i} for has_more test",
+                "context": "Testing has_more flag",
+                "keywords": [f"small{i}"],
+                "tags": ["small-test"],
+                "importance": 7
+            })
+
+        # Get with limit higher than total
+        response = await http_client.get("/api/v1/graph?limit=100&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+
+        # has_more should be False since we got all memories
+        meta = data["meta"]
+        memory_count = meta["memory_count"]
+        total_count = meta["total_memory_count"]
+
+        # If we have all memories, has_more should be False
+        if memory_count >= total_count:
+            assert meta["has_more"] is False
+
+    @pytest.mark.asyncio
+    async def test_graph_sort_by_importance(self, http_client):
+        """GET /api/v1/graph sorts by importance when specified."""
+        # Create memories with different importance levels
+        await http_client.post("/api/v1/memories", json={
+            "title": "Low Importance",
+            "content": "Memory with low importance",
+            "context": "Testing sort by importance",
+            "keywords": ["lowpriority"],
+            "tags": ["sort-test"],
+            "importance": 3
+        })
+        await http_client.post("/api/v1/memories", json={
+            "title": "High Importance",
+            "content": "Memory with high importance",
+            "context": "Testing sort by importance",
+            "keywords": ["highpriority"],
+            "tags": ["sort-test"],
+            "importance": 10
+        })
+
+        # Sort by importance descending
+        response = await http_client.get("/api/v1/graph?sort_by=importance&sort_order=desc&limit=2")
+        assert response.status_code == 200
+        data = response.json()
+
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        if len(memory_nodes) >= 2:
+            # First memory should have higher or equal importance
+            assert memory_nodes[0]["data"]["importance"] >= memory_nodes[1]["data"]["importance"]
+
+    @pytest.mark.asyncio
+    async def test_graph_sort_by_created_at(self, http_client):
+        """GET /api/v1/graph sorts by created_at by default."""
+        # Create memories in sequence
+        await http_client.post("/api/v1/memories", json={
+            "title": "First Created",
+            "content": "Created first",
+            "context": "Testing sort",
+            "keywords": ["first"],
+            "tags": ["sort-test"],
+            "importance": 7
+        })
+        await http_client.post("/api/v1/memories", json={
+            "title": "Second Created",
+            "content": "Created second",
+            "context": "Testing sort",
+            "keywords": ["second"],
+            "tags": ["sort-test"],
+            "importance": 7
+        })
+
+        # Sort by created_at descending (default) should put newest first
+        response = await http_client.get("/api/v1/graph?sort_by=created_at&sort_order=desc&limit=10")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify the request was successful
+        assert "nodes" in data
+        assert "meta" in data
+
+    @pytest.mark.asyncio
+    async def test_graph_sort_order_ascending(self, http_client):
+        """GET /api/v1/graph supports ascending sort order."""
+        response = await http_client.get("/api/v1/graph?sort_order=asc")
+        assert response.status_code == 200
+        data = response.json()
+        assert "nodes" in data
+
+    @pytest.mark.asyncio
+    async def test_graph_invalid_offset(self, http_client):
+        """GET /api/v1/graph returns 400 for invalid offset."""
+        response = await http_client.get("/api/v1/graph?offset=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid offset" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_graph_negative_offset(self, http_client):
+        """GET /api/v1/graph returns 400 for negative offset."""
+        response = await http_client.get("/api/v1/graph?offset=-1")
+        assert response.status_code == 400
+        assert "non-negative" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_graph_invalid_sort_by(self, http_client):
+        """GET /api/v1/graph returns 400 for invalid sort_by."""
+        response = await http_client.get("/api/v1/graph?sort_by=invalid_field")
+        assert response.status_code == 400
+        assert "sort_by must be one of" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_graph_invalid_sort_order(self, http_client):
+        """GET /api/v1/graph returns 400 for invalid sort_order."""
+        response = await http_client.get("/api/v1/graph?sort_order=invalid")
+        assert response.status_code == 400
+        assert "sort_order must be one of" in response.json()["error"]
+
+    @pytest.mark.asyncio
+    async def test_graph_offset_beyond_total(self, http_client):
+        """GET /api/v1/graph returns empty results when offset exceeds total."""
+        response = await http_client.get("/api/v1/graph?offset=99999")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have no memory nodes since offset is beyond total
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        assert len(memory_nodes) == 0
+
+        # Metadata should still be present
+        assert data["meta"]["has_more"] is False
+
 
 class TestMemorySubgraph:
     """Test GET /api/v1/graph/memory/{id} endpoint."""

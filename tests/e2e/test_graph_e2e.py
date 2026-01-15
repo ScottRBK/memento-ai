@@ -524,3 +524,146 @@ async def test_subgraph_node_types_filter_postgresql(docker_services, server_bas
 
         project_nodes = [n for n in data["nodes"] if n["type"] == "project"]
         assert len(project_nodes) >= 1
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_graph_pagination_with_offset(docker_services, server_base_url):
+    """GET /api/v1/graph supports pagination with offset parameter."""
+    async with httpx.AsyncClient() as client:
+        # Create multiple memories
+        for i in range(5):
+            await client.post(f"{server_base_url}/api/v1/memories", json={
+                "title": f"Pagination E2E Memory {i}",
+                "content": f"Memory {i} for pagination E2E test",
+                "context": "Testing pagination offset",
+                "keywords": [f"pagination_e2e_{i}"],
+                "tags": ["pagination-e2e"],
+                "importance": 7
+            })
+
+        # Get first 2 memories
+        response1 = await client.get(f"{server_base_url}/api/v1/graph?limit=2&offset=0")
+        assert response1.status_code == 200
+        data1 = response1.json()
+        first_page_ids = {n["id"] for n in data1["nodes"] if n["type"] == "memory"}
+
+        # Get next 2 memories
+        response2 = await client.get(f"{server_base_url}/api/v1/graph?limit=2&offset=2")
+        assert response2.status_code == 200
+        data2 = response2.json()
+        second_page_ids = {n["id"] for n in data2["nodes"] if n["type"] == "memory"}
+
+        # Pages should not overlap
+        assert first_page_ids.isdisjoint(second_page_ids)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_graph_pagination_metadata(docker_services, server_base_url):
+    """GET /api/v1/graph includes pagination metadata in response."""
+    async with httpx.AsyncClient() as client:
+        # Create memories to test pagination metadata
+        for i in range(5):
+            await client.post(f"{server_base_url}/api/v1/memories", json={
+                "title": f"Pagination Meta E2E {i}",
+                "content": f"Memory {i} for pagination meta E2E test",
+                "context": "Testing pagination metadata",
+                "keywords": [f"meta_e2e_{i}"],
+                "tags": ["meta-e2e"],
+                "importance": 7
+            })
+
+        # Get first page
+        response = await client.get(f"{server_base_url}/api/v1/graph?limit=2&offset=0")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check pagination metadata
+        meta = data["meta"]
+        assert "total_memory_count" in meta
+        assert "offset" in meta
+        assert "limit" in meta
+        assert "has_more" in meta
+
+        assert meta["offset"] == 0
+        assert meta["limit"] == 2
+        assert meta["total_memory_count"] >= 5
+        assert meta["has_more"] is True  # We have more than 2 memories
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_graph_sort_by_importance(docker_services, server_base_url):
+    """GET /api/v1/graph sorts by importance when specified."""
+    async with httpx.AsyncClient() as client:
+        # Create memories with different importance levels
+        await client.post(f"{server_base_url}/api/v1/memories", json={
+            "title": "Low Importance E2E",
+            "content": "Memory with low importance for E2E test",
+            "context": "Testing sort by importance",
+            "keywords": ["low_importance_e2e"],
+            "tags": ["sort-e2e"],
+            "importance": 3
+        })
+        await client.post(f"{server_base_url}/api/v1/memories", json={
+            "title": "High Importance E2E",
+            "content": "Memory with high importance for E2E test",
+            "context": "Testing sort by importance",
+            "keywords": ["high_importance_e2e"],
+            "tags": ["sort-e2e"],
+            "importance": 10
+        })
+
+        # Sort by importance descending
+        response = await client.get(f"{server_base_url}/api/v1/graph?sort_by=importance&sort_order=desc&limit=2")
+        assert response.status_code == 200
+        data = response.json()
+
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        if len(memory_nodes) >= 2:
+            # First memory should have higher or equal importance
+            assert memory_nodes[0]["data"]["importance"] >= memory_nodes[1]["data"]["importance"]
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_graph_invalid_pagination_params(docker_services, server_base_url):
+    """GET /api/v1/graph returns 400 for invalid pagination parameters."""
+    async with httpx.AsyncClient() as client:
+        # Invalid offset
+        response = await client.get(f"{server_base_url}/api/v1/graph?offset=not_a_number")
+        assert response.status_code == 400
+        assert "Invalid offset" in response.json()["error"]
+
+        # Negative offset
+        response = await client.get(f"{server_base_url}/api/v1/graph?offset=-1")
+        assert response.status_code == 400
+        assert "non-negative" in response.json()["error"]
+
+        # Invalid sort_by
+        response = await client.get(f"{server_base_url}/api/v1/graph?sort_by=invalid_field")
+        assert response.status_code == 400
+        assert "sort_by must be one of" in response.json()["error"]
+
+        # Invalid sort_order
+        response = await client.get(f"{server_base_url}/api/v1/graph?sort_order=invalid")
+        assert response.status_code == 400
+        assert "sort_order must be one of" in response.json()["error"]
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_graph_offset_beyond_total(docker_services, server_base_url):
+    """GET /api/v1/graph returns empty results when offset exceeds total."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"{server_base_url}/api/v1/graph?offset=99999")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should have no memory nodes since offset is beyond total
+        memory_nodes = [n for n in data["nodes"] if n["type"] == "memory"]
+        assert len(memory_nodes) == 0
+
+        # Metadata should still be present
+        assert data["meta"]["has_more"] is False
