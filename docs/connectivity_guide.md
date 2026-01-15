@@ -1,5 +1,6 @@
 This section provides more detailed instructions on how to connect forgetful to various AI Agent applications.
 - [Claude Code](#claude-code)
+- [Copilot CLI](#copilot-cli)
 - [Cursor](#cursor)
 - [Codex](#codex)
 - [Gemini CLI](#gemini-cli)
@@ -31,10 +32,56 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
   -e GOOGLE_AI_API_KEY=your-api-key
 ```
 
-### HTTP Transport 
+### HTTP Transport
 ```bash
 claude mcp add --transport http --scope user forgetful http://localhost:8020/mcp
 ```
+
+
+## Copilot CLI
+
+### STDIO Transport (via /mcp add)
+
+```bash
+# Start Copilot CLI
+copilot
+
+# Use the /mcp add command interactively
+/mcp add
+# Enter: Name: forgetful, Command: uvx, Arguments: forgetful-ai
+# Press Ctrl+S to save
+```
+
+### Manual Configuration (~/.copilot/mcp-config.json)
+
+```json
+{
+  "mcpServers": {
+    "forgetful": {
+      "command": "uvx",
+      "args": ["forgetful-ai"]
+    }
+  }
+}
+```
+
+### HTTP Transport
+
+```json
+{
+  "mcpServers": {
+    "forgetful": {
+      "url": "http://localhost:8020/mcp"
+    }
+  }
+}
+```
+
+### Custom Agents & Skills
+
+For enhanced workflows with Forgetful, we provide ready-to-use Copilot CLI agents and skills for memory management, search, and knowledge graph exploration.
+
+See [Copilot CLI Integration](copilot-cli/README.md) for installation and usage.
 
 
 ## Cursor

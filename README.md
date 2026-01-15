@@ -132,10 +132,11 @@ For all configuration options, see [Configuration Guide](docs/configuration.md).
 
 For detailed connection guides (Claude Code, Claude Desktop, other clients that support MCP), see [Connectivity Guide](docs/connectivity_guide.md).
 
-- [Claude Code](docs/connectivity_guide.md#claude-code) 
-- [Cursor](docs/connectivity_guide.md#cursor) 
-- [Codex](docs/connectivity_guide.md#codex) 
-- [Gemini CLI](docs/connectivity_guide.md#gemini-cli) (includes [custom commands](docs/gemini-cli/README.md)) 
+- [Claude Code](docs/connectivity_guide.md#claude-code)
+- [Copilot CLI](docs/connectivity_guide.md#copilot-cli) (includes [custom agents and skills](docs/copilot-cli/README.md))
+- [Cursor](docs/connectivity_guide.md#cursor)
+- [Codex](docs/connectivity_guide.md#codex)
+- [Gemini CLI](docs/connectivity_guide.md#gemini-cli) (includes [custom commands](docs/gemini-cli/README.md))
 - [Opencode](docs/connectivity_guide.md#opencode) (includes [custom commands and skills](docs/opencode/README.md)) 
 
 Add Forgetful to your MCP client configuration:
