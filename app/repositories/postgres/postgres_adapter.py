@@ -106,32 +106,6 @@ class PostgresDatabaseAdapter:
             logger.error(f"Alembic migration failed: {e}", exc_info=True)
             raise
 
-    def _stamp_db(self, connection) -> None:
-        """Stamp database with current Alembic revision (called via run_sync)."""
-        from alembic.config import Config
-        from alembic import command
-        from pathlib import Path
-
-        # Find alembic.ini relative to package root
-        package_root = Path(__file__).parent.parent.parent.parent
-        alembic_ini = package_root / "alembic.ini"
-
-        alembic_cfg = Config(str(alembic_ini))
-        alembic_cfg.set_main_option(
-            "sqlalchemy.url",
-            self.construct_postgres_connection_string()
-        )
-
-        # Configure to use existing connection
-        alembic_cfg.attributes['connection'] = connection
-
-        try:
-            command.stamp(alembic_cfg, "head")
-            logger.info("Database stamped with current Alembic revision")
-        except Exception as e:
-            logger.error(f"Failed to stamp database: {e}", exc_info=True)
-            raise
-
     async def dispose(self) -> None:
        await self._engine.dispose()
 
