@@ -7,12 +7,12 @@ Integration tests (test_auth.py) mock dependencies for fast unit testing.
 These E2E tests validate the full stack with real HTTP and database.
 """
 import pytest
-from fastmcp import Client
+
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest.mark.e2e
-@pytest.mark.asyncio
-async def test_default_user_provisioning_e2e(docker_services, mcp_server_url):
+async def test_default_user_provisioning_e2e(mcp_client):
     """
     Test that default user is provisioned when FASTMCP_SERVER_AUTH not set
 
@@ -21,36 +21,35 @@ async def test_default_user_provisioning_e2e(docker_services, mcp_server_url):
     - Default user auto-provisioned on first tool call
     - Same user returned on subsequent calls (idempotency)
     """
-    async with Client(mcp_server_url) as client:
-        # First tool call - should auto-create default user
-        result1 = await client.call_tool(
-            "execute_forgetful_tool",
-            {
-                "tool_name": "get_current_user",
-                "arguments": {}
-            }
-        )
+    # First tool call - should auto-create default user
+    result1 = await mcp_client.call_tool(
+        "execute_forgetful_tool",
+        {
+            "tool_name": "get_current_user",
+            "arguments": {}
+        }
+    )
 
-        assert result1.data is not None
-        user1_name = result1.data["name"]
-        user1_created_at = result1.data["created_at"]
+    assert result1.data is not None
+    user1_name = result1.data["name"]
+    user1_created_at = result1.data["created_at"]
 
-        # Should match default user settings (name contains "default")
-        assert "default" in user1_name.lower()
+    # Should match default user settings (name contains "default")
+    assert "default" in user1_name.lower()
 
-        # Second tool call - should return same user (idempotency)
-        result2 = await client.call_tool(
-            "execute_forgetful_tool",
-            {
-                "tool_name": "get_current_user",
-                "arguments": {}
-            }
-        )
+    # Second tool call - should return same user (idempotency)
+    result2 = await mcp_client.call_tool(
+        "execute_forgetful_tool",
+        {
+            "tool_name": "get_current_user",
+            "arguments": {}
+        }
+    )
 
-        assert result2.data is not None
-        # Verify it's the same user by comparing name and created_at
-        assert result2.data["name"] == user1_name
-        assert result2.data["created_at"] == user1_created_at
+    assert result2.data is not None
+    # Verify it's the same user by comparing name and created_at
+    assert result2.data["name"] == user1_name
+    assert result2.data["created_at"] == user1_created_at
 
 
 # TODO: Docker E2E test for auth-enabled mode
@@ -79,7 +78,7 @@ async def test_default_user_provisioning_e2e(docker_services, mcp_server_url):
 #
 # @pytest.mark.e2e
 # @pytest.mark.asyncio
-# async def test_auth_enabled_user_from_token_e2e(docker_services, mcp_server_url):
+# async def test_auth_enabled_user_from_token_e2e(mcp_client):
 #     """Test user provisioned from bearer token (Docker + PostgreSQL)"""
 #     # Generate signed JWT with test RSA key pair
 #     test_token = generate_test_jwt(
@@ -95,7 +94,7 @@ async def test_default_user_provisioning_e2e(docker_services, mcp_server_url):
 #
 #     # Send bearer token in request
 #     async with Client(mcp_server_url, headers={"Authorization": f"Bearer {test_token}"}) as client:
-#         result = await client.call_tool(
+#         result = await mcp_client.call_tool(
 #             "execute_forgetful_tool",
 #             {"tool_name": "get_current_user", "arguments": {}}
 #         )
