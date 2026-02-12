@@ -239,6 +239,14 @@ def postgres_container():
     """
     project_root = Path(__file__).parent.parent.parent
     compose_file = project_root / "docker" / "docker-compose.yml"
+    docker_dir = project_root / "docker"
+
+    # Ensure .env exists (copy from .env.example if missing, e.g. in CI)
+    env_file = docker_dir / ".env"
+    if not env_file.exists():
+        import shutil
+        shutil.copy(docker_dir / ".env.example", env_file)
+        print("\n  Copied .env.example -> .env")
 
     if _container_running("forgetful-db"):
         print("\n  forgetful-db already running, reusing")
