@@ -23,13 +23,22 @@ cp .mcp.json.stdio.example .mcp.json
 claude mcp add --scope user forgetful uvx forgetful-ai
 ```
 
-### STDIO with Environment Variables
+### STDIO with Environment Variables (Google)
 ```bash
 claude mcp add --scope user forgetful uvx forgetful-ai \
   -e DATABASE_URL=postgresql://user:pass@localhost:5432/forgetful \
   -e EMBEDDING_PROVIDER=Google \
   -e EMBEDDING=models/gemini-embedding-001 \
   -e GOOGLE_AI_API_KEY=your-api-key
+```
+
+### STDIO with Environment Variables (OpenAI)
+```bash
+claude mcp add --scope user forgetful uvx forgetful-ai \
+  -e EMBEDDING_PROVIDER=OpenAI \
+  -e OPENAI_API_KEY=sk-your-openai-api-key \
+  -e OPENAI_EMBEDDING_MODEL=text-embedding-3-small \
+  -e EMBEDDING_DIMENSIONS=256
 ```
 
 ### HTTP Transport

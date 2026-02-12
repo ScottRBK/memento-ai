@@ -104,7 +104,7 @@ class Settings(BaseSettings):
     SSE_MAX_QUEUE_SIZE: int = 1000               # Max events per SSE subscriber queue (backpressure)
 
     # Search Configuration
-    EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google
+    EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google | OpenAI
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
     
@@ -116,6 +116,10 @@ class Settings(BaseSettings):
     
     # GOOGLE EMBEDDING PROVIDER CONFIG
     GOOGLE_AI_API_KEY: str = ""
+
+    # OPENAI EMBEDDING PROVIDER CONFIG
+    OPENAI_API_KEY: str = ""
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
 
     # RERANKING
     RERANKING_ENABLED: bool = True

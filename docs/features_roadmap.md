@@ -20,7 +20,7 @@
     - [x] Fastembed
     - [x] Google
     - [x] AzureOpenAI
-    - [ ] Open AI
+    - [x] Open AI
     - [ ] Ollama
     - [ ] Open Router
 - [x] PyPI package

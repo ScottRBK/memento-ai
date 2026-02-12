@@ -28,13 +28,15 @@ logger = logging.getLogger(__name__)
 def _get_embedding_adapter():
     """Create embedding adapter based on settings. Called during lifespan."""
     from app.repositories.embeddings.embedding_adapter import (
-        FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
+        FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter
     )
 
     if settings.EMBEDDING_PROVIDER == "Azure":
         return AzureOpenAIAdapter()
     elif settings.EMBEDDING_PROVIDER == "Google":
         return GoogleEmbeddingsAdapter()
+    elif settings.EMBEDDING_PROVIDER == "OpenAI":
+        return OpenAIEmbeddingsAdapter()
     else:
         return FastEmbeddingAdapter()
 

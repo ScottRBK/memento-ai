@@ -621,7 +621,7 @@ ACTIVITY_TRACK_READS=false
 ### `EMBEDDING_PROVIDER`
 - **Default**: `FastEmbed`
 - **Description**: Embedding generation provider
-- **Current Support**: FastEmbed | Azure | Google
+- **Current Support**: FastEmbed | Azure | Google | OpenAI
 - **Example**: `EMBEDDING_PROVIDER=FastEmbed`
 
 ### `EMBEDDING_MODEL`
@@ -678,6 +678,24 @@ ACTIVITY_TRACK_READS=false
 - **Description**: Google AI API key for embedding generation
 - **Security**: **Keep this secret** - never commit to version control
 - **Example**: `GOOGLE_AI_API_KEY=your-google-api-key-here`
+
+### OpenAI Embedding Provider Configuration
+
+**Note**: These settings only apply when `EMBEDDING_PROVIDER=OpenAI`
+
+> **Dimension mismatch warning**: If switching from another provider (e.g., FastEmbed at 384 dimensions) to OpenAI, existing memory embeddings will be incompatible. You must re-embed all existing memories after changing providers. See the re-embedding issue for tooling progress.
+
+#### `OPENAI_API_KEY`
+- **Default**: (empty string)
+- **Description**: OpenAI API key for embedding generation
+- **Security**: **Keep this secret** - never commit to version control
+- **Example**: `OPENAI_API_KEY=sk-your-openai-api-key-here`
+
+#### `OPENAI_EMBEDDING_MODEL`
+- **Default**: `text-embedding-3-small`
+- **Description**: OpenAI embedding model to use
+- **Options**: `text-embedding-3-small` (fast, cost-effective), `text-embedding-3-large` (higher quality)
+- **Example**: `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
 
 ### Re-ranking Configuration
 

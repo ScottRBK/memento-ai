@@ -4,7 +4,7 @@ import time
 import asyncio
 
 from fastembed import TextEmbedding
-from openai import AzureOpenAI
+from openai import AzureOpenAI, OpenAI
 import google.generativeai as genai 
 
 from app.config.settings import settings
@@ -124,4 +124,38 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
             raise RuntimeError("Google Generative AI response did not contain embedding vector")
         return list(map(float, embedding))
 
-        
+
+class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
+    """Generate embeddings using OpenAI's embedding models."""
+
+    def __init__(self):
+        logger.info("Initialising OpenAI embeddings adapter", extra={
+            "embedding_model": settings.OPENAI_EMBEDDING_MODEL
+        })
+
+        if not settings.OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY must be configured for OpenAIEmbeddingsAdapter")
+
+        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        self.model = settings.OPENAI_EMBEDDING_MODEL
+
+    async def generate_embedding(self, text: str) -> List[float]:
+        try:
+            response = await asyncio.to_thread(
+                self.client.embeddings.create,
+                input=[text],
+                model=self.model,
+                dimensions=settings.EMBEDDING_DIMENSIONS
+            )
+        except Exception:
+            logger.error("Error generating embeddings", exc_info=True, extra={
+                "embedding_provider": "openai",
+                "embedding_model": self.model
+            })
+            raise
+
+        if response is None:
+            raise RuntimeError("OpenAI response did not contain embedding vector")
+
+        return response.data[0].embedding
+

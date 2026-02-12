@@ -25,7 +25,7 @@ from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 
 # Shared imports
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter
+from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter
 from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
@@ -61,6 +61,8 @@ def embedding_adapter():
         return AzureOpenAIAdapter()
     elif settings.EMBEDDING_PROVIDER == "Google":
         return GoogleEmbeddingsAdapter()
+    elif settings.EMBEDDING_PROVIDER == "OpenAI":
+        return OpenAIEmbeddingsAdapter()
     else:
         return FastEmbeddingAdapter()
 
