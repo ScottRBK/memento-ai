@@ -3,6 +3,7 @@ Integration tests for TokenCache
 
 Tests token caching functionality with mock auth providers
 """
+import asyncio
 import pytest
 import time
 from unittest.mock import patch, AsyncMock
@@ -92,8 +93,8 @@ async def test_token_cache_expiration():
     # Should be cached initially
     assert await cache.get("expiring-token") is not None
 
-    # Wait for expiration
-    time.sleep(1.1)
+    # Wait for expiration (use asyncio.sleep to avoid blocking the event loop)
+    await asyncio.sleep(1.5)
 
     # Should be expired now
     result = await cache.get("expiring-token")

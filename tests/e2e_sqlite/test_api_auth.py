@@ -18,7 +18,6 @@ from app.repositories.sqlite.project_repository import SqliteProjectRepository
 from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
 from app.repositories.sqlite.document_repository import SqliteDocumentRepository
 from app.repositories.sqlite.entity_repository import SqliteEntityRepository
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -48,14 +47,8 @@ TEST_TOKENS = {
 }
 
 
-@pytest.fixture(scope="module")
-def auth_embedding_adapter():
-    """Module-scoped embedding adapter for auth tests."""
-    return FastEmbeddingAdapter()
-
-
 @pytest.fixture
-async def sqlite_app_with_auth(auth_embedding_adapter):
+async def sqlite_app_with_auth(embedding_adapter):
     """
     Create FastMCP app with StaticTokenVerifier auth enabled.
 
@@ -81,7 +74,7 @@ async def sqlite_app_with_auth(auth_embedding_adapter):
         user_repository = SqliteUserRepository(db_adapter=db_adapter)
         memory_repository = SqliteMemoryRepository(
             db_adapter=db_adapter,
-            embedding_adapter=auth_embedding_adapter,
+            embedding_adapter=embedding_adapter,
             rerank_adapter=None,
         )
         project_repository = SqliteProjectRepository(db_adapter=db_adapter)
