@@ -15,45 +15,42 @@ connection pool is session-scoped and its connections are bound to the event loo
 they were created on. All tests must also run on the session loop.
 """
 import asyncio
-import typing
-
-import pytest
-import pytest_asyncio
 import subprocess
 import time
-import socket
+import typing
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# Force all async tests in this directory onto the session event loop.
-# Required because asyncpg connections are bound to their creation loop.
-pytestmark = pytest.mark.asyncio(loop_scope="session")
-
+import pytest
+import pytest_asyncio
 from fastmcp import FastMCP, Client
 from httpx import AsyncClient, ASGITransport, AsyncByteStream, Request, Response
 from sqlalchemy import text
 
 from app.config.settings import settings
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.events import EventBus
 from app.repositories.embeddings.embedding_adapter import (
     FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter
 )
 from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
-from app.services.user_service import UserService
-from app.services.memory_service import MemoryService
-from app.services.project_service import ProjectService
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
+from app.routes.mcp import meta_tools
+from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
+from app.routes.mcp.tool_registry import ToolRegistry
+from app.services.activity_service import ActivityService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
 from app.services.graph_service import GraphService
-from app.services.activity_service import ActivityService
-from app.events import EventBus
-from app.routes.mcp import meta_tools
-from app.routes.mcp.tool_registry import ToolRegistry
-from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
-
+from app.services.memory_service import MemoryService
+from app.services.project_service import ProjectService
+from app.services.user_service import UserService
 from main import _create_repositories
+
+# Force all async tests in this directory onto the session event loop.
+# Required because asyncpg connections are bound to their creation loop.
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 # ---------------------------------------------------------------------------

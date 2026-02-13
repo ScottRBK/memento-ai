@@ -5,7 +5,6 @@ Tests token caching functionality with mock auth providers
 """
 import asyncio
 import pytest
-import time
 from unittest.mock import patch, AsyncMock
 from starlette.requests import Request
 
