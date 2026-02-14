@@ -35,6 +35,7 @@ class ToolMetadata(BaseModel):
     returns: str
     examples: List[str] = Field(default_factory=list)
     tags: List[str] = Field(default_factory=list)
+    mutates: bool = Field(default=False, description="Whether this tool mutates state (write operation)")
 
     def to_discovery_dict(self) -> Dict[str, Any]:
         """Returns minimal info for discover_tools (lightweight)"""
@@ -42,6 +43,7 @@ class ToolMetadata(BaseModel):
             "name": self.name,
             "category": self.category.value,
             "description": self.description,
+            "mutates": self.mutates,
             "parameters": {
                 param.name: {
                     "type": param.type,
@@ -61,6 +63,7 @@ class ToolMetadata(BaseModel):
             "name": self.name,
             "category": self.category.value,
             "description": self.description,
+            "mutates": self.mutates,
             "parameters": [
                 {
                     "name": param.name,

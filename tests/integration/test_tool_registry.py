@@ -364,3 +364,155 @@ async def test_execute_tool_with_optional_parameters(empty_registry):
     assert result2["required"] == "test2"
     assert result2["optional"] == 20
     assert result2["another"] == "custom"
+
+
+# ============================================================================
+# Filtered query methods (scoped permissions)
+# ============================================================================
+
+@pytest.fixture
+async def registry_with_mutates(sample_tool_impl):
+    """Registry with mix of read and write tools across categories."""
+    registry = ToolRegistry()
+    params = [ToolParameter(name="test", type="str", description="test", required=True)]
+
+    # Memory: 2 read, 1 write
+    registry.register(name="query_memory", category=ToolCategory.MEMORY, description="Search",
+                      parameters=params, returns="R", implementation=sample_tool_impl, mutates=False)
+    registry.register(name="get_memory", category=ToolCategory.MEMORY, description="Get",
+                      parameters=params, returns="R", implementation=sample_tool_impl, mutates=False)
+    registry.register(name="create_memory", category=ToolCategory.MEMORY, description="Create",
+                      parameters=params, returns="R", implementation=sample_tool_impl, mutates=True)
+
+    # User: 1 read, 1 write
+    registry.register(name="get_current_user", category=ToolCategory.USER, description="Get user",
+                      parameters=params, returns="R", implementation=sample_tool_impl, mutates=False)
+    registry.register(name="update_user_notes", category=ToolCategory.USER, description="Update",
+                      parameters=params, returns="R", implementation=sample_tool_impl, mutates=True)
+
+    return registry
+
+
+@pytest.mark.asyncio
+async def test_get_permitted_tools(registry_with_mutates):
+    """Test filtering tools by permitted set."""
+    permitted = {"query_memory", "get_memory", "get_current_user"}
+    tools = registry_with_mutates.get_permitted_tools(permitted)
+    names = {t.name for t in tools}
+    assert names == permitted
+
+
+@pytest.mark.asyncio
+async def test_get_permitted_tools_empty_set(registry_with_mutates):
+    """Test with empty permitted set returns nothing."""
+    tools = registry_with_mutates.get_permitted_tools(set())
+    assert len(tools) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_permitted_by_category(registry_with_mutates):
+    """Test filtering by category AND permitted set."""
+    permitted = {"query_memory", "get_memory"}  # Only memory reads
+    tools = registry_with_mutates.get_permitted_by_category(ToolCategory.MEMORY, permitted)
+    names = {t.name for t in tools}
+    assert names == {"query_memory", "get_memory"}
+
+
+@pytest.mark.asyncio
+async def test_get_permitted_by_category_excludes_unpermitted(registry_with_mutates):
+    """Category filter + permitted set should exclude unpermitted tools."""
+    permitted = {"query_memory"}  # Only one memory tool
+    tools = registry_with_mutates.get_permitted_by_category(ToolCategory.MEMORY, permitted)
+    assert len(tools) == 1
+    assert tools[0].name == "query_memory"
+
+
+@pytest.mark.asyncio
+async def test_get_permitted_categories(registry_with_mutates):
+    """Test category counts with permitted filter."""
+    permitted = {"query_memory", "get_memory", "get_current_user"}
+    categories = registry_with_mutates.get_permitted_categories(permitted)
+    assert categories["memory"] == 2
+    assert categories["user"] == 1
+    assert "create_memory" not in str(categories)  # Write tool excluded
+
+
+@pytest.mark.asyncio
+async def test_get_permitted_categories_empty(registry_with_mutates):
+    """Empty permitted set means no categories."""
+    categories = registry_with_mutates.get_permitted_categories(set())
+    assert categories == {}
+
+
+@pytest.mark.asyncio
+async def test_is_permitted_true(registry_with_mutates):
+    """Tool exists and is in permitted set."""
+    permitted = {"query_memory", "get_memory"}
+    assert registry_with_mutates.is_permitted("query_memory", permitted) is True
+
+
+@pytest.mark.asyncio
+async def test_is_permitted_false_not_in_set(registry_with_mutates):
+    """Tool exists but not in permitted set."""
+    permitted = {"query_memory"}
+    assert registry_with_mutates.is_permitted("create_memory", permitted) is False
+
+
+@pytest.mark.asyncio
+async def test_is_permitted_false_nonexistent(registry_with_mutates):
+    """Tool doesn't exist at all."""
+    permitted = {"query_memory", "nonexistent_tool"}
+    assert registry_with_mutates.is_permitted("nonexistent_tool", permitted) is False
+
+
+@pytest.mark.asyncio
+async def test_register_with_mutates_flag(empty_registry, sample_tool_impl):
+    """Test that mutates flag is stored in metadata."""
+    params = [ToolParameter(name="test", type="str", description="test", required=True)]
+
+    empty_registry.register(
+        name="read_tool", category=ToolCategory.MEMORY, description="Read",
+        parameters=params, returns="R", implementation=sample_tool_impl, mutates=False,
+    )
+    empty_registry.register(
+        name="write_tool", category=ToolCategory.MEMORY, description="Write",
+        parameters=params, returns="R", implementation=sample_tool_impl, mutates=True,
+    )
+
+    read_tool = empty_registry.get_tool("read_tool")
+    write_tool = empty_registry.get_tool("write_tool")
+
+    assert read_tool.metadata.mutates is False
+    assert write_tool.metadata.mutates is True
+
+
+@pytest.mark.asyncio
+async def test_mutates_in_discovery_dict(empty_registry, sample_tool_impl):
+    """Test that mutates appears in discovery dict output."""
+    params = [ToolParameter(name="test", type="str", description="test", required=True)]
+
+    empty_registry.register(
+        name="write_tool", category=ToolCategory.MEMORY, description="Write",
+        parameters=params, returns="R", implementation=sample_tool_impl, mutates=True,
+    )
+
+    tool = empty_registry.get_tool("write_tool")
+    discovery = tool.metadata.to_discovery_dict()
+    assert "mutates" in discovery
+    assert discovery["mutates"] is True
+
+
+@pytest.mark.asyncio
+async def test_mutates_in_detailed_dict(empty_registry, sample_tool_impl):
+    """Test that mutates appears in detailed dict output."""
+    params = [ToolParameter(name="test", type="str", description="test", required=True)]
+
+    empty_registry.register(
+        name="read_tool", category=ToolCategory.MEMORY, description="Read",
+        parameters=params, returns="R", implementation=sample_tool_impl, mutates=False,
+    )
+
+    tool = empty_registry.get_tool("read_tool")
+    detailed = tool.metadata.to_detailed_dict()
+    assert "mutates" in detailed
+    assert detailed["mutates"] is False

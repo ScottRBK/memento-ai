@@ -15,6 +15,7 @@ from fastmcp.exceptions import ToolError
 
 from app.config.logging_config import logging
 from app.models.tool_registry_models import ToolCategory
+from app.routes.mcp.scope_resolver import get_effective_scopes, get_required_scope
 
 logger = logging.getLogger(__name__)
 
@@ -109,12 +110,13 @@ def register(mcp: FastMCP):
         """
         try:
             registry = ctx.fastmcp.registry
+            permitted, _ = get_effective_scopes(ctx)
             logger.info(f"discover_forgetful_tools: category={category}")
 
             if category:
                 try:
                     cat_enum = ToolCategory(category.lower())
-                    tools_metadata = registry.list_by_category(cat_enum)
+                    tools_metadata = registry.get_permitted_by_category(cat_enum, permitted)
                     filtered_by = category
                 except ValueError:
                     valid_categories = [c.value for c in ToolCategory]
@@ -123,7 +125,7 @@ def register(mcp: FastMCP):
                         f"Available categories: {', '.join(valid_categories)}"
                     )
             else:
-                tools_metadata = registry.list_all_tools()
+                tools_metadata = registry.get_permitted_tools(permitted)
                 filtered_by = None
 
             # Convert to discovery format (minimal metadata)
@@ -140,7 +142,7 @@ def register(mcp: FastMCP):
             result = {
                 "tools_by_category": tools_by_category,
                 "total_count": len(tools),
-                "categories_available": list(registry.list_categories().keys()),
+                "categories_available": list(registry.get_permitted_categories(permitted).keys()),
                 "filtered_by": filtered_by,
             }
 
@@ -172,14 +174,22 @@ def register(mcp: FastMCP):
         """
         try:
             registry = ctx.fastmcp.registry
+            permitted, _ = get_effective_scopes(ctx)
             logger.info(f"how_to_use_forgetful_tool: tool_name={tool_name}")
 
             tool = registry.get_tool(tool_name)
             if not tool:
-                available_tools = [m.name for m in registry.list_all_tools()[:10]]
+                available_tools = [m.name for m in registry.get_permitted_tools(permitted)[:10]]
                 raise ToolError(
                     f"Tool '{tool_name}' not found in registry. "
                     f"Available tools (first 10): {', '.join(available_tools)}"
+                )
+
+            if not registry.is_permitted(tool_name, permitted):
+                required_scope = get_required_scope(tool_name, registry)
+                raise ToolError(
+                    f"Tool '{tool_name}' is not permitted under current scopes. "
+                    f"Required scope: '{required_scope}'"
                 )
 
             detailed_info = tool.metadata.to_detailed_dict()
@@ -256,13 +266,21 @@ def register(mcp: FastMCP):
         """
         try:
             registry = ctx.fastmcp.registry
+            permitted, _ = get_effective_scopes(ctx)
             logger.info(f"execute_forgetful_tool: {tool_name}, args={list(arguments.keys())}")
 
             if not registry.tool_exists(tool_name):
-                available_tools = [m.name for m in registry.list_all_tools()[:10]]
+                available_tools = [m.name for m in registry.get_permitted_tools(permitted)[:10]]
                 raise ToolError(
                     f"Tool '{tool_name}' not found in registry. "
                     f"Available tools (first 10): {', '.join(available_tools)}"
+                )
+
+            if tool_name not in permitted:
+                required_scope = get_required_scope(tool_name, registry)
+                raise ToolError(
+                    f"Tool '{tool_name}' is not permitted under current scopes. "
+                    f"Required scope: '{required_scope}'"
                 )
 
             # Inject context into arguments for adapters to extract user

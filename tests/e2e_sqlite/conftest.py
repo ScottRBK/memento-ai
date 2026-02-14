@@ -39,6 +39,7 @@ from app.events import EventBus
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
+from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
 from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
 
 
@@ -186,6 +187,11 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
                 entity_service=entity_service,
             )
 
+            # Resolve instance-level scope ceiling
+            instance_scopes = parse_scopes(settings.FORGETFUL_SCOPES)
+            mcp._instance_permitted_tools = resolve_permitted_tools(instance_scopes, registry)
+            mcp._instance_scopes = instance_scopes
+
             yield
 
             # Cleanup handled in fixture teardown to avoid event loop closure warnings
@@ -242,6 +248,31 @@ async def mcp_client(sqlite_app):
 
     # Create stdio transport for in-process testing
     async with Client(sqlite_app) as client:
+        yield client
+
+
+@pytest.fixture(params=[
+    pytest.param("*", id="scope-all"),
+    pytest.param("read", id="scope-read-only"),
+    pytest.param("read:memories", id="scope-read-memories"),
+    pytest.param("read,write:memories", id="scope-read-all-write-memories"),
+])
+async def scoped_mcp_client(request, sqlite_app):
+    """
+    Parameterized MCP client with different FORGETFUL_SCOPES settings.
+
+    Each parameterization creates a client where the instance-level scopes
+    are overridden to test permission enforcement.
+    """
+    from fastmcp import Client
+
+    scope_string = request.param
+    async with Client(sqlite_app) as client:
+        # Override instance scopes after lifespan has initialized
+        instance_scopes = parse_scopes(scope_string)
+        sqlite_app._instance_permitted_tools = resolve_permitted_tools(instance_scopes, sqlite_app.registry)
+        sqlite_app._instance_scopes = instance_scopes
+        client._scope_string = scope_string  # Stash for test assertions
         yield client
 
 

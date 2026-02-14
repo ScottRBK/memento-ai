@@ -231,6 +231,13 @@ async def lifespan(app):
     logger.info(f"Tool registration complete: {total_tools} tools across {len(categories)} categories")
     logger.info(f"Categories: {categories}")
 
+    # Resolve instance-level scope ceiling
+    from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
+    instance_scopes = parse_scopes(settings.FORGETFUL_SCOPES)
+    mcp._instance_permitted_tools = resolve_permitted_tools(instance_scopes, registry)
+    mcp._instance_scopes = instance_scopes
+    logger.info(f"Scoped permissions: scopes={list(instance_scopes)}, permitted_tools={len(mcp._instance_permitted_tools)}")
+
     yield
 
     logger.info("Shutting down session", extra={"service": settings.SERVICE_NAME})

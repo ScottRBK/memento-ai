@@ -26,6 +26,7 @@ def register_simplified_tool(
     implementation: Any,
     examples: List[str] = None,
     tags: List[str] = None,
+    mutates: bool = False,
 ):
     """
     Helper to register tools with simplified parameter definitions
@@ -40,6 +41,7 @@ def register_simplified_tool(
         implementation: Async callable
         examples: Usage examples
         tags: Tags for categorization
+        mutates: Whether this tool mutates state (write operation)
     """
     tool_params = [
         ToolParameter(
@@ -62,6 +64,7 @@ def register_simplified_tool(
         implementation=implementation,
         examples=examples or [],
         tags=tags or [],
+        mutates=mutates,
     )
 
 
@@ -95,6 +98,7 @@ def register_user_tools_metadata(
         },
         {
             "name": "update_user_notes",
+            "mutates": True,
             "description": "Update the notes field for the current user",
             "parameters": [
                 {
@@ -130,6 +134,7 @@ def register_user_tools_metadata(
             implementation=adapters[tool_def["name"]],
             examples=tool_def.get("examples", []),
             tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
         )
 
     logger.info(f"Registered {len(tools)} user tools")
@@ -148,6 +153,7 @@ def register_memory_tools_metadata(
     tools = [
         {
             "name": "create_memory",
+            "mutates": True,
             "description": "Create atomic memory with auto-linking and lifecycle management. Stores single concepts (<400 words).",
             "parameters": [
                 {
@@ -359,6 +365,7 @@ def register_memory_tools_metadata(
         },
         {
             "name": "update_memory",
+            "mutates": True,
             "description": "Update existing memory fields using PATCH semantics (only specified fields are updated)",
             "parameters": [
                 {
@@ -504,6 +511,7 @@ def register_memory_tools_metadata(
         },
         {
             "name": "link_memories",
+            "mutates": True,
             "description": "Manually create bidirectional links between memories (symmetric linking)",
             "parameters": [
                 {
@@ -535,6 +543,7 @@ def register_memory_tools_metadata(
         },
         {
             "name": "unlink_memories",
+            "mutates": True,
             "description": "Remove a bidirectional link between two memories",
             "parameters": [
                 {
@@ -590,6 +599,7 @@ def register_memory_tools_metadata(
         },
         {
             "name": "mark_memory_obsolete",
+            "mutates": True,
             "description": "Mark a memory as obsolete (soft delete with audit trail)",
             "parameters": [
                 {
@@ -674,6 +684,7 @@ def register_memory_tools_metadata(
             implementation=adapters[tool_def["name"]],
             examples=tool_def.get("examples", []),
             tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
         )
 
     logger.info(f"Registered {len(tools)} memory tools")
@@ -750,6 +761,7 @@ def register_project_tools_metadata(
     tools = [
         {
             "name": "create_project",
+            "mutates": True,
             "description": "Create new project for organizing memories, code artifacts, and documents by context",
             "parameters": [
                 {"name": "name", "type": "str", "description": "Project name (max 500 chars)", "required": True, "example": "forgetful"},
@@ -768,6 +780,7 @@ def register_project_tools_metadata(
         },
         {
             "name": "update_project",
+            "mutates": True,
             "description": "Update project metadata using PATCH semantics (only specified fields are updated)",
             "parameters": [
                 {"name": "project_id", "type": "int", "description": "ID of the project to update", "required": True, "example": 1},
@@ -787,6 +800,7 @@ def register_project_tools_metadata(
         },
         {
             "name": "delete_project",
+            "mutates": True,
             "description": "Delete project while preserving linked memories",
             "parameters": [
                 {"name": "project_id", "type": "int", "description": "ID of the project to delete", "required": True, "example": 1},
@@ -839,6 +853,7 @@ def register_project_tools_metadata(
             implementation=adapters[tool_def["name"]],
             examples=tool_def.get("examples", []),
             tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
         )
 
     logger.info(f"Registered {len(tools)} project tools")
@@ -857,6 +872,7 @@ def register_code_artifact_tools_metadata(
     tools = [
         {
             "name": "create_code_artifact",
+            "mutates": True,
             "description": "Create code artifact for storing reusable code snippets and patterns",
             "parameters": [
                 {"name": "title", "type": "str", "description": "Artifact title", "required": True, "example": "JWT Middleware"},
@@ -904,6 +920,7 @@ def register_code_artifact_tools_metadata(
         },
         {
             "name": "update_code_artifact",
+            "mutates": True,
             "description": "Update code artifact (PATCH semantics - only provided fields changed)",
             "parameters": [
                 {"name": "artifact_id", "type": "int", "description": "ID of the artifact to update", "required": True, "example": 1},
@@ -923,6 +940,7 @@ def register_code_artifact_tools_metadata(
         },
         {
             "name": "delete_code_artifact",
+            "mutates": True,
             "description": "Delete code artifact (cascades memory associations)",
             "parameters": [
                 {"name": "artifact_id", "type": "int", "description": "ID of the artifact to delete", "required": True, "example": 1},
@@ -947,6 +965,7 @@ def register_code_artifact_tools_metadata(
             implementation=adapters[tool_def["name"]],
             examples=tool_def.get("examples", []),
             tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
         )
 
     logger.info(f"Registered {len(tools)} code artifact tools")
@@ -965,6 +984,7 @@ def register_document_tools_metadata(
     tools = [
         {
             "name": "create_document",
+            "mutates": True,
             "description": "Create document for storing long-form content and documentation",
             "parameters": [
                 {"name": "title", "type": "str", "description": "Document title", "required": True, "example": "API Documentation"},
@@ -1013,6 +1033,7 @@ def register_document_tools_metadata(
         },
         {
             "name": "update_document",
+            "mutates": True,
             "description": "Update document (PATCH semantics - only provided fields changed)",
             "parameters": [
                 {"name": "document_id", "type": "int", "description": "ID of the document to update", "required": True, "example": 1},
@@ -1033,6 +1054,7 @@ def register_document_tools_metadata(
         },
         {
             "name": "delete_document",
+            "mutates": True,
             "description": "Delete document (cascades memory associations)",
             "parameters": [
                 {"name": "document_id", "type": "int", "description": "ID of the document to delete", "required": True, "example": 1},
@@ -1057,6 +1079,7 @@ def register_document_tools_metadata(
             implementation=adapters[tool_def["name"]],
             examples=tool_def.get("examples", []),
             tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
         )
 
     logger.info(f"Registered {len(tools)} document tools")
@@ -1075,6 +1098,7 @@ def register_entity_tools_metadata(
     tools = [
         {
             "name": "create_entity",
+            "mutates": True,
             "description": "Create entity representing a real-world entity (organization, individual, team, device)",
             "parameters": [
                 {"name": "name", "type": "str", "description": "Entity name", "required": True, "example": "Anthropic"},
@@ -1140,6 +1164,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "update_entity",
+            "mutates": True,
             "description": "Update existing entity (PATCH semantics - only provided fields changed)",
             "parameters": [
                 {"name": "entity_id", "type": "int", "description": "ID of the entity to update", "required": True, "example": 1},
@@ -1160,6 +1185,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "delete_entity",
+            "mutates": True,
             "description": "Delete entity (cascade removes memory links and relationships)",
             "parameters": [
                 {"name": "entity_id", "type": "int", "description": "ID of the entity to delete", "required": True, "example": 1},
@@ -1173,6 +1199,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "link_entity_to_memory",
+            "mutates": True,
             "description": "Link entity to memory (establishes reference relationship)",
             "parameters": [
                 {"name": "entity_id", "type": "int", "description": "ID of the entity", "required": True, "example": 1},
@@ -1187,6 +1214,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "unlink_entity_from_memory",
+            "mutates": True,
             "description": "Unlink entity from memory (removes reference relationship)",
             "parameters": [
                 {"name": "entity_id", "type": "int", "description": "ID of the entity", "required": True, "example": 1},
@@ -1201,6 +1229,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "link_entity_to_project",
+            "mutates": True,
             "description": "Link entity to project (organizational grouping)",
             "parameters": [
                 {"name": "entity_id", "type": "int", "description": "ID of the entity", "required": True, "example": 1},
@@ -1215,6 +1244,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "unlink_entity_from_project",
+            "mutates": True,
             "description": "Unlink entity from project (removes organizational grouping)",
             "parameters": [
                 {"name": "entity_id", "type": "int", "description": "ID of the entity", "required": True, "example": 1},
@@ -1229,6 +1259,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "create_entity_relationship",
+            "mutates": True,
             "description": "Create typed relationship between two entities (knowledge graph edge)",
             "parameters": [
                 {"name": "source_entity_id", "type": "int", "description": "Source entity ID", "required": True, "example": 1},
@@ -1263,6 +1294,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "update_entity_relationship",
+            "mutates": True,
             "description": "Update entity relationship (PATCH semantics - only provided fields changed)",
             "parameters": [
                 {"name": "relationship_id", "type": "int", "description": "Relationship ID", "required": True, "example": 1},
@@ -1280,6 +1312,7 @@ def register_entity_tools_metadata(
         },
         {
             "name": "delete_entity_relationship",
+            "mutates": True,
             "description": "Delete entity relationship (removes knowledge graph edge)",
             "parameters": [
                 {"name": "relationship_id", "type": "int", "description": "Relationship ID to delete", "required": True, "example": 1},
@@ -1317,6 +1350,7 @@ def register_entity_tools_metadata(
             implementation=adapters[tool_def["name"]],
             examples=tool_def.get("examples", []),
             tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
         )
 
     logger.info(f"Registered {len(tools)} entity tools")

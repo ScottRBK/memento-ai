@@ -34,6 +34,7 @@ class ToolRegistry:
         implementation: Any,  # Callable[..., Awaitable[Any]]
         examples: List[str] = None,
         tags: List[str] = None,
+        mutates: bool = False,
     ) -> None:
         """
         Register a tool with its metadata and implementation
@@ -47,6 +48,7 @@ class ToolRegistry:
             implementation: Async callable that implements the tool
             examples: Example usage strings
             tags: Tags for categorization
+            mutates: Whether this tool mutates state (write operation)
         """
         if name in self._tools:
             logger.warning(f"Tool '{name}' already registered, overwriting")
@@ -59,6 +61,7 @@ class ToolRegistry:
             returns=returns,
             examples=examples or [],
             tags=tags or [],
+            mutates=mutates,
         )
 
         self._tools[name] = ToolImplementation(
@@ -129,6 +132,65 @@ class ToolRegistry:
             True if tool exists, False otherwise
         """
         return name in self._tools
+
+    def get_permitted_tools(self, permitted: set) -> List[ToolMetadata]:
+        """List tools filtered to only those in the permitted set.
+
+        Args:
+            permitted: Set of permitted tool names
+
+        Returns:
+            List of tool metadata for permitted tools
+        """
+        return [
+            impl.metadata
+            for impl in self._tools.values()
+            if impl.metadata.name in permitted
+        ]
+
+    def get_permitted_by_category(self, category: ToolCategory, permitted: set) -> List[ToolMetadata]:
+        """List tools filtered by category AND permitted set.
+
+        Args:
+            category: Category to filter by
+            permitted: Set of permitted tool names
+
+        Returns:
+            List of tool metadata matching both filters
+        """
+        return [
+            impl.metadata
+            for impl in self._tools.values()
+            if impl.metadata.category == category and impl.metadata.name in permitted
+        ]
+
+    def get_permitted_categories(self, permitted: set) -> Dict[str, int]:
+        """List categories with counts, filtered to permitted tools only.
+
+        Args:
+            permitted: Set of permitted tool names
+
+        Returns:
+            Dict mapping category name to count of permitted tools
+        """
+        categories: Dict[str, int] = {}
+        for impl in self._tools.values():
+            if impl.metadata.name in permitted:
+                cat_name = impl.metadata.category.value
+                categories[cat_name] = categories.get(cat_name, 0) + 1
+        return categories
+
+    def is_permitted(self, name: str, permitted: set) -> bool:
+        """Check if a tool exists and is in the permitted set.
+
+        Args:
+            name: Tool name
+            permitted: Set of permitted tool names
+
+        Returns:
+            True if tool exists and is permitted
+        """
+        return name in self._tools and name in permitted
 
     async def execute(
         self,

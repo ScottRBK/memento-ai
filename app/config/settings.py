@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     TOKEN_CACHE_TTL_SECONDS: int = 300         # 5 minutes default
     TOKEN_CACHE_MAX_SIZE: int = 1000           # Maximum cached tokens
 
+    # Scoped Permissions Configuration
+    FORGETFUL_SCOPES: str = "*"               # Comma-separated scopes (e.g. "read", "write:memories", "read,write:entities")
+
     # Memory Configuration
     MEMORY_TITLE_MAX_LENGTH: int = 200      # Must be "easily titled" - scannable
     MEMORY_CONTENT_MAX_LENGTH: int = 2000   # ~300-400 words - single concept
