@@ -14,6 +14,8 @@ def mock_settings():
         mock.OPENAI_API_KEY = "sk-test-key-123"
         mock.OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
         mock.EMBEDDING_DIMENSIONS = 256
+        mock.OPENAI_BASE_URL = ""
+        mock.OPENAI_SUPPORTS_DIMENSIONS = True
         yield mock
 
 
@@ -36,16 +38,44 @@ def test_init_success(mock_settings, mock_openai_client):
 
     mock_cls.assert_called_once_with(api_key="sk-test-key-123")
     assert adapter.model == "text-embedding-3-small"
+    assert adapter.supports_dimensions is True
 
 
-def test_init_missing_api_key_raises(mock_settings):
-    """Empty API key raises ValueError."""
+def test_init_missing_api_key_without_base_url_raises(mock_settings):
+    """Empty API key without base_url raises ValueError."""
     from app.repositories.embeddings.embedding_adapter import OpenAIEmbeddingsAdapter
 
     mock_settings.OPENAI_API_KEY = ""
 
     with pytest.raises(ValueError, match="OPENAI_API_KEY must be configured"):
         OpenAIEmbeddingsAdapter()
+
+
+def test_init_with_base_url(mock_settings, mock_openai_client):
+    """base_url is passed to OpenAI constructor when configured."""
+    from app.repositories.embeddings.embedding_adapter import OpenAIEmbeddingsAdapter
+
+    mock_cls, _ = mock_openai_client
+    mock_settings.OPENAI_BASE_URL = "http://localhost:8080/v1"
+
+    adapter = OpenAIEmbeddingsAdapter()
+
+    mock_cls.assert_called_once_with(api_key="sk-test-key-123", base_url="http://localhost:8080/v1")
+    assert adapter.model == "text-embedding-3-small"
+
+
+def test_init_no_api_key_with_base_url_uses_placeholder(mock_settings, mock_openai_client):
+    """No ValueError when base_url is set and API key is empty; placeholder key used."""
+    from app.repositories.embeddings.embedding_adapter import OpenAIEmbeddingsAdapter
+
+    mock_cls, _ = mock_openai_client
+    mock_settings.OPENAI_API_KEY = ""
+    mock_settings.OPENAI_BASE_URL = "http://localhost:8080/v1"
+
+    adapter = OpenAIEmbeddingsAdapter()
+
+    mock_cls.assert_called_once_with(api_key="no-key-required", base_url="http://localhost:8080/v1")
+    assert adapter.model == "text-embedding-3-small"
 
 
 @pytest.mark.asyncio
@@ -69,13 +99,13 @@ async def test_generate_embedding_returns_vector(mock_settings, mock_openai_clie
     mock_client.embeddings.create.assert_called_once_with(
         input=["test text"],
         model="text-embedding-3-small",
-        dimensions=256
+        dimensions=256,
     )
 
 
 @pytest.mark.asyncio
-async def test_generate_embedding_passes_dimensions(mock_settings, mock_openai_client):
-    """EMBEDDING_DIMENSIONS setting is forwarded to the API."""
+async def test_generate_embedding_with_dimensions(mock_settings, mock_openai_client):
+    """EMBEDDING_DIMENSIONS setting is forwarded to the API when supports_dimensions=True."""
     from app.repositories.embeddings.embedding_adapter import OpenAIEmbeddingsAdapter
 
     _, mock_client = mock_openai_client
@@ -93,6 +123,28 @@ async def test_generate_embedding_passes_dimensions(mock_settings, mock_openai_c
     call_kwargs = mock_client.embeddings.create.call_args
     assert call_kwargs.kwargs["dimensions"] == 1536
     assert len(result) == 1536
+
+
+@pytest.mark.asyncio
+async def test_generate_embedding_without_dimensions(mock_settings, mock_openai_client):
+    """dimensions kwarg is absent when supports_dimensions=False (e.g. llama.cpp)."""
+    from app.repositories.embeddings.embedding_adapter import OpenAIEmbeddingsAdapter
+
+    _, mock_client = mock_openai_client
+    mock_settings.OPENAI_SUPPORTS_DIMENSIONS = False
+
+    mock_embedding = MagicMock()
+    mock_embedding.embedding = [0.1, 0.2, 0.3]
+    mock_response = MagicMock()
+    mock_response.data = [mock_embedding]
+    mock_client.embeddings.create.return_value = mock_response
+
+    adapter = OpenAIEmbeddingsAdapter()
+    result = await adapter.generate_embedding("test text")
+
+    assert result == [0.1, 0.2, 0.3]
+    call_kwargs = mock_client.embeddings.create.call_args.kwargs
+    assert "dimensions" not in call_kwargs
 
 
 @pytest.mark.asyncio

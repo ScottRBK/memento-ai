@@ -39,6 +39,9 @@ dependencies = [
     "uvicorn>=0.35.0",
 ]
 
+[project.optional-dependencies]
+ollama = ["ollama>=0.4"]
+
 [project.urls]
 Homepage = "https://github.com/scottrbk/forgetful"
 Repository = "https://github.com/scottrbk/forgetful"

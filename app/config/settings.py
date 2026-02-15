@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     SSE_MAX_QUEUE_SIZE: int = 1000               # Max events per SSE subscriber queue (backpressure)
 
     # Search Configuration
-    EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google | OpenAI
+    EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google | OpenAI | Ollama
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
     
@@ -123,6 +123,12 @@ class Settings(BaseSettings):
     # OPENAI EMBEDDING PROVIDER CONFIG
     OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    OPENAI_BASE_URL: str = ""                    # custom endpoint (e.g. http://localhost:8080/v1)
+    OPENAI_SUPPORTS_DIMENSIONS: bool = True      # False for endpoints that don't support it (llama.cpp)
+
+    # OLLAMA EMBEDDING PROVIDER CONFIG
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
 
     # RERANKING
     RERANKING_ENABLED: bool = True

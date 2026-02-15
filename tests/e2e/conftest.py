@@ -30,7 +30,8 @@ from sqlalchemy import text
 from app.config.settings import settings
 from app.events import EventBus
 from app.repositories.embeddings.embedding_adapter import (
-    FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter
+    FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter,
+    OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter,
 )
 from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
@@ -297,6 +298,8 @@ def embedding_adapter():
         return GoogleEmbeddingsAdapter()
     elif settings.EMBEDDING_PROVIDER == "OpenAI":
         return OpenAIEmbeddingsAdapter()
+    elif settings.EMBEDDING_PROVIDER == "Ollama":
+        return OllamaEmbeddingsAdapter()
     else:
         return FastEmbeddingAdapter()
 

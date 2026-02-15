@@ -41,6 +41,25 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
   -e EMBEDDING_DIMENSIONS=256
 ```
 
+### STDIO with Environment Variables (Ollama)
+```bash
+claude mcp add --scope user forgetful "uvx forgetful-ai[ollama]" \
+  -e EMBEDDING_PROVIDER=Ollama \
+  -e OLLAMA_BASE_URL=http://localhost:11434 \
+  -e OLLAMA_EMBEDDING_MODEL=nomic-embed-text \
+  -e EMBEDDING_DIMENSIONS=768
+```
+
+### STDIO with Environment Variables (llama.cpp / OpenAI-compatible)
+```bash
+claude mcp add --scope user forgetful uvx forgetful-ai \
+  -e EMBEDDING_PROVIDER=OpenAI \
+  -e OPENAI_BASE_URL=http://localhost:8080/v1 \
+  -e OPENAI_EMBEDDING_MODEL=my-model \
+  -e OPENAI_SUPPORTS_DIMENSIONS=false \
+  -e EMBEDDING_DIMENSIONS=384
+```
+
 ### HTTP Transport
 ```bash
 claude mcp add --transport http --scope user forgetful http://localhost:8020/mcp

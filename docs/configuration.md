@@ -621,7 +621,7 @@ ACTIVITY_TRACK_READS=false
 ### `EMBEDDING_PROVIDER`
 - **Default**: `FastEmbed`
 - **Description**: Embedding generation provider
-- **Current Support**: FastEmbed | Azure | Google | OpenAI
+- **Current Support**: FastEmbed | Azure | Google | OpenAI | Ollama
 - **Example**: `EMBEDDING_PROVIDER=FastEmbed`
 
 ### `EMBEDDING_MODEL`
@@ -696,6 +696,34 @@ ACTIVITY_TRACK_READS=false
 - **Description**: OpenAI embedding model to use
 - **Options**: `text-embedding-3-small` (fast, cost-effective), `text-embedding-3-large` (higher quality)
 - **Example**: `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
+
+#### `OPENAI_BASE_URL`
+- **Default**: (empty string)
+- **Description**: Custom base URL for OpenAI-compatible endpoints (llama.cpp, vLLM, LiteLLM)
+- **Note**: When set, `OPENAI_API_KEY` becomes optional (a placeholder is used automatically)
+- **Example**: `OPENAI_BASE_URL=http://localhost:8080/v1`
+
+#### `OPENAI_SUPPORTS_DIMENSIONS`
+- **Default**: `true`
+- **Description**: Whether the endpoint supports the `dimensions` parameter
+- **Note**: Set to `false` for endpoints that error on the dimensions param (e.g. llama.cpp)
+- **Example**: `OPENAI_SUPPORTS_DIMENSIONS=false`
+
+### Ollama Embedding Provider Configuration
+
+**Note**: These settings only apply when `EMBEDDING_PROVIDER=Ollama`
+
+> Ollama uses native async via the `ollama` Python SDK. No API key required (Ollama runs locally). Install with `pip install forgetful-ai[ollama]`.
+
+#### `OLLAMA_BASE_URL`
+- **Default**: `http://localhost:11434`
+- **Description**: Ollama server URL
+- **Example**: `OLLAMA_BASE_URL=http://localhost:11434`
+
+#### `OLLAMA_EMBEDDING_MODEL`
+- **Default**: `nomic-embed-text`
+- **Description**: Ollama embedding model to use
+- **Example**: `OLLAMA_EMBEDDING_MODEL=nomic-embed-text`
 
 ### Re-ranking Configuration
 

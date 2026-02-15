@@ -126,26 +126,49 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
 
 
 class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
-    """Generate embeddings using OpenAI's embedding models."""
+    """Generate embeddings using OpenAI's embedding models.
+
+    Supports custom base_url for OpenAI-compatible endpoints (llama.cpp, vLLM, LiteLLM).
+    When base_url is set and no API key is provided, a placeholder key is used.
+    Set OPENAI_SUPPORTS_DIMENSIONS=false for endpoints that don't support the dimensions param.
+    """
 
     def __init__(self):
+        base_url = settings.OPENAI_BASE_URL or None
+        self.supports_dimensions = settings.OPENAI_SUPPORTS_DIMENSIONS
+
         logger.info("Initialising OpenAI embeddings adapter", extra={
-            "embedding_model": settings.OPENAI_EMBEDDING_MODEL
+            "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+            "base_url": base_url or "(default)",
+            "supports_dimensions": self.supports_dimensions,
         })
 
-        if not settings.OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY must be configured for OpenAIEmbeddingsAdapter")
+        api_key = settings.OPENAI_API_KEY
+        if not api_key:
+            if base_url:
+                api_key = "no-key-required"
+            else:
+                raise ValueError("OPENAI_API_KEY must be configured for OpenAIEmbeddingsAdapter")
 
-        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+
+        self.client = OpenAI(**client_kwargs)
         self.model = settings.OPENAI_EMBEDDING_MODEL
 
     async def generate_embedding(self, text: str) -> List[float]:
+        kwargs = {
+            "input": [text],
+            "model": self.model,
+        }
+        if self.supports_dimensions:
+            kwargs["dimensions"] = settings.EMBEDDING_DIMENSIONS
+
         try:
             response = await asyncio.to_thread(
                 self.client.embeddings.create,
-                input=[text],
-                model=self.model,
-                dimensions=settings.EMBEDDING_DIMENSIONS
+                **kwargs,
             )
         except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
@@ -159,3 +182,35 @@ class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
 
         return response.data[0].embedding
 
+
+class OllamaEmbeddingsAdapter(EmbeddingsAdapter):
+    """Generate embeddings using Ollama's native API."""
+
+    def __init__(self):
+        from ollama import AsyncClient
+
+        logger.info("Initialising Ollama embeddings adapter", extra={
+            "embedding_model": settings.OLLAMA_EMBEDDING_MODEL,
+            "base_url": settings.OLLAMA_BASE_URL,
+        })
+        self.client = AsyncClient(host=settings.OLLAMA_BASE_URL)
+        self.model = settings.OLLAMA_EMBEDDING_MODEL
+
+    async def generate_embedding(self, text: str) -> List[float]:
+        try:
+            response = await self.client.embed(
+                model=self.model,
+                input=text,
+                dimensions=settings.EMBEDDING_DIMENSIONS,
+            )
+        except Exception:
+            logger.error("Error generating embeddings", exc_info=True, extra={
+                "embedding_provider": "ollama",
+                "embedding_model": self.model,
+            })
+            raise
+
+        if not response or not response.embeddings:
+            raise RuntimeError("Ollama did not return embedding vector")
+
+        return list(response.embeddings[0])
