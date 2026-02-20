@@ -894,6 +894,126 @@ class SqliteMemoryRepository:
 
         await session.run_sync(lambda sync_session: memory.documents.extend(documents))
 
+    # ============ Re-embedding support methods ============
+
+    async def count_all_memories(self) -> int:
+        """Count all non-obsolete memories across all users"""
+        async with self.db_adapter.system_session() as session:
+            result = await session.execute(
+                text("SELECT COUNT(*) FROM memories WHERE is_obsolete = 0")
+            )
+            return result.scalar()
+
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+        """Fetch memories in batches for re-embedding (all users, ordered by id)"""
+        async with self.db_adapter.system_session() as session:
+            stmt = (
+                select(MemoryTable)
+                .where(MemoryTable.is_obsolete.is_(False))
+                .options(
+                    selectinload(MemoryTable.projects),
+                    selectinload(MemoryTable.linked_memories),
+                    selectinload(MemoryTable.linking_memories),
+                    selectinload(MemoryTable.code_artifacts),
+                    selectinload(MemoryTable.documents),
+                )
+                .order_by(MemoryTable.id.asc())
+                .offset(offset)
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            memories_orm = result.scalars().all()
+            return [Memory.model_validate(m) for m in memories_orm]
+
+    async def reset_embedding_storage(self) -> None:
+        """Drop and recreate vec_memories table with current EMBEDDING_DIMENSIONS"""
+        async with self.db_adapter.system_session() as session:
+            await session.execute(text("DROP TABLE IF EXISTS vec_memories"))
+            await session.execute(
+                text(f"""
+                    CREATE VIRTUAL TABLE vec_memories USING vec0(
+                        memory_id TEXT PRIMARY KEY,
+                        embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
+                    )
+                """)
+            )
+            logger.info("Recreated vec_memories table", extra={
+                "dimensions": settings.EMBEDDING_DIMENSIONS
+            })
+
+    async def bulk_update_embeddings(self, updates: List[Tuple[int, List[float]]]) -> None:
+        """Write new embeddings for a batch of memory IDs into vec_memories"""
+        async with self.db_adapter.system_session() as session:
+            for memory_id, embedding in updates:
+                embedding_bytes = sqlite_vec.serialize_float32(embedding)
+                await session.execute(
+                    text("INSERT INTO vec_memories (memory_id, embedding) VALUES (:memory_id, :embedding)"),
+                    {"memory_id": str(memory_id), "embedding": embedding_bytes},
+                )
+
+    async def validate_embedding_count(self) -> bool:
+        """Check embedding count matches non-obsolete memory count"""
+        async with self.db_adapter.system_session() as session:
+            mem_result = await session.execute(
+                text("SELECT COUNT(*) FROM memories WHERE is_obsolete = 0")
+            )
+            memory_count = mem_result.scalar()
+
+            vec_result = await session.execute(
+                text("SELECT COUNT(*) FROM vec_memories")
+            )
+            vec_count = vec_result.scalar()
+
+            return memory_count == vec_count
+
+    async def validate_embedding_dimensions(self) -> bool:
+        """Sample embeddings and verify correct dimensions"""
+        async with self.db_adapter.system_session() as session:
+            result = await session.execute(
+                text("SELECT embedding FROM vec_memories LIMIT 5")
+            )
+            rows = result.fetchall()
+            if not rows:
+                return True  # no embeddings to validate
+
+            for row in rows:
+                embedding_bytes = row[0]
+                # sqlite-vec stores as raw bytes, 4 bytes per float32
+                num_dims = len(embedding_bytes) // 4
+                if num_dims != settings.EMBEDDING_DIMENSIONS:
+                    logger.error("Dimension mismatch", extra={
+                        "expected": settings.EMBEDDING_DIMENSIONS,
+                        "actual": num_dims
+                    })
+                    return False
+            return True
+
+    async def validate_search_works(self) -> bool:
+        """Run a smoke-test semantic search using a random memory's title"""
+        async with self.db_adapter.system_session() as session:
+            # Pick a random memory title
+            title_result = await session.execute(
+                text("SELECT title FROM memories WHERE is_obsolete = 0 LIMIT 1")
+            )
+            row = title_result.fetchone()
+            if not row:
+                return True  # no memories to test
+
+            query_text = row[0]
+            embeddings = await self._generate_embeddings(query_text)
+            embedding_bytes = sqlite_vec.serialize_float32(embeddings)
+
+            search_result = await session.execute(
+                text("""
+                    SELECT vm.memory_id
+                    FROM vec_memories vm
+                    ORDER BY vec_distance_cosine(vm.embedding, :query_embedding)
+                    LIMIT 1
+                """),
+                {"query_embedding": embedding_bytes},
+            )
+            return search_result.fetchone() is not None
+
     async def _generate_embeddings(self, text: str) -> List[float]:
         return await self.embedding_adapter.generate_embedding(text=text)
 

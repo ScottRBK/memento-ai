@@ -2,6 +2,19 @@ from typing import Protocol, List, Dict, Any, Tuple
 from uuid import UUID
 
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
+from dataclasses import dataclass
+
+
+@dataclass
+class ValidationResult:
+    """Result of post-re-embedding validation checks"""
+    count_ok: bool
+    dimensions_ok: bool
+    search_ok: bool
+
+    @property
+    def all_passed(self) -> bool:
+        return self.count_ok and self.dimensions_ok and self.search_ok
 
 
 class MemoryRepository(Protocol):
@@ -161,6 +174,38 @@ class MemoryRepository(Protocol):
             Tuple of (nodes_list, truncated) where nodes_list contains dicts
             with node_id, node_type, and depth fields
         """
+        ...
+
+    # Re-embedding support methods
+
+    async def count_all_memories(self) -> int:
+        """Count all non-obsolete memories across all users"""
+        ...
+
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+        """Fetch memories in batches for re-embedding (all users, ordered by id)"""
+        ...
+
+    async def reset_embedding_storage(self) -> None:
+        """Prepare vector storage for new dimensions.
+        SQLite: DROP + CREATE vec_memories with new dimensions
+        Postgres: ALTER embedding column type"""
+        ...
+
+    async def bulk_update_embeddings(self, updates: List[Tuple[int, List[float]]]) -> None:
+        """Write new embeddings for a batch of memory IDs"""
+        ...
+
+    async def validate_embedding_count(self) -> bool:
+        """Check embedding count matches non-obsolete memory count"""
+        ...
+
+    async def validate_embedding_dimensions(self) -> bool:
+        """Sample embeddings and verify correct dimensions"""
+        ...
+
+    async def validate_search_works(self) -> bool:
+        """Run a smoke-test semantic search"""
         ...
 
 

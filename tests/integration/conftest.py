@@ -460,6 +460,37 @@ class InMemoryMemoryRepository(MemoryRepository):
 
         return True
 
+    # Re-embedding support stubs
+
+    async def count_all_memories(self) -> int:
+        return sum(
+            1 for user_mems in self._memories.values()
+            for m in user_mems.values() if not m.is_obsolete
+        )
+
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+        all_memories = [
+            m for user_mems in self._memories.values()
+            for m in user_mems.values() if not m.is_obsolete
+        ]
+        all_memories.sort(key=lambda m: m.id)
+        return all_memories[offset:offset + limit]
+
+    async def reset_embedding_storage(self) -> None:
+        pass  # no-op for in-memory
+
+    async def bulk_update_embeddings(self, updates) -> None:
+        pass  # no-op for in-memory
+
+    async def validate_embedding_count(self) -> bool:
+        return True
+
+    async def validate_embedding_dimensions(self) -> bool:
+        return True
+
+    async def validate_search_works(self) -> bool:
+        return True
+
 
 @pytest.fixture
 def mock_embeddings_adapter():
