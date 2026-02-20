@@ -628,7 +628,7 @@ ACTIVITY_TRACK_READS=false
 - **Default**: `BAAI/bge-small-en-v1.5`
 - **Description**: Embedding model identifier
 - **Properties**: 384 dimensions, optimized for semantic similarity
-- **Note**: Changing this requires re-embedding all existing memories
+- **Note**: Changing this requires re-embedding all existing memories. See [Embedding Migration Guide](./embedding_migration.md)
 - **Example**: `EMBEDDING_MODEL=BAAI/bge-small-en-v1.5`
 
 ### `EMBEDDING_DIMENSIONS`
@@ -683,7 +683,7 @@ ACTIVITY_TRACK_READS=false
 
 **Note**: These settings only apply when `EMBEDDING_PROVIDER=OpenAI`
 
-> **Dimension mismatch warning**: If switching from another provider (e.g., FastEmbed at 384 dimensions) to OpenAI, existing memory embeddings will be incompatible. You must re-embed all existing memories after changing providers. See the re-embedding issue for tooling progress.
+> **Dimension mismatch warning**: If switching from another provider (e.g., FastEmbed at 384 dimensions) to OpenAI, existing memory embeddings will be incompatible. You must re-embed all existing memories after changing providers. See the [Embedding Migration Guide](./embedding_migration.md) for instructions.
 
 #### `OPENAI_API_KEY`
 - **Default**: (empty string)

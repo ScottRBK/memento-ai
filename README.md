@@ -364,6 +364,7 @@ For all 40+ environment variables with detailed explanations, see [Configuration
 - [Connectivity Guide](docs/connectivity_guide.md) – Connect Claude and other MCP clients
 - [Self-Hosting Guide](docs/self-hosting-guide.md) – Deploy on a VPS with Docker
 - [Search Documentation](docs/search.md) – Embedding pipeline and retrieval architecture
+- [Embedding Migration](docs/embedding_migration.md) – Switch embedding providers safely
 - [Features Roadmap](docs/features_roadmap.md) – Planned features and priorities
 
 ### External Resources
