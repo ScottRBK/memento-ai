@@ -212,9 +212,9 @@ forgetful --re-embed --batch-size 20
 ```bash
 # .env
 EMBEDDING_PROVIDER=Ollama
+OLLAMA_BASE_URL=http://localhost:11434
 EMBEDDING_MODEL=nomic-embed-text
 EMBEDDING_DIMENSIONS=768
-OLLAMA_BASE_URL=http://localhost:11434
 
 # Migrate
 forgetful --re-embed --batch-size 50

@@ -18,8 +18,20 @@ from app.models.memory_models import MemoryCreate
 
 @pytest.fixture(scope="module")
 def embedding_adapter():
-    """Module-scoped embedding adapter (expensive to load)"""
-    return FastEmbeddingAdapter()
+    """Module-scoped embedding adapter (expensive to load).
+
+    Forces FastEmbed-compatible model regardless of env config (e.g. docker/.env
+    may set EMBEDDING_MODEL to an OpenAI model).
+    """
+    original_model = settings.EMBEDDING_MODEL
+    original_dims = settings.EMBEDDING_DIMENSIONS
+    settings.EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+    settings.EMBEDDING_DIMENSIONS = 384
+    try:
+        return FastEmbeddingAdapter()
+    finally:
+        settings.EMBEDDING_MODEL = original_model
+        settings.EMBEDDING_DIMENSIONS = original_dims
 
 
 @pytest.fixture
@@ -27,9 +39,13 @@ async def sqlite_repo(embedding_adapter):
     """Create a fresh in-memory SQLite repo for each test"""
     original_sqlite_memory = settings.SQLITE_MEMORY
     original_database = settings.DATABASE
+    original_model = settings.EMBEDDING_MODEL
+    original_dims = settings.EMBEDDING_DIMENSIONS
 
     settings.DATABASE = "SQLite"
     settings.SQLITE_MEMORY = True
+    settings.EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+    settings.EMBEDDING_DIMENSIONS = 384
 
     try:
         db_adapter = SqliteDatabaseAdapter()
@@ -52,6 +68,8 @@ async def sqlite_repo(embedding_adapter):
     finally:
         settings.DATABASE = original_database
         settings.SQLITE_MEMORY = original_sqlite_memory
+        settings.EMBEDDING_MODEL = original_model
+        settings.EMBEDDING_DIMENSIONS = original_dims
 
 
 async def _create_user(db_adapter, user_id):

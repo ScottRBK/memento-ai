@@ -296,7 +296,8 @@ async def _run_reembed(args):
     backup_service = BackupService()
 
     print("\n[1/5] Validating configuration...")
-    print(f"  Provider: {settings.EMBEDDING_PROVIDER} ({settings.EMBEDDING_MODEL})")
+    model_display = settings.AZURE_DEPLOYMENT if settings.EMBEDDING_PROVIDER == "Azure" else settings.EMBEDDING_MODEL
+    print(f"  Provider: {settings.EMBEDDING_PROVIDER} ({model_display})")
     print(f"  Dimensions: {settings.EMBEDDING_DIMENSIONS}")
     if settings.DATABASE == "SQLite":
         print(f"  Database: SQLite ({settings.SQLITE_PATH})")

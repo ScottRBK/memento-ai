@@ -138,7 +138,7 @@ class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
         self.supports_dimensions = settings.OPENAI_SUPPORTS_DIMENSIONS
 
         logger.info("Initialising OpenAI embeddings adapter", extra={
-            "embedding_model": settings.OPENAI_EMBEDDING_MODEL,
+            "embedding_model": settings.EMBEDDING_MODEL,
             "base_url": base_url or "(default)",
             "supports_dimensions": self.supports_dimensions,
         })
@@ -155,7 +155,7 @@ class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
             client_kwargs["base_url"] = base_url
 
         self.client = OpenAI(**client_kwargs)
-        self.model = settings.OPENAI_EMBEDDING_MODEL
+        self.model = settings.EMBEDDING_MODEL
 
     async def generate_embedding(self, text: str) -> List[float]:
         kwargs = {
@@ -190,11 +190,11 @@ class OllamaEmbeddingsAdapter(EmbeddingsAdapter):
         from ollama import AsyncClient
 
         logger.info("Initialising Ollama embeddings adapter", extra={
-            "embedding_model": settings.OLLAMA_EMBEDDING_MODEL,
+            "embedding_model": settings.EMBEDDING_MODEL,
             "base_url": settings.OLLAMA_BASE_URL,
         })
         self.client = AsyncClient(host=settings.OLLAMA_BASE_URL)
-        self.model = settings.OLLAMA_EMBEDDING_MODEL
+        self.model = settings.EMBEDDING_MODEL
 
     async def generate_embedding(self, text: str) -> List[float]:
         try:

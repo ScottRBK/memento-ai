@@ -885,16 +885,27 @@ class PostgresMemoryRepository:
             return [Memory.model_validate(m) for m in memories_orm]
 
     async def reset_embedding_storage(self) -> None:
-        """Alter embedding column to match new EMBEDDING_DIMENSIONS"""
+        """Alter embedding column to match new EMBEDDING_DIMENSIONS.
+
+        pgvector cannot cast vectors across dimensions, so existing embeddings
+        must be cleared before resizing the column.
+        """
+        dims = settings.EMBEDDING_DIMENSIONS
         async with self.db_adapter.system_session() as session:
-            await session.execute(
-                text(f"""
-                    ALTER TABLE memories
-                    ALTER COLUMN embedding TYPE vector({settings.EMBEDDING_DIMENSIONS})
-                """)
-            )
+            # Drop NOT NULL so we can clear embeddings
+            await session.execute(text(
+                "ALTER TABLE memories ALTER COLUMN embedding DROP NOT NULL"
+            ))
+            # Clear existing embeddings (can't cast across dimensions)
+            await session.execute(text(
+                "UPDATE memories SET embedding = NULL"
+            ))
+            # Resize the column
+            await session.execute(text(
+                f"ALTER TABLE memories ALTER COLUMN embedding TYPE vector({dims})"
+            ))
             logger.info("Altered embedding column", extra={
-                "dimensions": settings.EMBEDDING_DIMENSIONS
+                "dimensions": dims
             })
 
     async def bulk_update_embeddings(self, updates: List[Tuple[int, List[float]]]) -> None:

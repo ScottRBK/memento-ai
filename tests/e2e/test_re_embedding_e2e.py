@@ -2,6 +2,11 @@
 E2E tests for re-embedding with real PostgreSQL and real embedding adapters.
 
 Tests the full stack: ReEmbeddingService -> PostgresMemoryRepository -> pgvector
+
+Uses whatever embedding provider is configured (e.g. OpenAI, FastEmbed) to test
+the re-embedding workflow end-to-end. Cross-dimension migration is not tested here
+because it requires a fresh process (the ORM bakes in Vector(N) at import time and
+SQLAlchemy caches compiled statements with the original type processor).
 """
 import pytest
 import pytest_asyncio
@@ -10,44 +15,22 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from app.config.settings import settings
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
 from app.repositories.postgres.memory_repository import PostgresMemoryRepository
 from app.services.re_embedding_service import ReEmbeddingService
 from app.models.memory_models import MemoryCreate
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-FASTEMBED_DIMENSIONS = 384
-
-
-@pytest.fixture(scope="module")
-def fastembed_adapter():
-    """Module-scoped FastEmbed adapter — avoids dependency on external API providers."""
-    return FastEmbeddingAdapter()
-
 
 @pytest_asyncio.fixture(loop_scope="session")
-async def postgres_repo(db_adapter, fastembed_adapter):
-    """Create a PostgresMemoryRepository wired to the session-scoped DB and FastEmbed.
-
-    Also resizes the pgvector embedding column to match FastEmbed's 384 dimensions,
-    since the DB may have been migrated with a different dimension (e.g. 1536 for OpenAI).
-    """
-    original_dims = settings.EMBEDDING_DIMENSIONS
-    settings.EMBEDDING_DIMENSIONS = FASTEMBED_DIMENSIONS
-
+async def memory_repo(db_adapter, embedding_adapter):
+    """Repo using the configured embedding adapter (matches DB schema)."""
     repo = PostgresMemoryRepository(
         db_adapter=db_adapter,
-        embedding_adapter=fastembed_adapter,
+        embedding_adapter=embedding_adapter,
         rerank_adapter=None,
     )
-
-    # Resize the embedding column to match FastEmbed output
-    await repo.reset_embedding_storage()
-
     yield repo
-
-    settings.EMBEDDING_DIMENSIONS = original_dims
 
 
 async def _create_user(db_adapter, user_id):
@@ -100,14 +83,14 @@ async def _truncate_memories(db_adapter):
 
 
 @pytest.mark.e2e
-async def test_re_embed_search_works_after(postgres_repo, db_adapter, fastembed_adapter):
+async def test_re_embed_search_works_after(memory_repo, db_adapter, embedding_adapter):
     """Create memories, re-embed, run semantic search, verify results returned."""
     await _truncate_memories(db_adapter)
-    user_id, memories = await _create_test_memories(postgres_repo, db_adapter, count=3)
+    user_id, memories = await _create_test_memories(memory_repo, db_adapter, count=3)
 
     service = ReEmbeddingService(
-        memory_repository=postgres_repo,
-        embedding_adapter=fastembed_adapter,
+        memory_repository=memory_repo,
+        embedding_adapter=embedding_adapter,
         batch_size=10,
     )
     result = await service.re_embed_all()
@@ -115,7 +98,7 @@ async def test_re_embed_search_works_after(postgres_repo, db_adapter, fastembed_
     assert result.total_processed == 3
     assert result.validation.all_passed
 
-    search_results = await postgres_repo.search(
+    search_results = await memory_repo.search(
         user_id=user_id,
         query="test memory content",
         query_context="verifying search after re-embed",
@@ -128,14 +111,14 @@ async def test_re_embed_search_works_after(postgres_repo, db_adapter, fastembed_
 
 
 @pytest.mark.e2e
-async def test_re_embed_count_integrity(postgres_repo, db_adapter, fastembed_adapter):
+async def test_re_embed_count_integrity(memory_repo, db_adapter, embedding_adapter):
     """After re-embed, verify embedding count matches memory count."""
     await _truncate_memories(db_adapter)
-    user_id, memories = await _create_test_memories(postgres_repo, db_adapter, count=5)
+    user_id, memories = await _create_test_memories(memory_repo, db_adapter, count=5)
 
     service = ReEmbeddingService(
-        memory_repository=postgres_repo,
-        embedding_adapter=fastembed_adapter,
+        memory_repository=memory_repo,
+        embedding_adapter=embedding_adapter,
         batch_size=3,
     )
     result = await service.re_embed_all()
@@ -145,20 +128,20 @@ async def test_re_embed_count_integrity(postgres_repo, db_adapter, fastembed_ada
 
 
 @pytest.mark.e2e
-async def test_re_embed_preserves_memory_data(postgres_repo, db_adapter, fastembed_adapter):
+async def test_re_embed_preserves_memory_data(memory_repo, db_adapter, embedding_adapter):
     """After re-embed, verify all memory fields unchanged."""
     await _truncate_memories(db_adapter)
-    user_id, original_memories = await _create_test_memories(postgres_repo, db_adapter, count=3)
+    user_id, original_memories = await _create_test_memories(memory_repo, db_adapter, count=3)
 
     service = ReEmbeddingService(
-        memory_repository=postgres_repo,
-        embedding_adapter=fastembed_adapter,
+        memory_repository=memory_repo,
+        embedding_adapter=embedding_adapter,
         batch_size=10,
     )
     await service.re_embed_all()
 
     for original in original_memories:
-        refreshed = await postgres_repo.get_memory_by_id(user_id=user_id, memory_id=original.id)
+        refreshed = await memory_repo.get_memory_by_id(user_id=user_id, memory_id=original.id)
         assert refreshed.title == original.title
         assert refreshed.content == original.content
         assert refreshed.context == original.context
@@ -168,13 +151,13 @@ async def test_re_embed_preserves_memory_data(postgres_repo, db_adapter, fastemb
 
 
 @pytest.mark.e2e
-async def test_re_embed_empty_database(postgres_repo, db_adapter, fastembed_adapter):
+async def test_re_embed_empty_database(memory_repo, db_adapter, embedding_adapter):
     """Re-embedding an empty database should succeed with no work done."""
     await _truncate_memories(db_adapter)
 
     service = ReEmbeddingService(
-        memory_repository=postgres_repo,
-        embedding_adapter=fastembed_adapter,
+        memory_repository=memory_repo,
+        embedding_adapter=embedding_adapter,
         batch_size=10,
     )
     result = await service.re_embed_all()
@@ -185,14 +168,14 @@ async def test_re_embed_empty_database(postgres_repo, db_adapter, fastembed_adap
 
 
 @pytest.mark.e2e
-async def test_re_embed_validation_checks(postgres_repo, db_adapter, fastembed_adapter):
+async def test_re_embed_validation_checks(memory_repo, db_adapter, embedding_adapter):
     """Verify all validation checks pass after successful re-embed."""
     await _truncate_memories(db_adapter)
-    user_id, memories = await _create_test_memories(postgres_repo, db_adapter, count=4)
+    user_id, memories = await _create_test_memories(memory_repo, db_adapter, count=4)
 
     service = ReEmbeddingService(
-        memory_repository=postgres_repo,
-        embedding_adapter=fastembed_adapter,
+        memory_repository=memory_repo,
+        embedding_adapter=embedding_adapter,
         batch_size=2,
     )
     result = await service.re_embed_all()

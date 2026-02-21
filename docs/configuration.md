@@ -691,12 +691,6 @@ ACTIVITY_TRACK_READS=false
 - **Security**: **Keep this secret** - never commit to version control
 - **Example**: `OPENAI_API_KEY=sk-your-openai-api-key-here`
 
-#### `OPENAI_EMBEDDING_MODEL`
-- **Default**: `text-embedding-3-small`
-- **Description**: OpenAI embedding model to use
-- **Options**: `text-embedding-3-small` (fast, cost-effective), `text-embedding-3-large` (higher quality)
-- **Example**: `OPENAI_EMBEDDING_MODEL=text-embedding-3-small`
-
 #### `OPENAI_BASE_URL`
 - **Default**: (empty string)
 - **Description**: Custom base URL for OpenAI-compatible endpoints (llama.cpp, vLLM, LiteLLM)
@@ -719,11 +713,6 @@ ACTIVITY_TRACK_READS=false
 - **Default**: `http://localhost:11434`
 - **Description**: Ollama server URL
 - **Example**: `OLLAMA_BASE_URL=http://localhost:11434`
-
-#### `OLLAMA_EMBEDDING_MODEL`
-- **Default**: `nomic-embed-text`
-- **Description**: Ollama embedding model to use
-- **Example**: `OLLAMA_EMBEDDING_MODEL=nomic-embed-text`
 
 ### Re-ranking Configuration
 

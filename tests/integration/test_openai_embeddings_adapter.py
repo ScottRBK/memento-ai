@@ -12,7 +12,7 @@ def mock_settings():
     """Provide mock settings with valid OpenAI config."""
     with patch("app.repositories.embeddings.embedding_adapter.settings") as mock:
         mock.OPENAI_API_KEY = "sk-test-key-123"
-        mock.OPENAI_EMBEDDING_MODEL = "text-embedding-3-small"
+        mock.EMBEDDING_MODEL = "text-embedding-3-small"
         mock.EMBEDDING_DIMENSIONS = 256
         mock.OPENAI_BASE_URL = ""
         mock.OPENAI_SUPPORTS_DIMENSIONS = True

@@ -12,7 +12,7 @@ def mock_settings():
     """Provide mock settings with valid Ollama config."""
     with patch("app.repositories.embeddings.embedding_adapter.settings") as mock:
         mock.OLLAMA_BASE_URL = "http://localhost:11434"
-        mock.OLLAMA_EMBEDDING_MODEL = "nomic-embed-text"
+        mock.EMBEDDING_MODEL = "nomic-embed-text"
         mock.EMBEDDING_DIMENSIONS = 768
         yield mock
 

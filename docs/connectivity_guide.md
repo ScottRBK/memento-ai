@@ -37,7 +37,7 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
 claude mcp add --scope user forgetful uvx forgetful-ai \
   -e EMBEDDING_PROVIDER=OpenAI \
   -e OPENAI_API_KEY=sk-your-openai-api-key \
-  -e OPENAI_EMBEDDING_MODEL=text-embedding-3-small \
+  -e EMBEDDING_MODEL=text-embedding-3-small \
   -e EMBEDDING_DIMENSIONS=256
 ```
 
@@ -46,7 +46,7 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
 claude mcp add --scope user forgetful "uvx forgetful-ai[ollama]" \
   -e EMBEDDING_PROVIDER=Ollama \
   -e OLLAMA_BASE_URL=http://localhost:11434 \
-  -e OLLAMA_EMBEDDING_MODEL=nomic-embed-text \
+  -e EMBEDDING_MODEL=nomic-embed-text \
   -e EMBEDDING_DIMENSIONS=768
 ```
 
@@ -55,7 +55,7 @@ claude mcp add --scope user forgetful "uvx forgetful-ai[ollama]" \
 claude mcp add --scope user forgetful uvx forgetful-ai \
   -e EMBEDDING_PROVIDER=OpenAI \
   -e OPENAI_BASE_URL=http://localhost:8080/v1 \
-  -e OPENAI_EMBEDDING_MODEL=my-model \
+  -e EMBEDDING_MODEL=my-model \
   -e OPENAI_SUPPORTS_DIMENSIONS=false \
   -e EMBEDDING_DIMENSIONS=384
 ```

@@ -122,13 +122,11 @@ class Settings(BaseSettings):
 
     # OPENAI EMBEDDING PROVIDER CONFIG
     OPENAI_API_KEY: str = ""
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     OPENAI_BASE_URL: str = ""                    # custom endpoint (e.g. http://localhost:8080/v1)
     OPENAI_SUPPORTS_DIMENSIONS: bool = True      # False for endpoints that don't support it (llama.cpp)
 
     # OLLAMA EMBEDDING PROVIDER CONFIG
     OLLAMA_BASE_URL: str = "http://localhost:11434"
-    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
 
     # RERANKING
     RERANKING_ENABLED: bool = True
