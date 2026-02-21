@@ -14,7 +14,6 @@ from uuid import uuid4
 
 from sqlalchemy import text
 
-from app.config.settings import settings
 from app.repositories.postgres.memory_repository import PostgresMemoryRepository
 from app.services.re_embedding_service import ReEmbeddingService
 from app.models.memory_models import MemoryCreate
