@@ -108,13 +108,10 @@ class SqliteMemoryRepository:
         else:
             rerank_query = query
 
-        scores = await self.rerank_adapter.rerank(query=rerank_query, documents=documents)
-
-        scored_candidates = list(zip(dense_candidates, scores))
-        scored_candidates.sort(key=lambda x: x[1], reverse=True)
-
-        top_k_memories = [memory for memory, score in scored_candidates[:k]]
-
+        ranked = await self.rerank_adapter.rerank(query=rerank_query, documents=documents)
+        
+        top_k_memories = [dense_candidates[idx] for idx, score in ranked[:k]]
+        
         return top_k_memories
 
     async def semantic_search(

@@ -1,4 +1,5 @@
 import asyncio
+import httpx
 from typing import Protocol, List
 from concurrent.futures import ThreadPoolExecutor
 from fastembed.rerank.cross_encoder import TextCrossEncoder
@@ -11,7 +12,7 @@ class RerankAdapter(Protocol):
     async def rerank(self, 
                      query: str,
                      documents: List[str],
-    ) -> List[float]:
+    ) -> List[tuple[int, float]]:
         ...
 
 class FastEmbedCrossEncoderAdapter: 
@@ -39,7 +40,7 @@ class FastEmbedCrossEncoderAdapter:
             self,
             query: str,
             documents: List[str],
-    ) -> List[float]:
+    ) -> List[tuple[int, float]]:
         """Score documents by relevance to query"""
         
         if not documents:
@@ -47,21 +48,64 @@ class FastEmbedCrossEncoderAdapter:
         
         loop = asyncio.get_event_loop()
 
-        scores = await loop.run_in_executor(
+        ranked = await loop.run_in_executor(
             self._executor,
             self._rerank_sync,
             query,
             documents
         )
         
-        return scores
+        return ranked
     
-    def _rerank_sync(self, query: str, documents: List[str])-> List[float]:
+    def _rerank_sync(self, query: str, documents: List[str])-> List[tuple[int,float]]:
         """Synchronus reranking implementation"""
         scores = list(self._model.rerank(query=query, documents=documents))
-        return scores 
+        ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+        return ranked
     
     def __del__(self): 
         """CLeanup thread ppol on deletion."""
         if hasattr(self, '_executor'):
             self._executor.shutdown(wait=False)
+            
+    
+class HttpRerankAdapter:
+    """Cross-encoder reranker using http"""
+    
+    def __init__(
+            self,
+            model: str = settings.RERANKING_MODEL,
+            url: str = settings.RERANKING_URL,
+            api_key: str = settings.RERANKING_API_KEY
+    ):
+        self.model = model
+        self.url = url 
+        self.api_key = api_key
+        
+
+    async def rerank(
+            self,
+            query: str,
+            documents: List[str]
+    ) -> List[tuple[int, float]]:
+        
+        headers = {
+            "Authorization": f"Bearer {settings.RERANKING_API_KEY}"
+        }
+
+        payload = {
+            "query": query,
+            "documents": documents,
+            "model": self.model,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url=self.url, headers=headers, json=payload)
+            
+        response_json = response.json()
+
+        ranked = [(r["index"], r["relevance_score"]) for r in response_json["results"]]
+        
+        return ranked
+
+

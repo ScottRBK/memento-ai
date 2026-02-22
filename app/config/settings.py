@@ -130,7 +130,9 @@ class Settings(BaseSettings):
 
     # RERANKING
     RERANKING_ENABLED: bool = True
-    RERANKING_PROVIDER: str = "FastEmbed"
+    RERANKING_PROVIDER: str = "FastEmbed"        # FastEmbed | HTTP
+    RERANKING_URL: str = ""                      # custom endpoints (e.g. http://localhost:8080/v1/rerank)
+    RERANKING_API_KEY: str = ""
     RERANKING_MODEL: str = "Xenova/ms-marco-MiniLM-L-12-v2"
     DENSE_SEARCH_CANDIDATES: int = 20 # number of candidates to retrieve from the dense search
 
