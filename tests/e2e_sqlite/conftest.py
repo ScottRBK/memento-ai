@@ -26,7 +26,7 @@ from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 
 # Shared imports
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter
-from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
+from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter, HttpRerankAdapter
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.services.project_service import ProjectService
@@ -80,9 +80,12 @@ def reranker_adapter():
     """
     from app.config.settings import settings
 
-    if settings.RERANKING_ENABLED:
+    if not settings.RERANKING_ENABLED:
+        return None
+    if settings.RERANKING_PROVIDER == "HTTP":
+        return HttpRerankAdapter()
+    else:
         return FastEmbedCrossEncoderAdapter()
-    return None
 
 
 @pytest.fixture

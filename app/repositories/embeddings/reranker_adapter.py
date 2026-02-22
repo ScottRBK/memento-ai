@@ -74,13 +74,13 @@ class HttpRerankAdapter:
     
     def __init__(
             self,
-            model: str = settings.RERANKING_MODEL,
-            url: str = settings.RERANKING_URL,
-            api_key: str = settings.RERANKING_API_KEY
+            model: str | None = None,
+            url: str | None = None,
+            api_key: str | None = None,
     ):
-        self.model = model
-        self.url = url 
-        self.api_key = api_key
+        self.model = model if model is not None else settings.RERANKING_MODEL
+        self.url = url if url is not None else settings.RERANKING_URL
+        self.api_key = api_key if api_key is not None else settings.RERANKING_API_KEY
         
 
     async def rerank(
@@ -88,10 +88,13 @@ class HttpRerankAdapter:
             query: str,
             documents: List[str]
     ) -> List[tuple[int, float]]:
-        
-        headers = {
-            "Authorization": f"Bearer {settings.RERANKING_API_KEY}"
-        }
+
+        if not documents:
+            return []
+
+        headers = {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         payload = {
             "query": query,
@@ -101,11 +104,12 @@ class HttpRerankAdapter:
 
         async with httpx.AsyncClient() as client:
             response = await client.post(url=self.url, headers=headers, json=payload)
-            
+            response.raise_for_status()
+
         response_json = response.json()
 
         ranked = [(r["index"], r["relevance_score"]) for r in response_json["results"]]
-        
+
         return ranked
 
 

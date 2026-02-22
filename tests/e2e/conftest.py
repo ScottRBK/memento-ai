@@ -33,7 +33,7 @@ from app.repositories.embeddings.embedding_adapter import (
     FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter,
     OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter,
 )
-from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
+from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter, HttpRerankAdapter
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
 from app.routes.mcp import meta_tools
@@ -307,9 +307,12 @@ def embedding_adapter():
 @pytest.fixture(scope="session")
 def reranker_adapter():
     """Session-scoped reranker adapter (model loading is expensive ~1-2s)."""
-    if settings.RERANKING_ENABLED:
+    if not settings.RERANKING_ENABLED:
+        return None
+    if settings.RERANKING_PROVIDER == "HTTP":
+        return HttpRerankAdapter()
+    else:
         return FastEmbedCrossEncoderAdapter(cache_dir=settings.FASTEMBED_CACHE_DIR)
-    return None
 
 
 # ---------------------------------------------------------------------------

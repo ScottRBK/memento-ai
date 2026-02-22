@@ -49,12 +49,16 @@ def _get_embedding_adapter():
 
 def _get_reranker_adapter():
     """Create reranker adapter if enabled. Called during lifespan."""
-    if settings.RERANKING_ENABLED:
+    if not settings.RERANKING_ENABLED:
+        return None
+    if settings.RERANKING_PROVIDER == "HTTP":
+        from app.repositories.embeddings.reranker_adapter import HttpRerankAdapter
+        return HttpRerankAdapter()
+    else:  # Default: FastEmbed
         from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
         return FastEmbedCrossEncoderAdapter(
             cache_dir=settings.FASTEMBED_CACHE_DIR
         )
-    return None
 
 
 def _check_first_run_models():

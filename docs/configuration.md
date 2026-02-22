@@ -726,14 +726,36 @@ ACTIVITY_TRACK_READS=false
 #### `RERANKING_PROVIDER`
 - **Default**: `FastEmbed`
 - **Description**: Re-ranking model provider
-- **Current Support**: FastEmbed
-- **Example**: `RERANKING_PROVIDER=FastEmbed`
+- **Current Support**: `FastEmbed` | `HTTP`
+- **Values**:
+  - `FastEmbed` - Local cross-encoder model via FastEmbed (zero-config, no API key)
+  - `HTTP` - Any server exposing a `/v1/rerank`-compatible endpoint (Jina, Cohere, vLLM, llama.cpp, Infinity, etc.)
+- **Example**: `RERANKING_PROVIDER=HTTP`
 
 #### `RERANKING_MODEL`
 - **Default**: `Xenova/ms-marco-MiniLM-L-12-v2`
 - **Description**: Re-ranking model identifier
 - **Purpose**: Optimized for search result re-ranking
+- **Note**: For HTTP provider, set to the model name your endpoint expects (e.g., `jina-reranker-v2-base-multilingual`)
 - **Example**: `RERANKING_MODEL=Xenova/ms-marco-MiniLM-L-12-v2`
+
+#### `RERANKING_URL`
+- **Default**: (empty string)
+- **Description**: HTTP endpoint URL for re-ranking requests
+- **Note**: Only used when `RERANKING_PROVIDER=HTTP`
+- **Examples**:
+  - Jina: `https://api.jina.ai/v1/rerank`
+  - Cohere: `https://api.cohere.com/v2/rerank`
+  - Local llama.cpp: `http://localhost:8012/v1/rerank`
+  - Local vLLM: `http://localhost:8000/v1/rerank`
+- **Example**: `RERANKING_URL=https://api.jina.ai/v1/rerank`
+
+#### `RERANKING_API_KEY`
+- **Default**: (empty string)
+- **Description**: API key for authenticated re-ranking endpoints
+- **Note**: Only used when `RERANKING_PROVIDER=HTTP`. Leave empty for local servers that don't require authentication
+- **Security**: **Keep this secret** - never commit to version control
+- **Example**: `RERANKING_API_KEY=your-api-key-here`
 
 ### FastEmbed Cache Configuration
 
