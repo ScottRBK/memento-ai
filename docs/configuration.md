@@ -695,6 +695,7 @@ ACTIVITY_TRACK_READS=false
 - **Default**: (empty string)
 - **Description**: Custom base URL for OpenAI-compatible endpoints (llama.cpp, vLLM, LiteLLM)
 - **Note**: When set, `OPENAI_API_KEY` becomes optional (a placeholder is used automatically)
+- **Tip**: See the [llama.cpp migration scenario](./embedding_migration.md#openai-compatible-local-server-llamacpp-vllm) for server configuration tips (batch size, etc.)
 - **Example**: `OPENAI_BASE_URL=http://localhost:8080/v1`
 
 #### `OPENAI_SUPPORTS_DIMENSIONS`

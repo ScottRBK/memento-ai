@@ -251,6 +251,34 @@ OPENAI_API_KEY=sk-...
 forgetful --re-embed
 ```
 
+### OpenAI-Compatible Local Server (llama.cpp, vLLM)
+
+Use the `OpenAI` provider with a custom `OPENAI_BASE_URL` to point at a local inference server serving GGUF or other models:
+
+```bash
+# .env
+EMBEDDING_PROVIDER=OpenAI
+EMBEDDING_MODEL=your-model-name
+EMBEDDING_DIMENSIONS=1024
+OPENAI_BASE_URL=http://localhost:8080/v1
+OPENAI_SUPPORTS_DIMENSIONS=false
+
+# Migrate
+forgetful --re-embed
+```
+
+**Server-side batch size**: Local inference servers (llama.cpp, vLLM) have an internal processing batch size that limits the maximum input token count per request. llama.cpp defaults to `512` tokens, which may be too small for longer memories. If you see errors like `input (N tokens) is too large to process`, increase the server's batch size:
+
+```bash
+# llama.cpp - increase batch size to handle longer texts
+llama-server -m model.gguf --embedding --batch-size 2048
+
+# vLLM
+vllm serve model-name --max-model-len 2048
+```
+
+A batch size of `2048` is recommended as a starting point. This is a server-side setting, not a Forgetful setting — Forgetful's `--batch-size` flag controls how many memories are processed per database write, not the token limit.
+
 ---
 
 ## Docker Deployments
