@@ -87,6 +87,7 @@ class BackupService:
 
         cmd = [
             "pg_dump",
+            "--clean",
             "-h", settings.POSTGRES_HOST,
             "-p", str(settings.PGPORT),
             "-U", settings.POSTGRES_USER,
