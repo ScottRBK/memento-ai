@@ -200,7 +200,7 @@ async def test_backup_and_restore_with_data_changes(memory_repo, db_adapter, emb
                 user_id=user_id,
                 memory=MemoryCreate(
                     title=f"Post-backup Memory {i}",
-                    content=f"This was added after the backup",
+                    content="This was added after the backup",
                     context=f"Post-backup context {i}",
                     keywords=["post-backup"],
                     tags=["post-backup"],
