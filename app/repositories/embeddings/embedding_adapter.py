@@ -5,7 +5,8 @@ import asyncio
 
 from fastembed import TextEmbedding
 from openai import AzureOpenAI, OpenAI
-import google.generativeai as genai 
+from google import genai
+from google.genai import types
 
 from app.config.settings import settings
 
@@ -96,21 +97,22 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
             "embedding_model": settings.EMBEDDING_MODEL
         })
 
-        self.api_key = settings.GOOGLE_AI_API_KEY
+        api_key = settings.GOOGLE_AI_API_KEY
         self.model = settings.EMBEDDING_MODEL
 
-        if not self.api_key:
+        if not api_key:
             raise ValueError("GOOGLE_AI_API_KEY must be configured for GoogleEmbeddingsAdapter")
 
-        genai.configure(api_key=self.api_key)
+        self.client = genai.Client(api_key=api_key)
 
     async def generate_embedding(self, text: str) -> List[float]:
         try:
-            result = await asyncio.to_thread(
-                genai.embed_content,
+            response = await self.client.aio.models.embed_content(
                 model=self.model,
-                content=text,
-                output_dimensionality=settings.EMBEDDING_DIMENSIONS
+                contents=text,
+                config=types.EmbedContentConfig(
+                    output_dimensionality=settings.EMBEDDING_DIMENSIONS
+                )
             )
         except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
@@ -119,10 +121,9 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
             })
             raise
 
-        embedding = result.get("embedding")
-        if embedding is None:
+        if not response.embeddings:
             raise RuntimeError("Google Generative AI response did not contain embedding vector")
-        return list(map(float, embedding))
+        return list(map(float, response.embeddings[0].values))
 
 
 class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
