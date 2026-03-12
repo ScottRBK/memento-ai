@@ -22,6 +22,10 @@ class EntityType(str, Enum):
     ENTITY_MEMORY_LINK = "entity_memory_link"  # Entity-to-memory links
     ENTITY_RELATIONSHIP = "entity_relationship"  # Entity-to-entity relationships
     ENTITY_PROJECT_LINK = "entity_project_link"  # Entity-to-project links
+    PLAN = "plan"
+    TASK = "task"
+    CRITERION = "criterion"
+    TASK_DEPENDENCY = "task_dependency"
 
 
 class ActionType(str, Enum):

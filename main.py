@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from app.config.settings import settings
 from app.version import get_version
 from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph, auth, activity
+from app.routes.api import plans as plans_routes, tasks as tasks_routes
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
@@ -79,7 +80,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
         from app.repositories.postgres.entity_repository import PostgresEntityRepository
         from app.repositories.postgres.activity_repository import PostgresActivityRepository
 
-        return {
+        repos = {
             "user": PostgresUserRepository(db_adapter=db_adapter),
             "memory": PostgresMemoryRepository(
                 db_adapter=db_adapter,
@@ -92,6 +93,14 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             "entity": PostgresEntityRepository(db_adapter=db_adapter),
             "activity": PostgresActivityRepository(db_adapter=db_adapter),
         }
+
+        if settings.PLANNING_ENABLED:
+            from app.repositories.postgres.plan_repository import PostgresPlanRepository
+            from app.repositories.postgres.task_repository import PostgresTaskRepository
+            repos["plan"] = PostgresPlanRepository(db_adapter=db_adapter)
+            repos["task"] = PostgresTaskRepository(db_adapter=db_adapter)
+
+        return repos
     elif settings.DATABASE == "SQLite":
         from app.repositories.sqlite.user_repository import SqliteUserRepository
         from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
@@ -101,7 +110,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
         from app.repositories.sqlite.entity_repository import SqliteEntityRepository
         from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 
-        return {
+        repos = {
             "user": SqliteUserRepository(db_adapter=db_adapter),
             "memory": SqliteMemoryRepository(
                 db_adapter=db_adapter,
@@ -114,6 +123,14 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             "entity": SqliteEntityRepository(db_adapter=db_adapter),
             "activity": SqliteActivityRepository(db_adapter=db_adapter),
         }
+
+        if settings.PLANNING_ENABLED:
+            from app.repositories.sqlite.plan_repository import SqlitePlanRepository
+            from app.repositories.sqlite.task_repository import SqliteTaskRepository
+            repos["plan"] = SqlitePlanRepository(db_adapter=db_adapter)
+            repos["task"] = SqliteTaskRepository(db_adapter=db_adapter)
+
+        return repos
     else:
         raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
 
@@ -208,6 +225,23 @@ async def lifespan(app):
     mcp.graph_service = graph_service
     mcp.activity_service = activity_service
     mcp.event_bus = event_bus
+
+    # Conditionally create plan/task services behind PLANNING_ENABLED
+    plan_service = None
+    task_service = None
+
+    if settings.PLANNING_ENABLED:
+        from app.services.plan_service import PlanService
+        from app.services.task_service import TaskService
+
+        plan_service = PlanService(repos["plan"], event_bus=event_bus)
+        task_service = TaskService(repos["task"], plan_service=plan_service, event_bus=event_bus)
+        mcp.plan_service = plan_service
+        mcp.task_service = task_service
+        logger.info("Planning feature enabled")
+    else:
+        logger.info("Planning feature disabled (PLANNING_ENABLED=false)")
+
     logger.info("Services initialized and attached to FastMCP instance")
 
     # Initialize token cache for HTTP auth performance
@@ -234,6 +268,8 @@ async def lifespan(app):
         code_artifact_service=code_artifact_service,
         document_service=document_service,
         entity_service=entity_service,
+        plan_service=plan_service,
+        task_service=task_service,
     )
 
     categories = registry.list_categories()
@@ -283,6 +319,10 @@ documents.register(mcp)
 code_artifacts.register(mcp)
 graph.register(mcp)
 activity.register(mcp)
+
+if settings.PLANNING_ENABLED:
+    plans_routes.register(mcp)
+    tasks_routes.register(mcp)
 
 meta_tools.register(mcp)
 

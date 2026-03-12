@@ -1144,3 +1144,271 @@ def create_entity_adapters(
         "delete_entity_relationship": adapters.delete_entity_relationship,
         "get_entity_memories": adapters.get_entity_memories,
     }
+
+
+# ============================================================================
+# Plan Tool Adapters
+# ============================================================================
+
+
+class PlanToolAdapters:
+    """Wraps plan service methods as registry-compatible callables"""
+
+    def __init__(self, plan_service, user_service):
+        self.plan_service = plan_service
+        self.user_service = user_service
+
+    async def create_plan(
+        self,
+        title: str,
+        project_id: int,
+        ctx: Context,
+        goal: Optional[str] = None,
+        context: Optional[str] = None,
+        status: str = "draft",
+    ):
+        from app.models.plan_models import PlanCreate, PlanStatus
+        user = await get_user_from_auth(ctx)
+        plan_data = PlanCreate(
+            title=title,
+            project_id=project_id,
+            goal=goal,
+            context=context,
+            status=PlanStatus(status),
+        )
+        return await self.plan_service.create_plan(user_id=user.id, plan_data=plan_data)
+
+    async def update_plan(
+        self,
+        plan_id: int,
+        ctx: Context,
+        title: Optional[str] = None,
+        goal: Optional[str] = None,
+        context: Optional[str] = None,
+        status: Optional[str] = None,
+    ):
+        from app.models.plan_models import PlanUpdate, PlanStatus
+        user = await get_user_from_auth(ctx)
+        updated_dict = filter_none_values(
+            title=title, goal=goal, context=context,
+            status=PlanStatus(status) if status else None,
+        )
+        plan_data = PlanUpdate(**updated_dict)
+        plan = await self.plan_service.update_plan(
+            user_id=user.id, plan_id=plan_id, plan_data=plan_data
+        )
+        return plan
+
+    async def get_plan(self, plan_id: int, ctx: Context):
+        user = await get_user_from_auth(ctx)
+        return await self.plan_service.get_plan(user_id=user.id, plan_id=plan_id)
+
+    async def list_plans(
+        self,
+        ctx: Context,
+        project_id: Optional[int] = None,
+        status: Optional[str] = None,
+    ):
+        from app.models.plan_models import PlanStatus
+        user = await get_user_from_auth(ctx)
+        status_enum = PlanStatus(status) if status else None
+        plans = await self.plan_service.list_plans(
+            user_id=user.id, project_id=project_id, status=status_enum
+        )
+        return {"plans": plans, "total_count": len(plans)}
+
+
+def create_plan_adapters(plan_service, user_service) -> Dict[str, Any]:
+    """Create all plan tool adapters and return as dict"""
+    adapters = PlanToolAdapters(plan_service, user_service)
+    return {
+        "create_plan": adapters.create_plan,
+        "update_plan": adapters.update_plan,
+        "get_plan": adapters.get_plan,
+        "list_plans": adapters.list_plans,
+    }
+
+
+# ============================================================================
+# Task Tool Adapters
+# ============================================================================
+
+
+class TaskToolAdapters:
+    """Wraps task service methods as registry-compatible callables"""
+
+    def __init__(self, task_service, user_service):
+        self.task_service = task_service
+        self.user_service = user_service
+
+    async def create_task(
+        self,
+        title: str,
+        plan_id: int,
+        ctx: Context,
+        description: Optional[str] = None,
+        priority: str = "P2",
+        assigned_agent: Optional[str] = None,
+        criteria: Optional[List[Dict[str, Any]]] = None,
+        dependency_ids: Optional[List[int]] = None,
+    ):
+        from app.models.plan_models import TaskCreate, TaskPriority, CriterionCreate
+        user = await get_user_from_auth(ctx)
+        criteria_models = None
+        if criteria:
+            criteria_models = [CriterionCreate(**c) for c in criteria]
+        task_data = TaskCreate(
+            title=title,
+            plan_id=plan_id,
+            description=description,
+            priority=TaskPriority(priority),
+            assigned_agent=assigned_agent,
+            criteria=criteria_models,
+            dependency_ids=dependency_ids,
+        )
+        return await self.task_service.create_task(user_id=user.id, task_data=task_data)
+
+    async def update_task(
+        self,
+        task_id: int,
+        ctx: Context,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        priority: Optional[str] = None,
+    ):
+        from app.models.plan_models import TaskUpdate, TaskPriority
+        user = await get_user_from_auth(ctx)
+        updated_dict = filter_none_values(
+            title=title, description=description,
+            priority=TaskPriority(priority) if priority else None,
+        )
+        task_data = TaskUpdate(**updated_dict)
+        return await self.task_service.update_task(
+            user_id=user.id, task_id=task_id, task_data=task_data
+        )
+
+    async def get_task(self, task_id: int, ctx: Context):
+        user = await get_user_from_auth(ctx)
+        return await self.task_service.get_task(user_id=user.id, task_id=task_id)
+
+    async def query_tasks(
+        self,
+        plan_id: int,
+        ctx: Context,
+        state: Optional[str] = None,
+        priority: Optional[str] = None,
+        assigned_agent: Optional[str] = None,
+    ):
+        from app.models.plan_models import TaskState, TaskPriority
+        user = await get_user_from_auth(ctx)
+        state_enum = TaskState(state) if state else None
+        priority_enum = TaskPriority(priority) if priority else None
+        tasks = await self.task_service.list_tasks(
+            user_id=user.id, plan_id=plan_id,
+            state=state_enum, priority=priority_enum,
+            assigned_agent=assigned_agent,
+        )
+        return {"tasks": tasks, "total_count": len(tasks)}
+
+    async def claim_task(
+        self,
+        task_id: int,
+        agent_id: str,
+        version: int,
+        ctx: Context,
+    ):
+        user = await get_user_from_auth(ctx)
+        return await self.task_service.claim_task(
+            user_id=user.id, task_id=task_id,
+            agent_id=agent_id, expected_version=version,
+        )
+
+    async def transition_task(
+        self,
+        task_id: int,
+        state: str,
+        version: int,
+        ctx: Context,
+    ):
+        from app.models.plan_models import TaskState
+        user = await get_user_from_auth(ctx)
+        return await self.task_service.transition_task(
+            user_id=user.id, task_id=task_id,
+            new_state=TaskState(state), expected_version=version,
+        )
+
+    async def add_criterion(
+        self,
+        task_id: int,
+        description: str,
+        ctx: Context,
+    ):
+        from app.models.plan_models import CriterionCreate
+        user = await get_user_from_auth(ctx)
+        return await self.task_service.add_criterion(
+            user_id=user.id, task_id=task_id,
+            criterion_data=CriterionCreate(description=description),
+        )
+
+    async def verify_criterion(
+        self,
+        criterion_id: int,
+        met: bool,
+        ctx: Context,
+    ):
+        from app.models.plan_models import CriterionUpdate
+        user = await get_user_from_auth(ctx)
+        return await self.task_service.update_criterion(
+            user_id=user.id, criterion_id=criterion_id,
+            criterion_data=CriterionUpdate(met=met),
+        )
+
+    async def delete_criterion(self, criterion_id: int, ctx: Context):
+        user = await get_user_from_auth(ctx)
+        success = await self.task_service.delete_criterion(
+            user_id=user.id, criterion_id=criterion_id
+        )
+        return {"success": success}
+
+    async def add_dependency(
+        self,
+        task_id: int,
+        depends_on_task_id: int,
+        ctx: Context,
+    ):
+        user = await get_user_from_auth(ctx)
+        return await self.task_service.add_dependency(
+            user_id=user.id, task_id=task_id,
+            depends_on_task_id=depends_on_task_id,
+        )
+
+    async def remove_dependency(
+        self,
+        task_id: int,
+        depends_on_task_id: int,
+        ctx: Context,
+    ):
+        user = await get_user_from_auth(ctx)
+        success = await self.task_service.remove_dependency(
+            user_id=user.id, task_id=task_id,
+            depends_on_task_id=depends_on_task_id,
+        )
+        return {"success": success}
+
+
+def create_task_adapters(task_service, user_service) -> Dict[str, Any]:
+    """Create all task tool adapters and return as dict"""
+    adapters = TaskToolAdapters(task_service, user_service)
+    return {
+        "create_task": adapters.create_task,
+        "update_task": adapters.update_task,
+        "get_task": adapters.get_task,
+        "query_tasks": adapters.query_tasks,
+        "claim_task": adapters.claim_task,
+        "transition_task": adapters.transition_task,
+        "add_criterion": adapters.add_criterion,
+        "verify_criterion": adapters.verify_criterion,
+        "delete_criterion": adapters.delete_criterion,
+        "add_dependency": adapters.add_dependency,
+        "remove_dependency": adapters.remove_dependency,
+    }

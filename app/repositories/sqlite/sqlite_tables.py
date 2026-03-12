@@ -117,6 +117,9 @@ class UsersTable(Base):
     entities: Mapped[List["EntitiesTable"]] = relationship(
         "EntitiesTable", back_populates="user", cascade="all, delete-orphan"
     )
+    plans: Mapped[List["PlansTable"]] = relationship(
+        "PlansTable", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class MemoryTable(Base):
@@ -388,6 +391,10 @@ class ProjectsTable(Base):
         secondary=entity_project_association,
         back_populates="projects",
     )
+    plans: Mapped[List["PlansTable"]] = relationship(
+        "PlansTable",
+        back_populates="project",
+    )
 
     # Computed properties for Pydantic conversion
     @hybrid_property
@@ -652,6 +659,172 @@ class EntityRelationshipsTable(Base):
             "relationship_type",
             unique=True,
         ),
+    )
+
+
+class PlansTable(Base):
+    """Table for structured work plans within projects."""
+    __tablename__ = "plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    goal: Mapped[str] = mapped_column(Text, nullable=True)
+    context: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="plans")
+    project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="plans")
+    tasks: Mapped[List["TasksTable"]] = relationship(
+        "TasksTable",
+        back_populates="plan",
+        cascade="all, delete-orphan",
+    )
+
+    @hybrid_property
+    def task_count(self) -> int:
+        return len(self.tasks)
+
+    __table_args__ = (
+        Index("ix_plans_user_id", "user_id"),
+        Index("ix_plans_project_id", "project_id"),
+        Index("ix_plans_status", "status"),
+    )
+
+
+class TasksTable(Base):
+    """Table for work units within plans with state machine enforcement."""
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    plan_id: Mapped[int] = mapped_column(Integer, ForeignKey("plans.id", ondelete="CASCADE"), nullable=False)
+
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    state: Mapped[str] = mapped_column(String(20), default="todo", nullable=False)
+    priority: Mapped[str] = mapped_column(String(5), default="P2", nullable=False)
+    assigned_agent: Mapped[str] = mapped_column(String(200), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    plan: Mapped["PlansTable"] = relationship("PlansTable", back_populates="tasks")
+    criteria: Mapped[List["CriteriaTable"]] = relationship(
+        "CriteriaTable",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def dependency_ids(self) -> List[int]:
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.depends_on.loaded_value is not NO_VALUE:
+            return [d.depends_on_task_id for d in self.depends_on]
+        return []
+
+    depends_on: Mapped[List["TaskDependenciesTable"]] = relationship(
+        "TaskDependenciesTable",
+        foreign_keys="TaskDependenciesTable.task_id",
+        back_populates="task",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        Index("ix_tasks_user_id", "user_id"),
+        Index("ix_tasks_plan_id", "plan_id"),
+        Index("ix_tasks_state", "state"),
+        Index("ix_tasks_priority", "priority"),
+        Index("ix_tasks_assigned_agent", "assigned_agent"),
+    )
+
+
+class CriteriaTable(Base):
+    """Table for acceptance criteria (boolean conditions on tasks)."""
+    __tablename__ = "criteria"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    met: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    met_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    task: Mapped["TasksTable"] = relationship("TasksTable", back_populates="criteria")
+
+    __table_args__ = (
+        Index("ix_criteria_task_id", "task_id"),
+        Index("ix_criteria_met", "met"),
+    )
+
+
+class TaskDependenciesTable(Base):
+    """Table for task dependency edges."""
+    __tablename__ = "task_dependencies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    depends_on_task_id: Mapped[int] = mapped_column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    task: Mapped["TasksTable"] = relationship(
+        "TasksTable",
+        foreign_keys=[task_id],
+        back_populates="depends_on",
+    )
+
+    __table_args__ = (
+        Index("ix_task_deps_unique", "task_id", "depends_on_task_id", unique=True),
     )
 
 

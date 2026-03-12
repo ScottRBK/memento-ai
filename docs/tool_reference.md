@@ -14,6 +14,8 @@ This guide provides comprehensive documentation for all tools available in the F
 - [Code Artifact Tools](#code-artifact-tools)
 - [Document Tools](#document-tools)
 - [Entity Tools](#entity-tools)
+- [Plan Tools](#plan-tools)
+- [Task Tools](#task-tools)
 - [Cross-Category Workflows](#cross-category-workflows)
 
 ---
@@ -28,7 +30,7 @@ Forgetful uses a **meta-tools pattern** to preserve your LLM's context window. I
 List available tools, optionally filtered by category.
 
 **Parameters:**
-- `category` (optional): Filter by category (`user`, `memory`, `project`, `code_artifact`, `document`, `entity`)
+- `category` (optional): Filter by category (`user`, `memory`, `project`, `code_artifact`, `document`, `entity`, `plan`, `task`)
 
 **Returns:**
 - `tools_by_category`: Tools grouped by category
@@ -85,7 +87,7 @@ execute_forgetful_tool(
 
 ## Tool Categories Overview
 
-Forgetful organizes **44 tools** across **6 categories**:
+Forgetful organizes **59 tools** across **8 categories**:
 
 | Category | Tool Count | Purpose |
 |----------|-----------|---------|
@@ -95,6 +97,8 @@ Forgetful organizes **44 tools** across **6 categories**:
 | **Code Artifact** | 5 | Reusable code snippet storage |
 | **Document** | 5 | Long-form content storage (>400 words) |
 | **Entity** | 17 | Real-world entity tracking and knowledge graphs |
+| **Plan** | 4 | Plan creation and lifecycle management within projects |
+| **Task** | 11 | Task management with criteria, dependencies, and agent assignment |
 
 ---
 
@@ -1179,6 +1183,394 @@ Delete entity relationship (removes knowledge graph edge).
 **Example:**
 ```python
 execute_forgetful_tool("delete_entity_relationship", {"relationship_id": 12})
+```
+
+---
+
+## Plan Tools
+
+Create and manage plans within projects. Plans serve as containers for organizing tasks toward a specific goal.
+
+### Plan Statuses
+- `draft`, `active`, `completed`, `archived`
+
+### `create_plan`
+
+Create a new plan within a project.
+
+**Parameters:**
+- `title` (required): Plan title
+- `project_id` (required): Parent project ID
+- `goal` (optional): High-level goal for the plan
+- `context` (optional): Additional context or background
+- `status` (optional): Plan status (default: `draft`)
+
+**Returns:**
+- Created plan with `plan_id`
+
+**Example:**
+```python
+plan = execute_forgetful_tool(
+    "create_plan",
+    {
+        "title": "Migrate Authentication to OAuth2",
+        "project_id": 12,
+        "goal": "Replace legacy session-based auth with OAuth2 + JWT",
+        "context": "Current auth system has scaling issues and no SSO support",
+        "status": "draft"
+    }
+)
+# Returns: {"plan_id": 5, "title": "Migrate Authentication to OAuth2", ...}
+```
+
+### `update_plan`
+
+Update plan metadata (PATCH semantics - only provided fields changed).
+
+**Parameters:**
+- `plan_id` (required): Plan ID
+- `title` (optional): Updated title
+- `goal` (optional): Updated goal
+- `context` (optional): Updated context
+- `status` (optional): Updated status
+
+**Returns:**
+- Updated plan object
+
+**Example:**
+```python
+# Move plan from draft to active
+execute_forgetful_tool(
+    "update_plan",
+    {
+        "plan_id": 5,
+        "status": "active",
+        "goal": "Replace legacy auth with OAuth2 + JWT by end of Q2"
+    }
+)
+```
+
+### `get_plan`
+
+Retrieve complete plan details by ID.
+
+**Parameters:**
+- `plan_id` (required): Plan ID
+
+**Returns:**
+- Complete plan object with all fields
+
+**Example:**
+```python
+plan = execute_forgetful_tool("get_plan", {"plan_id": 5})
+```
+
+### `list_plans`
+
+List plans with optional filtering.
+
+**Parameters:**
+- `project_id` (optional): Filter by project
+- `status` (optional): Filter by status
+
+**Returns:**
+- List of matching plans
+
+**Example:**
+```python
+# Get all active plans for a project
+active_plans = execute_forgetful_tool(
+    "list_plans",
+    {"project_id": 12, "status": "active"}
+)
+```
+
+---
+
+## Task Tools
+
+Manage tasks within plans, including acceptance criteria, dependencies, and agent assignment with optimistic locking.
+
+### Task States
+Tasks follow a lifecycle: `pending` -> `in_progress` -> `completed` (or `blocked`, `cancelled`)
+
+### Task Priorities
+- `P0` - Critical
+- `P1` - High
+- `P2` - Medium (default)
+- `P3` - Low
+
+### `create_task`
+
+Create a task within a plan.
+
+**Parameters:**
+- `title` (required): Task title
+- `plan_id` (required): Parent plan ID
+- `description` (optional): Detailed task description
+- `priority` (optional): Task priority (default: `P2`)
+- `assigned_agent` (optional): Agent identifier to assign the task to
+- `criteria` (optional): Inline list of acceptance criterion descriptions
+- `dependency_ids` (optional): List of task IDs this task depends on
+
+**Returns:**
+- Created task with `task_id`
+
+**Example:**
+```python
+task = execute_forgetful_tool(
+    "create_task",
+    {
+        "title": "Implement JWT token generation endpoint",
+        "plan_id": 5,
+        "description": "Create /auth/token endpoint that issues JWT tokens with refresh token rotation",
+        "priority": "P1",
+        "assigned_agent": "backend-agent",
+        "criteria": [
+            "Endpoint returns access + refresh token pair",
+            "Access tokens expire after 15 minutes",
+            "Refresh tokens support rotation"
+        ],
+        "dependency_ids": [10, 12]
+    }
+)
+# Returns: {"task_id": 25, "title": "Implement JWT token generation endpoint", ...}
+```
+
+### `update_task`
+
+Update task metadata (not state - use `transition_task` for state changes).
+
+**Parameters:**
+- `task_id` (required): Task ID
+- `title` (optional): Updated title
+- `description` (optional): Updated description
+- `priority` (optional): Updated priority
+
+**Returns:**
+- Updated task object
+
+**Example:**
+```python
+execute_forgetful_tool(
+    "update_task",
+    {
+        "task_id": 25,
+        "priority": "P0",
+        "description": "Create /auth/token endpoint - now critical path for launch"
+    }
+)
+```
+
+### `get_task`
+
+Get task with its acceptance criteria and dependency IDs.
+
+**Parameters:**
+- `task_id` (required): Task ID
+
+**Returns:**
+- Complete task object including criteria and dependency_ids
+
+**Example:**
+```python
+task = execute_forgetful_tool("get_task", {"task_id": 25})
+# Returns: {"task_id": 25, "criteria": [...], "dependency_ids": [10, 12], ...}
+```
+
+### `query_tasks`
+
+Query tasks within a plan with optional filtering.
+
+**Parameters:**
+- `plan_id` (required): Plan ID
+- `state` (optional): Filter by task state
+- `priority` (optional): Filter by priority
+- `assigned_agent` (optional): Filter by assigned agent
+
+**Returns:**
+- List of matching tasks
+
+**Example:**
+```python
+# Find all pending P0/P1 tasks assigned to an agent
+critical_tasks = execute_forgetful_tool(
+    "query_tasks",
+    {
+        "plan_id": 5,
+        "state": "pending",
+        "priority": "P1",
+        "assigned_agent": "backend-agent"
+    }
+)
+```
+
+### `claim_task`
+
+Claim a task for an agent. Uses optimistic locking to prevent concurrent claims.
+
+**Parameters:**
+- `task_id` (required): Task ID
+- `agent_id` (required): Agent identifier claiming the task
+- `version` (required): Current task version (for optimistic locking)
+
+**Returns:**
+- Updated task object with new version
+
+**Example:**
+```python
+# First get the task to obtain current version
+task = execute_forgetful_tool("get_task", {"task_id": 25})
+
+# Claim with version check
+claimed = execute_forgetful_tool(
+    "claim_task",
+    {
+        "task_id": 25,
+        "agent_id": "backend-agent-01",
+        "version": task["version"]
+    }
+)
+```
+
+### `transition_task`
+
+Transition a task to a new state. Uses optimistic locking to prevent conflicting state changes.
+
+**Parameters:**
+- `task_id` (required): Task ID
+- `state` (required): Target state
+- `version` (required): Current task version (for optimistic locking)
+
+**Returns:**
+- Updated task object with new state and version
+
+**Example:**
+```python
+# Move task to in_progress
+task = execute_forgetful_tool("get_task", {"task_id": 25})
+execute_forgetful_tool(
+    "transition_task",
+    {
+        "task_id": 25,
+        "state": "in_progress",
+        "version": task["version"]
+    }
+)
+
+# Later, mark as completed
+task = execute_forgetful_tool("get_task", {"task_id": 25})
+execute_forgetful_tool(
+    "transition_task",
+    {
+        "task_id": 25,
+        "state": "completed",
+        "version": task["version"]
+    }
+)
+```
+
+### `add_criterion`
+
+Add an acceptance criterion to a task.
+
+**Parameters:**
+- `task_id` (required): Task ID
+- `description` (required): Criterion description
+
+**Returns:**
+- Created criterion with `criterion_id`
+
+**Example:**
+```python
+criterion = execute_forgetful_tool(
+    "add_criterion",
+    {
+        "task_id": 25,
+        "description": "Token endpoint returns 401 for invalid credentials"
+    }
+)
+# Returns: {"criterion_id": 78, "description": "Token endpoint returns 401 for invalid credentials", ...}
+```
+
+### `verify_criterion`
+
+Mark an acceptance criterion as met or unmet.
+
+**Parameters:**
+- `criterion_id` (required): Criterion ID
+- `met` (required): Whether the criterion is met (`true`/`false`)
+
+**Returns:**
+- Updated criterion object
+
+**Example:**
+```python
+# Mark criterion as satisfied
+execute_forgetful_tool(
+    "verify_criterion",
+    {"criterion_id": 78, "met": true}
+)
+```
+
+### `delete_criterion`
+
+Delete an acceptance criterion from a task.
+
+**Parameters:**
+- `criterion_id` (required): Criterion ID
+
+**Returns:**
+- Confirmation of deletion
+
+**Example:**
+```python
+execute_forgetful_tool("delete_criterion", {"criterion_id": 78})
+```
+
+### `add_dependency`
+
+Add a dependency between tasks. The dependent task cannot proceed until the dependency is completed.
+
+**Parameters:**
+- `task_id` (required): Task that depends on another
+- `depends_on_task_id` (required): Task that must be completed first
+
+**Returns:**
+- Confirmation of dependency creation
+
+**Example:**
+```python
+# Task 25 depends on task 20 being completed first
+execute_forgetful_tool(
+    "add_dependency",
+    {
+        "task_id": 25,
+        "depends_on_task_id": 20
+    }
+)
+```
+
+### `remove_dependency`
+
+Remove a dependency between tasks.
+
+**Parameters:**
+- `task_id` (required): Task with the dependency
+- `depends_on_task_id` (required): Task to remove as dependency
+
+**Returns:**
+- Confirmation of dependency removal
+
+**Example:**
+```python
+execute_forgetful_tool(
+    "remove_dependency",
+    {
+        "task_id": 25,
+        "depends_on_task_id": 20
+    }
+)
 ```
 
 ---

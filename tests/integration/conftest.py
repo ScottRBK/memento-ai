@@ -40,20 +40,42 @@ from app.models.project_models import (
     ProjectSummary,
     ProjectUpdate,
 )
+from app.models.plan_models import (
+    Plan,
+    PlanCreate,
+    PlanStatus,
+    PlanSummary,
+    PlanUpdate,
+    Task,
+    TaskCreate,
+    TaskState,
+    TaskPriority,
+    TaskSummary,
+    TaskUpdate,
+    Criterion,
+    CriterionCreate,
+    CriterionUpdate,
+    TaskDependency,
+)
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.protocols.document_protocol import DocumentRepository
 from app.protocols.entity_protocol import EntityRepository
 from app.protocols.memory_protocol import MemoryRepository
+from app.protocols.plan_protocol import PlanRepository
 from app.protocols.project_protocol import ProjectRepository
+from app.protocols.task_protocol import TaskRepository
 from app.protocols.user_protocol import UserRepository
 from app.events import EventBus
+from app.exceptions import ConflictError
 from app.models.activity_models import ActivityEvent
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
 from app.services.memory_service import MemoryService
+from app.services.plan_service import PlanService
 from app.services.project_service import ProjectService
+from app.services.task_service import TaskService
 from app.services.user_service import UserService
 
 
@@ -1239,3 +1261,423 @@ def test_entity_service_with_event_bus(mock_entity_repository):
     event_bus = CollectingEventBus()
     service = EntityService(mock_entity_repository, event_bus=event_bus)
     return service, event_bus
+
+
+# ============ Plan Testing Fixtures ============
+
+
+class InMemoryPlanRepository(PlanRepository):
+    """In-memory implementation of PlanRepository for testing"""
+
+    def __init__(self):
+        self._plans: dict[UUID, dict[int, Plan]] = {}  # user_id -> {plan_id -> Plan}
+        self._next_id = 1
+
+    async def create_plan(self, user_id: UUID, plan_data: PlanCreate) -> Plan:
+        plan_id = self._next_id
+        self._next_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_plan = Plan(
+            id=plan_id,
+            user_id=str(user_id),
+            title=plan_data.title,
+            project_id=plan_data.project_id,
+            goal=plan_data.goal,
+            context=plan_data.context,
+            status=plan_data.status,
+            task_count=0,
+            created_at=now,
+            updated_at=now,
+        )
+
+        if user_id not in self._plans:
+            self._plans[user_id] = {}
+        self._plans[user_id][plan_id] = new_plan
+        return new_plan
+
+    async def get_plan_by_id(self, user_id: UUID, plan_id: int) -> Plan | None:
+        user_plans = self._plans.get(user_id, {})
+        return user_plans.get(plan_id)
+
+    async def list_plans(
+        self,
+        user_id: UUID,
+        project_id: int | None = None,
+        status: PlanStatus | None = None,
+    ) -> List[PlanSummary]:
+        user_plans = self._plans.get(user_id, {})
+        plans = list(user_plans.values())
+
+        if project_id is not None:
+            plans = [p for p in plans if p.project_id == project_id]
+        if status is not None:
+            plans = [p for p in plans if p.status == status]
+
+        plans.sort(key=lambda p: p.created_at, reverse=True)
+
+        return [
+            PlanSummary(
+                id=p.id,
+                title=p.title,
+                project_id=p.project_id,
+                status=p.status,
+                task_count=p.task_count,
+                created_at=p.created_at,
+                updated_at=p.updated_at,
+            )
+            for p in plans
+        ]
+
+    async def update_plan(
+        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate
+    ) -> Plan:
+        plan = await self.get_plan_by_id(user_id, plan_id)
+        if not plan:
+            from app.exceptions import NotFoundError
+
+            raise NotFoundError(f"Plan with id {plan_id} not found")
+
+        update_data = plan_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(plan, field, value)
+        plan.updated_at = datetime.now(timezone.utc)
+        return plan
+
+    async def delete_plan(self, user_id: UUID, plan_id: int) -> bool:
+        user_plans = self._plans.get(user_id, {})
+        if plan_id in user_plans:
+            del user_plans[plan_id]
+            return True
+        return False
+
+
+@pytest.fixture
+def mock_plan_repository():
+    """Provides an in-memory plan repository"""
+    return InMemoryPlanRepository()
+
+
+@pytest.fixture
+def test_plan_service(mock_plan_repository):
+    """Provides a PlanService with in-memory repository"""
+    repo = mock_plan_repository
+    service = PlanService(repo, event_bus=None)
+    return service
+
+
+# ============ Task Testing Fixtures ============
+
+
+class InMemoryTaskRepository(TaskRepository):
+    """In-memory implementation of TaskRepository for testing.
+
+    Stores tasks, criteria, and dependencies with user_id-scoped RLS filtering.
+    """
+
+    def __init__(self):
+        self._tasks: dict[UUID, dict[int, Task]] = {}  # user_id -> {task_id -> Task}
+        self._criteria: dict[UUID, dict[int, Criterion]] = {}  # user_id -> {criterion_id -> Criterion}
+        self._dependencies: dict[UUID, dict[int, TaskDependency]] = {}  # user_id -> {dep_id -> TaskDependency}
+        self._next_task_id = 1
+        self._next_criterion_id = 1
+        self._next_dependency_id = 1
+
+    # ---- Task CRUD ----
+
+    async def create_task(self, user_id: UUID, task_data: TaskCreate) -> Task:
+        task_id = self._next_task_id
+        self._next_task_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_task = Task(
+            id=task_id,
+            plan_id=task_data.plan_id,
+            title=task_data.title,
+            description=task_data.description,
+            state=TaskState.TODO,
+            priority=task_data.priority,
+            assigned_agent=task_data.assigned_agent,
+            version=1,
+            criteria=[],
+            dependency_ids=[],
+            created_at=now,
+            updated_at=now,
+        )
+
+        if user_id not in self._tasks:
+            self._tasks[user_id] = {}
+        self._tasks[user_id][task_id] = new_task
+
+        # Increment task_count on the plan (find it across all plan repos — not possible here,
+        # but we update the task's own storage; plan count is maintained by the service layer)
+
+        return new_task
+
+    async def get_task_by_id(self, user_id: UUID, task_id: int) -> Task | None:
+        user_tasks = self._tasks.get(user_id, {})
+        task = user_tasks.get(task_id)
+        if task is None:
+            return None
+
+        # Hydrate criteria and dependency_ids from auxiliary stores
+        criteria = await self.get_criteria_for_task(user_id, task_id)
+        deps = await self.get_dependencies(user_id, task_id)
+
+        task.criteria = criteria
+        task.dependency_ids = deps
+        return task
+
+    async def list_tasks(
+        self,
+        user_id: UUID,
+        plan_id: int,
+        state: TaskState | None = None,
+        priority: TaskPriority | None = None,
+        assigned_agent: str | None = None,
+    ) -> List[TaskSummary]:
+        user_tasks = self._tasks.get(user_id, {})
+        tasks = [t for t in user_tasks.values() if t.plan_id == plan_id]
+
+        if state is not None:
+            tasks = [t for t in tasks if t.state == state]
+        if priority is not None:
+            tasks = [t for t in tasks if t.priority == priority]
+        if assigned_agent is not None:
+            tasks = [t for t in tasks if t.assigned_agent == assigned_agent]
+
+        tasks.sort(key=lambda t: t.created_at, reverse=True)
+
+        summaries = []
+        for t in tasks:
+            criteria = await self.get_criteria_for_task(user_id, t.id)
+            deps = await self.get_dependencies(user_id, t.id)
+            dependents_not_done = any(
+                True
+                for dep_id in deps
+                if dep_id in user_tasks
+                and user_tasks[dep_id].state not in (TaskState.DONE, TaskState.CANCELLED)
+            )
+            # A task is blocked if any of its dependencies are NOT done
+            dep_tasks_not_done = False
+            for dep_id in deps:
+                dep_task = user_tasks.get(dep_id)
+                if dep_task and dep_task.state != TaskState.DONE:
+                    dep_tasks_not_done = True
+                    break
+
+            summaries.append(
+                TaskSummary(
+                    id=t.id,
+                    title=t.title,
+                    plan_id=t.plan_id,
+                    state=t.state,
+                    priority=t.priority,
+                    assigned_agent=t.assigned_agent,
+                    version=t.version,
+                    criteria_met=sum(1 for c in criteria if c.met),
+                    criteria_total=len(criteria),
+                    blocked=dep_tasks_not_done,
+                    created_at=t.created_at,
+                    updated_at=t.updated_at,
+                )
+            )
+
+        return summaries
+
+    async def update_task(
+        self, user_id: UUID, task_id: int, task_data: TaskUpdate
+    ) -> Task:
+        task = await self.get_task_by_id(user_id, task_id)
+        if not task:
+            from app.exceptions import NotFoundError
+
+            raise NotFoundError(f"Task with id {task_id} not found")
+
+        update_data = task_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(task, field, value)
+        task.updated_at = datetime.now(timezone.utc)
+        return task
+
+    async def delete_task(self, user_id: UUID, task_id: int) -> bool:
+        user_tasks = self._tasks.get(user_id, {})
+        if task_id in user_tasks:
+            del user_tasks[task_id]
+            # Clean up criteria for this task
+            user_criteria = self._criteria.get(user_id, {})
+            to_delete = [
+                cid for cid, c in user_criteria.items() if c.task_id == task_id
+            ]
+            for cid in to_delete:
+                del user_criteria[cid]
+            # Clean up dependencies involving this task
+            user_deps = self._dependencies.get(user_id, {})
+            to_delete_deps = [
+                did
+                for did, d in user_deps.items()
+                if d.task_id == task_id or d.depends_on_task_id == task_id
+            ]
+            for did in to_delete_deps:
+                del user_deps[did]
+            return True
+        return False
+
+    # ---- Atomic state transition ----
+
+    async def transition_task_state(
+        self,
+        user_id: UUID,
+        task_id: int,
+        new_state: TaskState,
+        expected_version: int,
+        assigned_agent: str | None = None,
+    ) -> Task:
+        user_tasks = self._tasks.get(user_id, {})
+        task = user_tasks.get(task_id)
+        if task is None:
+            from app.exceptions import NotFoundError
+
+            raise NotFoundError(f"Task with id {task_id} not found")
+
+        if task.version != expected_version:
+            raise ConflictError(
+                f"Version mismatch: expected {expected_version}, got {task.version}. "
+                f"Task was modified by another agent."
+            )
+
+        task.state = new_state
+        task.version += 1
+        if assigned_agent is not None:
+            task.assigned_agent = assigned_agent
+        task.updated_at = datetime.now(timezone.utc)
+
+        # Re-hydrate criteria and deps before returning
+        task.criteria = await self.get_criteria_for_task(user_id, task_id)
+        task.dependency_ids = await self.get_dependencies(user_id, task_id)
+        return task
+
+    # ---- Criteria CRUD ----
+
+    async def create_criterion(
+        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate
+    ) -> Criterion:
+        criterion_id = self._next_criterion_id
+        self._next_criterion_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_criterion = Criterion(
+            id=criterion_id,
+            task_id=task_id,
+            description=criterion_data.description,
+            met=False,
+            met_at=None,
+            created_at=now,
+            updated_at=now,
+        )
+
+        if user_id not in self._criteria:
+            self._criteria[user_id] = {}
+        self._criteria[user_id][criterion_id] = new_criterion
+        return new_criterion
+
+    async def update_criterion(
+        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate
+    ) -> Criterion:
+        user_criteria = self._criteria.get(user_id, {})
+        criterion = user_criteria.get(criterion_id)
+        if criterion is None:
+            from app.exceptions import NotFoundError
+
+            raise NotFoundError(f"Criterion with id {criterion_id} not found")
+
+        update_data = criterion_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(criterion, field, value)
+
+        # Auto-set met_at when met changes to True
+        if criterion_data.met is True:
+            criterion.met_at = datetime.now(timezone.utc)
+        elif criterion_data.met is False:
+            criterion.met_at = None
+
+        criterion.updated_at = datetime.now(timezone.utc)
+        return criterion
+
+    async def delete_criterion(self, user_id: UUID, criterion_id: int) -> bool:
+        user_criteria = self._criteria.get(user_id, {})
+        if criterion_id in user_criteria:
+            del user_criteria[criterion_id]
+            return True
+        return False
+
+    async def get_criteria_for_task(
+        self, user_id: UUID, task_id: int
+    ) -> List[Criterion]:
+        user_criteria = self._criteria.get(user_id, {})
+        criteria = [c for c in user_criteria.values() if c.task_id == task_id]
+        criteria.sort(key=lambda c: c.id)
+        return criteria
+
+    # ---- Dependencies ----
+
+    async def add_dependency(
+        self, user_id: UUID, task_id: int, depends_on_task_id: int
+    ) -> TaskDependency:
+        dep_id = self._next_dependency_id
+        self._next_dependency_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_dep = TaskDependency(
+            id=dep_id,
+            task_id=task_id,
+            depends_on_task_id=depends_on_task_id,
+            created_at=now,
+        )
+
+        if user_id not in self._dependencies:
+            self._dependencies[user_id] = {}
+        self._dependencies[user_id][dep_id] = new_dep
+        return new_dep
+
+    async def remove_dependency(
+        self, user_id: UUID, task_id: int, depends_on_task_id: int
+    ) -> bool:
+        user_deps = self._dependencies.get(user_id, {})
+        for did, dep in list(user_deps.items()):
+            if dep.task_id == task_id and dep.depends_on_task_id == depends_on_task_id:
+                del user_deps[did]
+                return True
+        return False
+
+    async def get_dependencies(self, user_id: UUID, task_id: int) -> List[int]:
+        """Get IDs of tasks that this task depends on."""
+        user_deps = self._dependencies.get(user_id, {})
+        return [
+            dep.depends_on_task_id
+            for dep in user_deps.values()
+            if dep.task_id == task_id
+        ]
+
+    async def get_dependents(self, user_id: UUID, task_id: int) -> List[int]:
+        """Get IDs of tasks that depend on this task."""
+        user_deps = self._dependencies.get(user_id, {})
+        return [
+            dep.task_id
+            for dep in user_deps.values()
+            if dep.depends_on_task_id == task_id
+        ]
+
+
+@pytest.fixture
+def mock_task_repository():
+    """Provides an in-memory task repository"""
+    return InMemoryTaskRepository()
+
+
+@pytest.fixture
+def test_task_service(test_plan_service, mock_task_repository):
+    """Provides a TaskService with in-memory repository and linked PlanService."""
+    repo = mock_task_repository
+    service = TaskService(repo, plan_service=test_plan_service, event_bus=None)
+    return service, test_plan_service

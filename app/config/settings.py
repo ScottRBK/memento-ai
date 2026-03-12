@@ -98,6 +98,18 @@ class Settings(BaseSettings):
     ENTITY_AKA_MAX_COUNT: int = 10               # Maximum alternative names per entity
     ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH: int = 100  # e.g., "works_at", "owns", "manages"
 
+    # Planning Feature Flag
+    PLANNING_ENABLED: bool = False               # Enable plans, tasks, criteria, dependencies
+
+    # Plan/Task Configuration (only relevant when PLANNING_ENABLED=True)
+    PLAN_TITLE_MAX_LENGTH: int = 500
+    PLAN_GOAL_MAX_LENGTH: int = 2000
+    PLAN_CONTEXT_MAX_LENGTH: int = 2000
+    TASK_TITLE_MAX_LENGTH: int = 500
+    TASK_DESCRIPTION_MAX_LENGTH: int = 5000
+    TASK_AGENT_MAX_LENGTH: int = 200
+    CRITERION_DESCRIPTION_MAX_LENGTH: int = 1000
+
     # Activity Tracking Configuration
     ACTIVITY_ENABLED: bool = False               # Enable activity event tracking
     ACTIVITY_RETENTION_DAYS: int | None = None   # Days to keep activity events (None = forever)

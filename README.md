@@ -45,7 +45,7 @@ In this sense **Forgetful** becomes a little bit like Obsidian for AI Agents, wh
 
 We find, [as do others (A-MEM: Agentic Memory or LLM Agents)](https://arxiv.org/abs/2502.12110), all this helps in ensuring that when the agent requires relevant information from the memory system later, the correct information is returned.
 
-In addition to just memories, **Forgetful** also has the concept of entities (think organisation, people, products), projects, documents and code artifacts, all of which can be associated with one or more memories. 
+In addition to just memories, **Forgetful** also has the concept of entities (think organisation, people, products), projects, documents, code artifacts, and plans with tasks for multi-agent coordination, all of which can be associated with one or more memories.
 
 
 ![Architecture](docs/images/Forgetful%20Architecture.drawio_transparent.png)
@@ -58,7 +58,8 @@ In addition to just memories, **Forgetful** also has the concept of entities (th
 - Stores memories as vectors and allowing memories to be retrieved from natural language queries from AI.
 - Cross Encoder reranking to improve recall and precision of memory retrieval. 
 - Flexible ranking (embedding and cross encoder) providers, run everything locally without calls to the cloud thanks to FastEmbed
-- Automatic linking of semantically similar memories, automating the creation of the knowledge graph. 
+- Automatic linking of semantically similar memories, automating the creation of the knowledge graph.
+- Plans and Tasks for multi-agent coordination -- structure work into plans with tasks that have acceptance criteria, state management with optimistic locking, and dependency tracking with cycle detection.
 
 For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 

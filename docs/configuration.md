@@ -558,6 +558,54 @@ These settings control the atomic memory system's behavior and constraints.
 
 ---
 
+## Planning Configuration
+
+These settings control the planning and task management feature.
+
+### `PLANNING_ENABLED`
+- **Default**: `false`
+- **Description**: Master feature flag for the planning system
+- **Values**: `true`, `false`
+- **Behavior**: When disabled, no plan/task tools or API routes are registered
+- **Example**: `PLANNING_ENABLED=true`
+
+### `PLAN_TITLE_MAX_LENGTH`
+- **Default**: `500`
+- **Description**: Maximum characters for plan titles
+- **Example**: `PLAN_TITLE_MAX_LENGTH=500`
+
+### `PLAN_GOAL_MAX_LENGTH`
+- **Default**: `2000`
+- **Description**: Maximum characters for plan goals
+- **Example**: `PLAN_GOAL_MAX_LENGTH=2000`
+
+### `PLAN_CONTEXT_MAX_LENGTH`
+- **Default**: `2000`
+- **Description**: Maximum characters for plan context
+- **Example**: `PLAN_CONTEXT_MAX_LENGTH=2000`
+
+### `TASK_TITLE_MAX_LENGTH`
+- **Default**: `500`
+- **Description**: Maximum characters for task titles
+- **Example**: `TASK_TITLE_MAX_LENGTH=500`
+
+### `TASK_DESCRIPTION_MAX_LENGTH`
+- **Default**: `5000`
+- **Description**: Maximum characters for task descriptions
+- **Example**: `TASK_DESCRIPTION_MAX_LENGTH=5000`
+
+### `TASK_AGENT_MAX_LENGTH`
+- **Default**: `200`
+- **Description**: Maximum characters for agent identifiers
+- **Example**: `TASK_AGENT_MAX_LENGTH=200`
+
+### `CRITERION_DESCRIPTION_MAX_LENGTH`
+- **Default**: `1000`
+- **Description**: Maximum characters for criterion descriptions
+- **Example**: `CRITERION_DESCRIPTION_MAX_LENGTH=1000`
+
+---
+
 ## Activity Tracking Configuration
 
 Activity tracking provides an audit log of all entity lifecycle events (created, updated, deleted). This is an **experimental feature**.

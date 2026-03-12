@@ -49,9 +49,11 @@ See [FastMCP Auth Documentation](https://fastmcp.wiki/en/servers/auth/authentica
 |------|-------------|
 | 200 | Success |
 | 201 | Created |
-| 400 | Bad Request (validation error) |
+| 400 | Bad Request (validation error, `CyclicDependencyError`) |
 | 401 | Unauthorized (missing/invalid token) |
 | 404 | Not Found |
+| 409 | Conflict (`ConflictError` -- version mismatch in optimistic concurrency) |
+| 422 | Unprocessable Entity (`InvalidStateTransitionError`, `DependencyNotMetError`) |
 | 500 | Internal Server Error |
 
 ---
@@ -1032,6 +1034,458 @@ events.addEventListener('activity', (e) => {
 | 400 | Invalid filter parameter |
 | 401 | Unauthorized |
 | 503 | Activity streaming not enabled (`ACTIVITY_ENABLED=false`) |
+
+---
+
+## Plans
+
+### GET /api/v1/plans
+
+List plans with optional filtering.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_id` | int | Filter by project |
+| `status` | string | Filter by status: `draft`, `active`, `completed`, `archived` |
+
+**Response:**
+```json
+{
+  "plans": [
+    {
+      "id": 1,
+      "title": "Plan Title",
+      "project_id": 1,
+      "status": "draft",
+      "task_count": 3,
+      "created_at": "2024-12-05T10:00:00Z",
+      "updated_at": "2024-12-05T10:00:00Z"
+    }
+  ],
+  "total": 5
+}
+```
+
+### GET /api/v1/plans/{plan_id}
+
+Get a single plan by ID.
+
+**Response:**
+```json
+{
+  "id": 1,
+  "title": "Plan Title",
+  "project_id": 1,
+  "goal": "Implement feature X",
+  "context": "Background context for the plan",
+  "status": "draft",
+  "user_id": "user123",
+  "task_count": 3,
+  "created_at": "2024-12-05T10:00:00Z",
+  "updated_at": "2024-12-05T10:00:00Z"
+}
+```
+
+### POST /api/v1/plans
+
+Create a new plan.
+
+**Request Body:**
+```json
+{
+  "title": "Plan Title",
+  "project_id": 1,
+  "goal": "Optional goal description",
+  "context": "Optional background context",
+  "status": "draft"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | string | yes | Plan title |
+| `project_id` | int | yes | Parent project ID |
+| `goal` | string | no | Goal or objective |
+| `context` | string | no | Background context |
+| `status` | string | no | Initial status (default: `draft`). Values: `draft`, `active`, `completed`, `archived` |
+
+**Response (201):** Full plan object (see GET response above)
+
+### PUT /api/v1/plans/{plan_id}
+
+Update an existing plan.
+
+**Request Body:** (all fields optional)
+```json
+{
+  "title": "Updated Title",
+  "goal": "Updated goal",
+  "context": "Updated context",
+  "status": "active"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Updated title |
+| `goal` | string | Updated goal |
+| `context` | string | Updated context |
+| `status` | string | New status (must be a valid transition) |
+
+**Plan Status Transitions:**
+
+| From | Allowed To |
+|------|------------|
+| `draft` | `active`, `archived` |
+| `active` | `completed`, `archived` |
+| `completed` | `active` (reopen) |
+| `archived` | `active` (unarchive) |
+
+**Response:** Updated plan object
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 404 | Plan not found |
+| 422 | Invalid status transition |
+
+### DELETE /api/v1/plans/{plan_id}
+
+Delete a plan. Cascades to all tasks, criteria, and dependencies under the plan.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+---
+
+## Tasks
+
+### GET /api/v1/tasks
+
+Query tasks for a plan. The `plan_id` query parameter is required.
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `plan_id` | int | yes | Filter by plan |
+| `state` | string | no | Filter by state: `todo`, `doing`, `waiting`, `done`, `cancelled` |
+| `priority` | string | no | Filter by priority: `P0`, `P1`, `P2`, `P3` |
+| `assigned_agent` | string | no | Filter by assigned agent |
+
+**Response:**
+```json
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Task Title",
+      "plan_id": 1,
+      "state": "todo",
+      "priority": "P2",
+      "assigned_agent": null,
+      "version": 1,
+      "criteria_met": 0,
+      "criteria_total": 2,
+      "blocked": false,
+      "created_at": "2024-12-05T10:00:00Z",
+      "updated_at": "2024-12-05T10:00:00Z"
+    }
+  ],
+  "total": 10
+}
+```
+
+### GET /api/v1/tasks/{task_id}
+
+Get a single task with its criteria and dependency IDs.
+
+**Response:**
+```json
+{
+  "id": 1,
+  "plan_id": 1,
+  "title": "Task Title",
+  "description": "Detailed description",
+  "state": "todo",
+  "priority": "P2",
+  "assigned_agent": null,
+  "version": 1,
+  "criteria": [
+    {
+      "id": 1,
+      "task_id": 1,
+      "description": "Acceptance criterion",
+      "met": false,
+      "met_at": null,
+      "created_at": "2024-12-05T10:00:00Z",
+      "updated_at": "2024-12-05T10:00:00Z"
+    }
+  ],
+  "dependency_ids": [2, 3],
+  "created_at": "2024-12-05T10:00:00Z",
+  "updated_at": "2024-12-05T10:00:00Z"
+}
+```
+
+### POST /api/v1/tasks
+
+Create a new task with optional inline criteria and dependencies.
+
+**Request Body:**
+```json
+{
+  "title": "Task Title",
+  "plan_id": 1,
+  "description": "Optional description",
+  "priority": "P2",
+  "assigned_agent": "agent-1",
+  "criteria": [
+    {"description": "Criterion 1"},
+    {"description": "Criterion 2"}
+  ],
+  "dependency_ids": [2, 3]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `title` | string | yes | Task title |
+| `plan_id` | int | yes | Parent plan ID |
+| `description` | string | no | Detailed description |
+| `priority` | string | no | Priority level (default: `P2`). Values: `P0` (critical), `P1` (high), `P2` (medium), `P3` (low) |
+| `assigned_agent` | string | no | Agent assigned to the task |
+| `criteria` | array | no | Inline acceptance criteria to create |
+| `dependency_ids` | array | no | IDs of tasks this task depends on |
+
+**Response (201):** Full task object (see GET response above)
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 400 | Cyclic dependency detected |
+| 404 | Plan or dependency task not found |
+| 422 | Invalid state transition |
+
+### PUT /api/v1/tasks/{task_id}
+
+Update task metadata. State changes must go through the transition endpoint.
+
+**Request Body:** (all fields optional)
+```json
+{
+  "title": "Updated Title",
+  "description": "Updated description",
+  "priority": "P1"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Updated title |
+| `description` | string | Updated description |
+| `priority` | string | Updated priority: `P0`, `P1`, `P2`, `P3` |
+
+**Response:** Updated task object
+
+### DELETE /api/v1/tasks/{task_id}
+
+Delete a task.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+### POST /api/v1/tasks/{task_id}/transition
+
+Transition a task to a new state. Uses optimistic concurrency via the `version` field -- the request is rejected if the provided version does not match the current version.
+
+**Request Body:**
+```json
+{
+  "state": "doing",
+  "version": 1
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `state` | string | yes | Target state: `todo`, `doing`, `waiting`, `done`, `cancelled` |
+| `version` | int | yes | Current version for optimistic concurrency |
+
+**Task State Transitions:**
+
+| From | Allowed To |
+|------|------------|
+| `todo` | `doing`, `waiting`, `cancelled` |
+| `doing` | `done`, `waiting`, `todo`, `cancelled` |
+| `waiting` | `todo`, `doing`, `cancelled` |
+| `done` | `todo` (reopen) |
+| `cancelled` | `todo` (reinstate) |
+
+**Response:** Updated task object (version is incremented on success)
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 404 | Task not found |
+| 409 | Version mismatch (optimistic concurrency conflict) |
+| 422 | Invalid state transition, or unmet dependencies block the transition |
+
+### POST /api/v1/tasks/{task_id}/claim
+
+Claim a task by assigning an agent and transitioning it to `doing`. Uses optimistic concurrency via the `version` field.
+
+**Request Body:**
+```json
+{
+  "agent_id": "agent-1",
+  "version": 1
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agent_id` | string | yes | Identifier of the claiming agent |
+| `version` | int | yes | Current version for optimistic concurrency |
+
+**Response:** Updated task object (state set to `doing`, `assigned_agent` set, version incremented)
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 404 | Task not found |
+| 409 | Version mismatch (optimistic concurrency conflict) |
+| 422 | Invalid state transition, or unmet dependencies block the claim |
+
+---
+
+## Criteria
+
+### POST /api/v1/tasks/{task_id}/criteria
+
+Add an acceptance criterion to a task.
+
+**Request Body:**
+```json
+{
+  "description": "Acceptance criterion description"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `description` | string | yes | Criterion description |
+
+**Response (201):**
+```json
+{
+  "id": 1,
+  "task_id": 1,
+  "description": "Acceptance criterion description",
+  "met": false,
+  "met_at": null,
+  "created_at": "2024-12-05T10:00:00Z",
+  "updated_at": "2024-12-05T10:00:00Z"
+}
+```
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 404 | Task not found |
+| 422 | Task is in a state that does not allow adding criteria |
+
+### PUT /api/v1/criteria/{criterion_id}
+
+Update a criterion (e.g., mark it as met).
+
+**Request Body:** (all fields optional)
+```json
+{
+  "description": "Updated description",
+  "met": true
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Updated description |
+| `met` | bool | Whether the criterion has been met |
+
+**Response:** Updated criterion object
+
+### DELETE /api/v1/criteria/{criterion_id}
+
+Delete an acceptance criterion.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+---
+
+## Dependencies
+
+### POST /api/v1/tasks/{task_id}/dependencies
+
+Add a dependency, declaring that `task_id` depends on another task.
+
+**Request Body:**
+```json
+{
+  "depends_on_task_id": 2
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `depends_on_task_id` | int | yes | ID of the task that must complete first |
+
+**Response (201):**
+```json
+{
+  "id": 1,
+  "task_id": 1,
+  "depends_on_task_id": 2,
+  "created_at": "2024-12-05T10:00:00Z"
+}
+```
+
+**Error Responses:**
+
+| Code | Condition |
+|------|-----------|
+| 400 | Cyclic dependency detected, or task depends on itself |
+| 404 | Task not found |
+
+### DELETE /api/v1/tasks/{task_id}/dependencies/{depends_on_task_id}
+
+Remove a dependency between two tasks.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
 
 ---
 

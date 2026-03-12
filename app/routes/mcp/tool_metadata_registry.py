@@ -8,7 +8,12 @@ from typing import Dict, List, Any
 
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.models.tool_registry_models import ToolCategory, ToolParameter
-from app.routes.mcp.tool_adapters import create_user_adapters, create_memory_adapters
+from app.routes.mcp.tool_adapters import (
+    create_user_adapters,
+    create_memory_adapters,
+    create_plan_adapters,
+    create_task_adapters,
+)
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
 from app.config.logging_config import logging
@@ -702,6 +707,8 @@ def register_all_tools_metadata(
     code_artifact_service,
     document_service,
     entity_service,
+    plan_service=None,
+    task_service=None,
 ):
     """
     Register all tool metadata and implementations
@@ -714,6 +721,8 @@ def register_all_tools_metadata(
         code_artifact_service: CodeArtifactService instance
         document_service: DocumentService instance
         entity_service: EntityService instance
+        plan_service: PlanService instance (optional, behind PLANNING_ENABLED)
+        task_service: TaskService instance (optional, behind PLANNING_ENABLED)
     """
     logger.info("Starting tool registration")
 
@@ -740,6 +749,17 @@ def register_all_tools_metadata(
     register_code_artifact_tools_metadata(registry, code_artifact_adapters)
     register_document_tools_metadata(registry, document_adapters)
     register_entity_tools_metadata(registry, entity_adapters)
+
+    # Conditionally register plan/task tools (behind PLANNING_ENABLED)
+    if plan_service is not None:
+        plan_adapters = create_plan_adapters(plan_service, user_service)
+        register_plan_tools_metadata(registry, plan_adapters)
+        logger.info("Plan tools registered")
+
+    if task_service is not None:
+        task_adapters = create_task_adapters(task_service, user_service)
+        register_task_tools_metadata(registry, task_adapters)
+        logger.info("Task tools registered")
 
     # Log summary
     categories = registry.list_categories()
@@ -1354,3 +1374,300 @@ def register_entity_tools_metadata(
         )
 
     logger.info(f"Registered {len(tools)} entity tools")
+
+
+# ============================================================================
+# Plan Tools Metadata
+# ============================================================================
+
+def register_plan_tools_metadata(
+    registry: ToolRegistry,
+    adapters: Dict[str, Any]
+):
+    """Register plan tool metadata and implementations"""
+
+    tools = [
+        {
+            "name": "create_plan",
+            "mutates": True,
+            "description": "Create a new plan within a project to organize tasks and track goals",
+            "parameters": [
+                {"name": "title", "type": "str", "description": "Plan title", "required": True, "example": "Implement auth system"},
+                {"name": "project_id", "type": "int", "description": "Project this plan belongs to", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "goal", "type": "Optional[str]", "description": "High-level goal for this plan", "required": False, "default": None, "example": "Add JWT-based authentication"},
+                {"name": "context", "type": "Optional[str]", "description": "Background context or constraints", "required": False, "default": None, "example": "Must support OAuth2 providers"},
+                {"name": "status", "type": "str", "description": "Plan status (draft, active, completed, abandoned)", "required": False, "default": "draft", "example": "draft"},
+            ],
+            "returns": "Plan object with id, title, project_id, status, and timestamps",
+            "examples": [
+                'execute_forgetful_tool("create_plan", {"title": "Auth implementation", "project_id": 1, "goal": "Add JWT auth"})',
+            ],
+            "tags": ["plan", "create", "planning"],
+        },
+        {
+            "name": "update_plan",
+            "mutates": True,
+            "description": "Update plan metadata using PATCH semantics (only specified fields are updated)",
+            "parameters": [
+                {"name": "plan_id", "type": "int", "description": "ID of the plan to update", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "title", "type": "Optional[str]", "description": "New plan title", "required": False, "default": None, "example": "Updated plan title"},
+                {"name": "goal", "type": "Optional[str]", "description": "New goal description", "required": False, "default": None, "example": "Revised goal"},
+                {"name": "context", "type": "Optional[str]", "description": "New context", "required": False, "default": None, "example": "Updated constraints"},
+                {"name": "status", "type": "Optional[str]", "description": "New status (draft, active, completed, abandoned)", "required": False, "default": None, "example": "active"},
+            ],
+            "returns": "Updated Plan object",
+            "examples": [
+                'execute_forgetful_tool("update_plan", {"plan_id": 1, "status": "active"})',
+            ],
+            "tags": ["plan", "update", "patch"],
+        },
+        {
+            "name": "get_plan",
+            "description": "Retrieve complete plan details by ID",
+            "parameters": [
+                {"name": "plan_id", "type": "int", "description": "ID of the plan to retrieve", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Complete Plan object with all details",
+            "examples": [
+                'execute_forgetful_tool("get_plan", {"plan_id": 1})',
+            ],
+            "tags": ["plan", "retrieve", "read"],
+        },
+        {
+            "name": "list_plans",
+            "description": "List plans with optional project and status filtering",
+            "parameters": [
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "project_id", "type": "Optional[int]", "description": "Filter by project ID", "required": False, "default": None, "example": 1},
+                {"name": "status", "type": "Optional[str]", "description": "Filter by status (draft, active, completed, abandoned)", "required": False, "default": None, "example": "active"},
+            ],
+            "returns": "Dictionary with plans list and total_count",
+            "examples": [
+                'execute_forgetful_tool("list_plans", {})',
+                'execute_forgetful_tool("list_plans", {"project_id": 1, "status": "active"})',
+            ],
+            "tags": ["plan", "list", "query"],
+        },
+    ]
+
+    for tool_def in tools:
+        register_simplified_tool(
+            registry=registry,
+            name=tool_def["name"],
+            category=ToolCategory.PLAN,
+            description=tool_def["description"],
+            parameters=tool_def["parameters"],
+            returns=tool_def["returns"],
+            implementation=adapters[tool_def["name"]],
+            examples=tool_def.get("examples", []),
+            tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
+        )
+
+    logger.info(f"Registered {len(tools)} plan tools")
+
+
+# ============================================================================
+# Task Tools Metadata
+# ============================================================================
+
+def register_task_tools_metadata(
+    registry: ToolRegistry,
+    adapters: Dict[str, Any]
+):
+    """Register task tool metadata and implementations"""
+
+    tools = [
+        {
+            "name": "create_task",
+            "mutates": True,
+            "description": "Create a new task within a plan with optional acceptance criteria and dependencies",
+            "parameters": [
+                {"name": "title", "type": "str", "description": "Task title", "required": True, "example": "Implement login endpoint"},
+                {"name": "plan_id", "type": "int", "description": "Plan this task belongs to", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "description", "type": "Optional[str]", "description": "Detailed task description", "required": False, "default": None, "example": "Create POST /auth/login with JWT response"},
+                {"name": "priority", "type": "str", "description": "Task priority (P0, P1, P2, P3)", "required": False, "default": "P2", "example": "P1"},
+                {"name": "assigned_agent", "type": "Optional[str]", "description": "Agent ID to assign this task to", "required": False, "default": None, "example": "agent-123"},
+                {"name": "criteria", "type": "Optional[List[dict]]", "description": "Acceptance criteria list (each with 'description' key)", "required": False, "default": None, "example": [{"description": "Returns JWT token"}]},
+                {"name": "dependency_ids", "type": "Optional[List[int]]", "description": "IDs of tasks this task depends on", "required": False, "default": None, "example": [1, 2]},
+            ],
+            "returns": "Task object with id, title, state, priority, and timestamps",
+            "examples": [
+                'execute_forgetful_tool("create_task", {"title": "Add login", "plan_id": 1, "priority": "P1"})',
+            ],
+            "tags": ["task", "create", "planning"],
+        },
+        {
+            "name": "update_task",
+            "mutates": True,
+            "description": "Update task metadata using PATCH semantics (only specified fields are updated)",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the task to update", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "title", "type": "Optional[str]", "description": "New task title", "required": False, "default": None, "example": "Updated task title"},
+                {"name": "description", "type": "Optional[str]", "description": "New description", "required": False, "default": None, "example": "Updated description"},
+                {"name": "priority", "type": "Optional[str]", "description": "New priority (P0, P1, P2, P3)", "required": False, "default": None, "example": "P0"},
+            ],
+            "returns": "Updated Task object",
+            "examples": [
+                'execute_forgetful_tool("update_task", {"task_id": 1, "priority": "P0"})',
+            ],
+            "tags": ["task", "update", "patch"],
+        },
+        {
+            "name": "get_task",
+            "description": "Retrieve complete task details by ID including criteria and dependencies",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the task to retrieve", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Complete Task object with criteria, dependencies, and state history",
+            "examples": [
+                'execute_forgetful_tool("get_task", {"task_id": 1})',
+            ],
+            "tags": ["task", "retrieve", "read"],
+        },
+        {
+            "name": "query_tasks",
+            "description": "Query tasks within a plan with optional state, priority, and agent filters",
+            "parameters": [
+                {"name": "plan_id", "type": "int", "description": "Plan to query tasks from", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "state", "type": "Optional[str]", "description": "Filter by task state (open, in_progress, blocked, done, cancelled)", "required": False, "default": None, "example": "open"},
+                {"name": "priority", "type": "Optional[str]", "description": "Filter by priority (P0, P1, P2, P3)", "required": False, "default": None, "example": "P1"},
+                {"name": "assigned_agent", "type": "Optional[str]", "description": "Filter by assigned agent", "required": False, "default": None, "example": "agent-123"},
+            ],
+            "returns": "Dictionary with tasks list and total_count",
+            "examples": [
+                'execute_forgetful_tool("query_tasks", {"plan_id": 1})',
+                'execute_forgetful_tool("query_tasks", {"plan_id": 1, "state": "open", "priority": "P0"})',
+            ],
+            "tags": ["task", "query", "list"],
+        },
+        {
+            "name": "claim_task",
+            "mutates": True,
+            "description": "Claim a task for an agent with optimistic concurrency control",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the task to claim", "required": True, "example": 1},
+                {"name": "agent_id", "type": "str", "description": "ID of the agent claiming the task", "required": True, "example": "agent-123"},
+                {"name": "version", "type": "int", "description": "Expected task version for optimistic locking", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Updated Task object with agent assignment",
+            "examples": [
+                'execute_forgetful_tool("claim_task", {"task_id": 1, "agent_id": "agent-123", "version": 1})',
+            ],
+            "tags": ["task", "claim", "agent", "concurrency"],
+        },
+        {
+            "name": "transition_task",
+            "mutates": True,
+            "description": "Transition task to a new state with optimistic concurrency control",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the task to transition", "required": True, "example": 1},
+                {"name": "state", "type": "str", "description": "Target state (open, in_progress, blocked, done, cancelled)", "required": True, "example": "done"},
+                {"name": "version", "type": "int", "description": "Expected task version for optimistic locking", "required": True, "example": 2},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Updated Task object with new state",
+            "examples": [
+                'execute_forgetful_tool("transition_task", {"task_id": 1, "state": "done", "version": 2})',
+            ],
+            "tags": ["task", "state", "transition", "concurrency"],
+        },
+        {
+            "name": "add_criterion",
+            "mutates": True,
+            "description": "Add an acceptance criterion to a task",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the task to add criterion to", "required": True, "example": 1},
+                {"name": "description", "type": "str", "description": "Criterion description", "required": True, "example": "Returns 200 on valid credentials"},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Created Criterion object",
+            "examples": [
+                'execute_forgetful_tool("add_criterion", {"task_id": 1, "description": "Returns JWT token"})',
+            ],
+            "tags": ["task", "criterion", "create"],
+        },
+        {
+            "name": "verify_criterion",
+            "mutates": True,
+            "description": "Mark an acceptance criterion as met or unmet",
+            "parameters": [
+                {"name": "criterion_id", "type": "int", "description": "ID of the criterion to verify", "required": True, "example": 1},
+                {"name": "met", "type": "bool", "description": "Whether the criterion has been met", "required": True, "example": True},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Updated Criterion object",
+            "examples": [
+                'execute_forgetful_tool("verify_criterion", {"criterion_id": 1, "met": true})',
+            ],
+            "tags": ["task", "criterion", "verify"],
+        },
+        {
+            "name": "delete_criterion",
+            "mutates": True,
+            "description": "Delete an acceptance criterion from a task",
+            "parameters": [
+                {"name": "criterion_id", "type": "int", "description": "ID of the criterion to delete", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with deletion confirmation",
+            "examples": [
+                'execute_forgetful_tool("delete_criterion", {"criterion_id": 1})',
+            ],
+            "tags": ["task", "criterion", "delete"],
+        },
+        {
+            "name": "add_dependency",
+            "mutates": True,
+            "description": "Add a dependency between tasks (task depends on another task)",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the dependent task", "required": True, "example": 2},
+                {"name": "depends_on_task_id", "type": "int", "description": "ID of the task it depends on", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dependency object",
+            "examples": [
+                'execute_forgetful_tool("add_dependency", {"task_id": 2, "depends_on_task_id": 1})',
+            ],
+            "tags": ["task", "dependency", "create"],
+        },
+        {
+            "name": "remove_dependency",
+            "mutates": True,
+            "description": "Remove a dependency between tasks",
+            "parameters": [
+                {"name": "task_id", "type": "int", "description": "ID of the dependent task", "required": True, "example": 2},
+                {"name": "depends_on_task_id", "type": "int", "description": "ID of the task to remove dependency on", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with deletion confirmation",
+            "examples": [
+                'execute_forgetful_tool("remove_dependency", {"task_id": 2, "depends_on_task_id": 1})',
+            ],
+            "tags": ["task", "dependency", "delete"],
+        },
+    ]
+
+    for tool_def in tools:
+        register_simplified_tool(
+            registry=registry,
+            name=tool_def["name"],
+            category=ToolCategory.TASK,
+            description=tool_def["description"],
+            parameters=tool_def["parameters"],
+            returns=tool_def["returns"],
+            implementation=adapters[tool_def["name"]],
+            examples=tool_def.get("examples", []),
+            tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
+        )
+
+    logger.info(f"Registered {len(tools)} task tools")

@@ -16,6 +16,8 @@ class ToolCategory(str, Enum):
     DOCUMENT = "document"
     ENTITY = "entity"
     LINKING = "linking"
+    PLAN = "plan"
+    TASK = "task"
 
 class ToolParameter(BaseModel):
     """Parameters metadata for a tool"""

@@ -24,9 +24,14 @@
     - [ ] Ollama
     - [ ] Open Router
 - [x] PyPI package
-- [ ] Logging and Telemtry 
+- [ ] Plans & Tasks (multi-agent coordination)
+    - [ ] Plans (structured work containers)
+    - [ ] Tasks (state machine, optimistic locking)
+    - [ ] Acceptance Criteria
+    - [ ] Task Dependencies (with cycle detection)
+- [ ] Logging and Telemtry
     - [x] STDIO / JSON log configuration
     - [ ] Open Telemetry forwarding
-    
+
 - [ ] API Routes
 
