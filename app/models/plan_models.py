@@ -6,7 +6,7 @@ These are tightly coupled aggregates forming the hierarchy:
     Task ← TaskDependency → Task
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 

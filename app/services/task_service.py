@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, List
 from uuid import UUID
 
 from app.config.logging_config import logging
-from app.config.settings import settings
 from app.exceptions import (
     ConflictError,
     CyclicDependencyError,

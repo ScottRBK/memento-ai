@@ -173,8 +173,6 @@ class PlanService:
 
         Returns True if plan was auto-completed.
         """
-        from app.models.plan_models import TaskState
-
         plan = await self.plan_repo.get_plan_by_id(user_id=user_id, plan_id=plan_id)
         if not plan or PlanStatus(plan.status) != PlanStatus.ACTIVE:
             return False

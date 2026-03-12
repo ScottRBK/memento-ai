@@ -1452,12 +1452,6 @@ class InMemoryTaskRepository(TaskRepository):
         for t in tasks:
             criteria = await self.get_criteria_for_task(user_id, t.id)
             deps = await self.get_dependencies(user_id, t.id)
-            dependents_not_done = any(
-                True
-                for dep_id in deps
-                if dep_id in user_tasks
-                and user_tasks[dep_id].state not in (TaskState.DONE, TaskState.CANCELLED)
-            )
             # A task is blocked if any of its dependencies are NOT done
             dep_tasks_not_done = False
             for dep_id in deps:
