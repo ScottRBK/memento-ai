@@ -23,7 +23,6 @@ async def test_create_plan_basic(test_plan_service):
     assert plan.goal == "Build feature X"
     assert plan.context is None
     assert plan.status == PlanStatus.DRAFT
-    assert plan.user_id == str(user_id)
     assert plan.task_count == 0
     assert plan.created_at is not None
     assert plan.updated_at is not None

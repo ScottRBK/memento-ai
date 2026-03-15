@@ -178,7 +178,6 @@ class PlanUpdate(BaseModel):
 class Plan(PlanCreate):
     """Full plan model returned from repository."""
     id: int
-    user_id: str
     task_count: int = 0
     created_at: datetime
     updated_at: datetime

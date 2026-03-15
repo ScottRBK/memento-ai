@@ -36,6 +36,7 @@ from app.repositories.embeddings.embedding_adapter import (
 from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter, HttpRerankAdapter
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
+from app.routes.api import plans as plans_routes, tasks as tasks_routes
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.routes.mcp.tool_registry import ToolRegistry
@@ -45,7 +46,9 @@ from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
 from app.services.graph_service import GraphService
 from app.services.memory_service import MemoryService
+from app.services.plan_service import PlanService
 from app.services.project_service import ProjectService
+from app.services.task_service import TaskService
 from app.services.user_service import UserService
 from main import _create_repositories
 
@@ -174,6 +177,10 @@ class StreamingASGITransport(ASGITransport):
 # All tables to TRUNCATE between modules (order doesn't matter with CASCADE)
 ALL_TABLES = [
     "activity_log",
+    "task_dependencies",
+    "criteria",
+    "tasks",
+    "plans",
     "memory_links",
     "memory_project_association",
     "memory_code_artifact_association",
@@ -349,8 +356,10 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     # Ensure database setting is Postgres for repo creation
     original_database = settings.DATABASE
     original_host = settings.POSTGRES_HOST
+    original_planning = settings.PLANNING_ENABLED
     settings.DATABASE = "Postgres"
     settings.POSTGRES_HOST = "127.0.0.1"
+    settings.PLANNING_ENABLED = True
 
     repos = _create_repositories(db_adapter, embedding_adapter, reranker_adapter)
 
@@ -388,6 +397,15 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
         mcp.activity_service = activity_service
         mcp.event_bus = event_bus
 
+        # Plan/Task services (always enabled in E2E tests)
+        plan_service = None
+        task_service = None
+        if "plan" in repos and "task" in repos:
+            plan_service = PlanService(repos["plan"], event_bus=event_bus)
+            task_service = TaskService(repos["task"], plan_service=plan_service, event_bus=event_bus)
+            mcp.plan_service = plan_service
+            mcp.task_service = task_service
+
         registry = ToolRegistry()
         mcp.registry = registry
 
@@ -399,6 +417,8 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
             code_artifact_service=code_artifact_service,
             document_service=document_service,
             entity_service=entity_service,
+            plan_service=plan_service,
+            task_service=task_service,
         )
 
         yield
@@ -415,6 +435,8 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     code_artifacts.register(mcp)
     graph.register(mcp)
     activity.register(mcp)
+    plans_routes.register(mcp)
+    tasks_routes.register(mcp)
     meta_tools.register(mcp)
 
     yield mcp
@@ -422,6 +444,7 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     # Restore settings
     settings.DATABASE = original_database
     settings.POSTGRES_HOST = original_host
+    settings.PLANNING_ENABLED = original_planning
     for key, value in saved.items():
         setattr(settings, key, value)
 
