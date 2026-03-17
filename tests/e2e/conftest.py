@@ -37,6 +37,7 @@ from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAd
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
 from app.routes.api import plans as plans_routes, tasks as tasks_routes
+from app.routes.api import files as files_routes
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.routes.mcp.tool_registry import ToolRegistry
@@ -44,6 +45,7 @@ from app.services.activity_service import ActivityService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
+from app.services.file_service import FileService
 from app.services.graph_service import GraphService
 from app.services.memory_service import MemoryService
 from app.services.plan_service import PlanService
@@ -186,11 +188,14 @@ ALL_TABLES = [
     "memory_code_artifact_association",
     "memory_document_association",
     "memory_entity_association",
+    "memory_file_association",
+    "entity_file_association",
     "entity_project_association",
     "entity_relationships",
     "entities",
     "code_artifacts",
     "documents",
+    "files",
     "memories",
     "projects",
     "users",
@@ -357,9 +362,11 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     original_database = settings.DATABASE
     original_host = settings.POSTGRES_HOST
     original_planning = settings.PLANNING_ENABLED
+    original_files = settings.FILES_ENABLED
     settings.DATABASE = "Postgres"
     settings.POSTGRES_HOST = "127.0.0.1"
     settings.PLANNING_ENABLED = True
+    settings.FILES_ENABLED = True
 
     repos = _create_repositories(db_adapter, embedding_adapter, reranker_adapter)
 
@@ -379,12 +386,18 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
         code_artifact_service = CodeArtifactService(repos["code_artifact"], event_bus=event_bus)
         document_service = DocumentService(repos["document"], event_bus=event_bus)
         entity_service = EntityService(repos["entity"], event_bus=event_bus)
+        # Conditionally create file service behind FILES_ENABLED
+        file_service = None
+        if settings.FILES_ENABLED and "file" in repos:
+            file_service = FileService(repos["file"], event_bus=event_bus)
+
         graph_service = GraphService(
             repos["memory"],
             repos["entity"],
             project_service=project_service,
             document_service=document_service,
             code_artifact_service=code_artifact_service,
+            file_service=file_service,
         )
 
         mcp.user_service = user_service
@@ -396,6 +409,9 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
         mcp.graph_service = graph_service
         mcp.activity_service = activity_service
         mcp.event_bus = event_bus
+
+        if file_service:
+            mcp.file_service = file_service
 
         # Plan/Task services (always enabled in E2E tests)
         plan_service = None
@@ -419,6 +435,7 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
             entity_service=entity_service,
             plan_service=plan_service,
             task_service=task_service,
+            file_service=file_service,
         )
 
         yield
@@ -437,6 +454,8 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     activity.register(mcp)
     plans_routes.register(mcp)
     tasks_routes.register(mcp)
+    if settings.FILES_ENABLED:
+        files_routes.register(mcp)
     meta_tools.register(mcp)
 
     yield mcp
@@ -445,6 +464,7 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     settings.DATABASE = original_database
     settings.POSTGRES_HOST = original_host
     settings.PLANNING_ENABLED = original_planning
+    settings.FILES_ENABLED = original_files
     for key, value in saved.items():
         setattr(settings, key, value)
 

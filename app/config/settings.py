@@ -90,6 +90,15 @@ class Settings(BaseSettings):
     DOCUMENT_CONTENT_MAX_LENGTH: int = 100000    # ~100KB for large documents
     DOCUMENT_TAGS_MAX_COUNT: int = 10            # For categorization
 
+    # Files Feature Flag
+    FILES_ENABLED: bool = False                  # Enable file storage tools and routes
+
+    # File Configuration (only relevant when FILES_ENABLED=True)
+    FILE_MAX_SIZE_BYTES: int = 10_485_760        # 10MB decoded binary size limit
+    FILE_FILENAME_MAX_LENGTH: int = 255
+    FILE_DESCRIPTION_MAX_LENGTH: int = 5000
+    FILE_TAGS_MAX_COUNT: int = 10
+
     # Entity Configuration
     ENTITY_NAME_MAX_LENGTH: int = 200            # DB limit: String(200)
     ENTITY_TYPE_MAX_LENGTH: int = 100            # For custom entity types

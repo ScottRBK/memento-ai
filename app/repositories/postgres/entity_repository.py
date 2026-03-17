@@ -1154,6 +1154,51 @@ class PostgresEntityRepository:
             )
             raise
 
+    async def get_all_entity_file_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-file associations for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, file_id) tuples representing all links
+        """
+        try:
+            from app.repositories.postgres.postgres_tables import entity_file_association, FilesTable
+            async with self.db_adapter.session(user_id) as session:
+                stmt = select(
+                    entity_file_association.c.entity_id,
+                    entity_file_association.c.file_id
+                ).select_from(
+                    entity_file_association
+                ).join(
+                    EntitiesTable,
+                    EntitiesTable.id == entity_file_association.c.entity_id
+                ).join(
+                    FilesTable,
+                    FilesTable.id == entity_file_association.c.file_id
+                ).where(
+                    EntitiesTable.user_id == user_id,
+                    FilesTable.user_id == user_id
+                )
+
+                result = await session.execute(stmt)
+                return [(row.entity_id, row.file_id) for row in result]
+
+        except Exception as e:
+            logger.error(
+                "Failed to get all entity-file links",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "error": str(e)
+                }
+            )
+            raise
+
     async def get_entity_memories(
         self,
         user_id: UUID,

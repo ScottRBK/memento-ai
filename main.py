@@ -15,6 +15,7 @@ from app.config.settings import settings
 from app.version import get_version
 from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph, auth, activity
 from app.routes.api import plans as plans_routes, tasks as tasks_routes
+from app.routes.api import files as files_routes
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
@@ -94,6 +95,10 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             "activity": PostgresActivityRepository(db_adapter=db_adapter),
         }
 
+        if settings.FILES_ENABLED:
+            from app.repositories.postgres.file_repository import PostgresFileRepository
+            repos["file"] = PostgresFileRepository(db_adapter=db_adapter)
+
         if settings.PLANNING_ENABLED:
             from app.repositories.postgres.plan_repository import PostgresPlanRepository
             from app.repositories.postgres.task_repository import PostgresTaskRepository
@@ -123,6 +128,10 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             "entity": SqliteEntityRepository(db_adapter=db_adapter),
             "activity": SqliteActivityRepository(db_adapter=db_adapter),
         }
+
+        if settings.FILES_ENABLED:
+            from app.repositories.sqlite.file_repository import SqliteFileRepository
+            repos["file"] = SqliteFileRepository(db_adapter=db_adapter)
 
         if settings.PLANNING_ENABLED:
             from app.repositories.sqlite.plan_repository import SqlitePlanRepository
@@ -208,12 +217,23 @@ async def lifespan(app):
     code_artifact_service = CodeArtifactService(repos["code_artifact"], event_bus=event_bus)
     document_service = DocumentService(repos["document"], event_bus=event_bus)
     entity_service = EntityService(repos["entity"], event_bus=event_bus)
+    # Conditionally create file service behind FILES_ENABLED
+    file_service = None
+
+    if settings.FILES_ENABLED:
+        from app.services.file_service import FileService
+        file_service = FileService(repos["file"], event_bus=event_bus)
+        logger.info("Files feature enabled")
+    else:
+        logger.info("Files feature disabled (FILES_ENABLED=false)")
+
     graph_service = GraphService(
         repos["memory"],
         repos["entity"],
         project_service=project_service,
         document_service=document_service,
         code_artifact_service=code_artifact_service,
+        file_service=file_service,
     )
 
     mcp.user_service = user_service
@@ -225,6 +245,9 @@ async def lifespan(app):
     mcp.graph_service = graph_service
     mcp.activity_service = activity_service
     mcp.event_bus = event_bus
+
+    if file_service:
+        mcp.file_service = file_service
 
     # Conditionally create plan/task services behind PLANNING_ENABLED
     plan_service = None
@@ -270,6 +293,7 @@ async def lifespan(app):
         entity_service=entity_service,
         plan_service=plan_service,
         task_service=task_service,
+        file_service=file_service,
     )
 
     categories = registry.list_categories()
@@ -319,6 +343,9 @@ documents.register(mcp)
 code_artifacts.register(mcp)
 graph.register(mcp)
 activity.register(mcp)
+
+if settings.FILES_ENABLED:
+    files_routes.register(mcp)
 
 if settings.PLANNING_ENABLED:
     plans_routes.register(mcp)

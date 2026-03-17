@@ -369,6 +369,20 @@ class EntityRepository(Protocol):
         """
         ...
 
+    async def get_all_entity_file_links(
+        self,
+        user_id: UUID
+    ) -> List[tuple[int, int]]:
+        """Get all entity-file associations for a user (for graph visualization)
+
+        Args:
+            user_id: User ID for ownership filtering
+
+        Returns:
+            List of (entity_id, file_id) tuples representing all links
+        """
+        ...
+
     async def get_entity_memories(
         self,
         user_id: UUID,

@@ -12,11 +12,11 @@ class SubgraphNode(BaseModel):
 
     id: str = Field(
         ...,
-        description="Prefixed node ID in format 'memory_123', 'entity_456', 'project_789', 'document_123', or 'code_artifact_456'"
+        description="Prefixed node ID in format 'memory_123', 'entity_456', 'project_789', 'document_123', 'code_artifact_456', or 'file_789'"
     )
-    type: Literal["memory", "entity", "project", "document", "code_artifact"] = Field(
+    type: Literal["memory", "entity", "project", "document", "code_artifact", "file"] = Field(
         ...,
-        description="Node type: 'memory', 'entity', 'project', 'document', or 'code_artifact'"
+        description="Node type: 'memory', 'entity', 'project', 'document', 'code_artifact', or 'file'"
     )
     depth: int = Field(
         ...,
@@ -57,7 +57,10 @@ class SubgraphEdge(BaseModel):
         "document_project",
         "code_artifact_project",
         "memory_document",
-        "memory_code_artifact"
+        "memory_code_artifact",
+        "memory_file",
+        "file_project",
+        "entity_file"
     ] = Field(
         ...,
         description="Edge type indicating relationship kind"
@@ -113,6 +116,11 @@ class SubgraphMeta(BaseModel):
         ge=0,
         description="Number of code artifact nodes in result"
     )
+    file_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of file nodes in result"
+    )
     # Edge counts
     edge_count: int = Field(
         ...,
@@ -163,6 +171,21 @@ class SubgraphMeta(BaseModel):
         default=0,
         ge=0,
         description="Number of memory-to-code_artifact edges"
+    )
+    memory_file_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of memory-to-file edges"
+    )
+    file_project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of file-to-project edges"
+    )
+    entity_file_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of entity-to-file edges"
     )
     truncated: bool = Field(
         False,

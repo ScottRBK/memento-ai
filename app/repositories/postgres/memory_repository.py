@@ -15,6 +15,7 @@ from app.repositories.postgres.postgres_tables import (
     ProjectsTable,
     CodeArtifactsTable,
     DocumentsTable,
+    FilesTable,
     memory_project_association
 )
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
@@ -145,6 +146,7 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.projects),
                 selectinload(MemoryTable.code_artifacts),
                 selectinload(MemoryTable.documents),
+                selectinload(MemoryTable.files),
             )
             .where(
                 MemoryTable.user_id==user_id,
@@ -193,7 +195,7 @@ class PostgresMemoryRepository:
         embeddings = await self._generate_embeddings(text=embeddings_text)
         
         async with self.db_adapter.session(user_id) as session:
-            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids"})
+            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"})
             new_memory = MemoryTable(**memory_data, user_id=user_id, embedding=embeddings)
             session.add(new_memory)
             await session.flush()
@@ -204,6 +206,8 @@ class PostgresMemoryRepository:
                 await self._link_code_artifacts(session, new_memory, memory.code_artifact_ids, user_id)
             if memory.document_ids:
                 await self._link_documents(session, new_memory, memory.document_ids, user_id)
+            if memory.file_ids:
+                await self._link_files(session, new_memory, memory.file_ids, user_id)
 
             # Re-query with selectinload to ensure all relationships are properly loaded
             # This is the recommended async pattern per SQLAlchemy docs
@@ -214,6 +218,7 @@ class PostgresMemoryRepository:
                     selectinload(MemoryTable.projects),
                     selectinload(MemoryTable.code_artifacts),
                     selectinload(MemoryTable.documents),
+                    selectinload(MemoryTable.files),
                     selectinload(MemoryTable.linked_memories),
                     selectinload(MemoryTable.linking_memories)
                 )
@@ -249,7 +254,7 @@ class PostgresMemoryRepository:
                
             update_data = updated_memory.model_dump(
                 exclude_unset=True,
-                exclude={"project_ids", "code_artifact_ids", "document_ids"}
+                exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"}
                 )
             
             update_data['updated_at'] = datetime.now(timezone.utc)
@@ -293,6 +298,12 @@ class PostgresMemoryRepository:
                     if updated_memory.document_ids:
                         await self._link_documents(session, memory_orm, updated_memory.document_ids, user_id)
 
+                if updated_memory.file_ids is not None:
+                    await session.refresh(memory_orm, attribute_names=['id', 'files'])
+                    memory_orm.files.clear()
+                    if updated_memory.file_ids:
+                        await self._link_files(session, memory_orm, updated_memory.file_ids, user_id)
+
                 # Re-query with selectinload to ensure all relationships are properly loaded
                 # This is the recommended async pattern per SQLAlchemy docs
                 stmt = (
@@ -302,6 +313,7 @@ class PostgresMemoryRepository:
                         selectinload(MemoryTable.projects),
                         selectinload(MemoryTable.code_artifacts),
                         selectinload(MemoryTable.documents),
+                        selectinload(MemoryTable.files),
                         selectinload(MemoryTable.linked_memories),
                         selectinload(MemoryTable.linking_memories)
                     )
@@ -353,15 +365,16 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.linking_memories),
                 selectinload(MemoryTable.code_artifacts),
                 selectinload(MemoryTable.documents),
+                selectinload(MemoryTable.files),
             )
         )
-        
+
         async with self.db_adapter.session(user_id) as session:
             result = await session.execute(stmt)
             memory_orm = result.scalar_one_or_none()
-            
+
             if memory_orm:
-                return memory_orm 
+                return memory_orm
             else:
                 raise NotFoundError(f"Memory with id {memory_id} not found")      
 
@@ -448,6 +461,7 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.projects),
                 selectinload(MemoryTable.code_artifacts),
                 selectinload(MemoryTable.documents),
+                selectinload(MemoryTable.files),
             )
             .where(
                 MemoryTable.user_id==user_id,
@@ -500,6 +514,7 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.linking_memories),
                 selectinload(MemoryTable.code_artifacts),
                 selectinload(MemoryTable.documents),
+                selectinload(MemoryTable.files),
             )
             .where(MemoryTable.user_id==user_id, MemoryTable.id!=memory_id, MemoryTable.is_obsolete.is_(False))
         )
@@ -735,7 +750,8 @@ class PostgresMemoryRepository:
                 selectinload(MemoryTable.projects),
                 selectinload(MemoryTable.linked_memories),
                 selectinload(MemoryTable.code_artifacts),
-                selectinload(MemoryTable.documents)
+                selectinload(MemoryTable.documents),
+                selectinload(MemoryTable.files),
             )
             .where(*conditions)
         )
@@ -847,6 +863,28 @@ class PostgresMemoryRepository:
 
         await session.run_sync(lambda sync_session: memory.documents.extend(documents))
 
+    async def _link_files(
+            self,
+            session,
+            memory: MemoryTable,
+            file_ids: List[int],
+            user_id: UUID
+    ) -> None:
+        """Link memory to files"""
+        stmt = select(FilesTable).where(
+            FilesTable.id.in_(file_ids),
+            FilesTable.user_id == user_id
+        )
+        result = await session.execute(stmt)
+        files = result.scalars().all()
+
+        found_ids = {f.id for f in files}
+        missing_ids = set(file_ids) - found_ids
+        if missing_ids:
+            raise NotFoundError(f"Files not found: {missing_ids}")
+
+        await session.run_sync(lambda sync_session: memory.files.extend(files))
+
     # ============ Re-embedding support methods ============
 
     async def count_all_memories(self) -> int:
@@ -872,6 +910,7 @@ class PostgresMemoryRepository:
                     selectinload(MemoryTable.linking_memories),
                     selectinload(MemoryTable.code_artifacts),
                     selectinload(MemoryTable.documents),
+                    selectinload(MemoryTable.files),
                 )
                 .order_by(MemoryTable.id.asc())
                 .offset(offset)
@@ -991,6 +1030,7 @@ class PostgresMemoryRepository:
         include_projects: bool,
         include_documents: bool,
         include_code_artifacts: bool,
+        include_files: bool,
         max_nodes: int
     ) -> Tuple[List[Dict[str, Any]], bool]:
         """
@@ -1010,13 +1050,16 @@ class PostgresMemoryRepository:
         - code_artifact.project_id (code_artifact -> project)
         - memory_document_association (memory <-> document)
         - memory_code_artifact_association (memory <-> code_artifact)
+        - memory_file_association (memory <-> file)
+        - files.project_id (file -> project)
+        - entity_file_association (entity <-> file)
 
         PostgreSQL-specific implementation using ARRAY for path tracking
         and = ANY() for cycle detection.
 
         Args:
             user_id: User ID for ownership filtering
-            center_type: "memory", "entity", "project", "document", or "code_artifact"
+            center_type: "memory", "entity", "project", "document", "code_artifact", or "file"
             center_id: ID of the center node
             depth: Maximum traversal depth (1-3)
             include_memories: Whether to include memory nodes in traversal
@@ -1024,6 +1067,7 @@ class PostgresMemoryRepository:
             include_projects: Whether to include project nodes in traversal
             include_documents: Whether to include document nodes in traversal
             include_code_artifacts: Whether to include code_artifact nodes in traversal
+            include_files: Whether to include file nodes in traversal
             max_nodes: Maximum nodes to return
 
         Returns:
@@ -1251,6 +1295,85 @@ class PostgresMemoryRepository:
                 INNER JOIN entities e ON e.id = epa.entity_id
                 WHERE gt.node_type = 'project'
                   AND epa.project_id = gt.node_id
+                  AND e.user_id = :user_id
+            """)
+
+        # Memory -> File via memory_file_association
+        if include_memories and include_files:
+            edge_queries.append("""
+                SELECT
+                    mfa.file_id AS target_id,
+                    'file'::TEXT AS target_type
+                FROM memory_file_association mfa
+                INNER JOIN files f ON f.id = mfa.file_id
+                WHERE gt.node_type = 'memory'
+                  AND mfa.memory_id = gt.node_id
+                  AND f.user_id = :user_id
+            """)
+
+        # File -> Memory via memory_file_association
+        if include_memories and include_files:
+            edge_queries.append("""
+                SELECT
+                    mfa.memory_id AS target_id,
+                    'memory'::TEXT AS target_type
+                FROM memory_file_association mfa
+                INNER JOIN memories m ON m.id = mfa.memory_id
+                WHERE gt.node_type = 'file'
+                  AND mfa.file_id = gt.node_id
+                  AND m.user_id = :user_id
+                  AND m.is_obsolete = false
+            """)
+
+        # File -> Project via files.project_id FK
+        if include_files and include_projects:
+            edge_queries.append("""
+                SELECT
+                    f.project_id AS target_id,
+                    'project'::TEXT AS target_type
+                FROM files f
+                INNER JOIN projects p ON p.id = f.project_id
+                WHERE gt.node_type = 'file'
+                  AND f.id = gt.node_id
+                  AND f.project_id IS NOT NULL
+                  AND p.user_id = :user_id
+            """)
+
+        # Project -> File via files.project_id FK
+        if include_files and include_projects:
+            edge_queries.append("""
+                SELECT
+                    f.id AS target_id,
+                    'file'::TEXT AS target_type
+                FROM files f
+                WHERE gt.node_type = 'project'
+                  AND f.project_id = gt.node_id
+                  AND f.user_id = :user_id
+            """)
+
+        # Entity -> File via entity_file_association
+        if include_entities and include_files:
+            edge_queries.append("""
+                SELECT
+                    efa.file_id AS target_id,
+                    'file'::TEXT AS target_type
+                FROM entity_file_association efa
+                INNER JOIN files f ON f.id = efa.file_id
+                WHERE gt.node_type = 'entity'
+                  AND efa.entity_id = gt.node_id
+                  AND f.user_id = :user_id
+            """)
+
+        # File -> Entity via entity_file_association
+        if include_entities and include_files:
+            edge_queries.append("""
+                SELECT
+                    efa.entity_id AS target_id,
+                    'entity'::TEXT AS target_type
+                FROM entity_file_association efa
+                INNER JOIN entities e ON e.id = efa.entity_id
+                WHERE gt.node_type = 'file'
+                  AND efa.file_id = gt.node_id
                   AND e.user_id = :user_id
             """)
 

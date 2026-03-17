@@ -1412,3 +1412,132 @@ def create_task_adapters(task_service, user_service) -> Dict[str, Any]:
         "add_dependency": adapters.add_dependency,
         "remove_dependency": adapters.remove_dependency,
     }
+
+
+# ============================================================================
+# File Tool Adapters
+# ============================================================================
+
+
+class FileToolAdapters:
+    """Wraps file service methods as registry-compatible callables"""
+
+    def __init__(self, file_service, user_service: UserService):
+        self.file_service = file_service
+        self.user_service = user_service
+
+    async def create_file(
+        self,
+        filename: str,
+        description: str,
+        data: str,
+        mime_type: str,
+        ctx: Context,
+        tags: Optional[List[str]] = None,
+        project_id: Optional[int] = None,
+    ):
+        """Adapter for create_file tool"""
+        from app.models.file_models import FileCreate
+
+        user = await get_user_from_auth(ctx)
+
+        file_data = FileCreate(
+            filename=filename,
+            description=description,
+            data=data,
+            mime_type=mime_type,
+            tags=tags,
+            project_id=project_id,
+        )
+
+        file = await self.file_service.create_file(
+            user_id=user.id, file_data=file_data
+        )
+
+        return file
+
+    async def get_file(self, file_id: int, ctx: Context):
+        """Adapter for get_file tool"""
+        user = await get_user_from_auth(ctx)
+
+        file = await self.file_service.get_file(
+            user_id=user.id, file_id=file_id
+        )
+
+        return file
+
+    async def list_files(
+        self,
+        ctx: Context,
+        project_id: Optional[int] = None,
+        mime_type: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> dict:
+        """Adapter for list_files tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.file_service.list_files(
+            user_id=user.id,
+            project_id=project_id,
+            mime_type=mime_type,
+            tags=tags,
+        )
+
+        return {"files": result, "total_count": len(result)}
+
+    async def update_file(
+        self,
+        file_id: int,
+        ctx: Context,
+        filename: Optional[str] = None,
+        description: Optional[str] = None,
+        data: Optional[str] = None,
+        mime_type: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        project_id: Optional[int] = None,
+    ):
+        """Adapter for update_file tool"""
+        from app.models.file_models import FileUpdate
+
+        user = await get_user_from_auth(ctx)
+
+        updated_dict = filter_none_values(
+            filename=filename,
+            description=description,
+            data=data,
+            mime_type=mime_type,
+            tags=tags,
+            project_id=project_id,
+        )
+
+        file_data = FileUpdate(**updated_dict)
+
+        file = await self.file_service.update_file(
+            user_id=user.id,
+            file_id=file_id,
+            file_data=file_data,
+        )
+
+        return file
+
+    async def delete_file(self, file_id: int, ctx: Context) -> dict:
+        """Adapter for delete_file tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.file_service.delete_file(
+            user_id=user.id, file_id=file_id
+        )
+
+        return {"success": result, "deleted_id": file_id}
+
+
+def create_file_adapters(file_service, user_service: UserService) -> Dict[str, Any]:
+    """Create all file tool adapters and return as dict"""
+    adapters = FileToolAdapters(file_service, user_service)
+    return {
+        "create_file": adapters.create_file,
+        "get_file": adapters.get_file,
+        "list_files": adapters.list_files,
+        "update_file": adapters.update_file,
+        "delete_file": adapters.delete_file,
+    }

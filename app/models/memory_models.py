@@ -62,6 +62,10 @@ class MemoryCreate(BaseModel):
         default=None,
         description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
     )
+    file_ids: List[int] | None = Field(
+        default=None,
+        description="File IDs to link (create files first). Links binary assets (images, PDFs, etc.) to this memory."
+    )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
     source_repo: str | None = Field(
@@ -165,6 +169,10 @@ class MemoryUpdate(BaseModel):
         None,
         description="New document links. Replaces existing if provided, unchanged if null."
     )
+    file_ids: List[int] | None = Field(
+        None,
+        description="New file links. Replaces existing if provided, unchanged if null."
+    )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
     source_repo: str | None = Field(
@@ -231,6 +239,7 @@ class Memory(MemoryCreate):
     linked_memory_ids: List[int] = Field(default_factory=list)
     code_artifact_ids: List[int] = Field(default_factory=list, description="Linked code artifact IDs")
     document_ids: List[int] = Field(default_factory=list, description="Linked document IDs")
+    file_ids: List[int] = Field(default_factory=list, description="Linked file IDs")
 
     # Lifecycle management fields
     is_obsolete: bool = Field(default=False, description="Whether this memory has been marked obsolete")
@@ -260,6 +269,7 @@ class MemoryCreateResponse(BaseModel):
     project_ids: List[int] = Field(default_factory=list)
     code_artifact_ids: List[int] = Field(default_factory=list)
     document_ids: List[int] = Field(default_factory=list)
+    file_ids: List[int] = Field(default_factory=list)
     similar_memories: List[MemorySummary] = Field(
         default_factory=list,
         description="Summaries of similar memories that were auto-linked for review"

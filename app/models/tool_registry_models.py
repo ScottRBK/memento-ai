@@ -18,6 +18,7 @@ class ToolCategory(str, Enum):
     LINKING = "linking"
     PLAN = "plan"
     TASK = "task"
+    FILE = "file"
 
 class ToolParameter(BaseModel):
     """Parameters metadata for a tool"""

@@ -26,6 +26,7 @@ class EntityType(str, Enum):
     TASK = "task"
     CRITERION = "criterion"
     TASK_DEPENDENCY = "task_dependency"
+    FILE = "file"
 
 
 class ActionType(str, Enum):

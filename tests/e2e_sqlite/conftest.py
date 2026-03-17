@@ -27,6 +27,7 @@ from app.repositories.sqlite.entity_repository import SqliteEntityRepository
 from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 from app.repositories.sqlite.plan_repository import SqlitePlanRepository
 from app.repositories.sqlite.task_repository import SqliteTaskRepository
+from app.repositories.sqlite.file_repository import SqliteFileRepository
 
 # Shared imports
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter
@@ -41,12 +42,13 @@ from app.services.graph_service import GraphService
 from app.services.activity_service import ActivityService
 from app.services.plan_service import PlanService
 from app.services.task_service import TaskService
+from app.services.file_service import FileService
 from app.events import EventBus
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
-from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity, plans, tasks
+from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity, plans, tasks, files
 
 
 # ============================================================================
@@ -76,6 +78,11 @@ FEATURE_FLAGS: dict[str, FeatureFlagDef] = {
         categories=["plan", "task"],
         sample_tools=["create_plan", "create_task", "claim_task", "transition_task"],
         route_prefixes=["/api/v1/plans", "/api/v1/tasks"],
+    ),
+    "files": FeatureFlagDef(
+        categories=["file"],
+        sample_tools=["create_file", "get_file", "list_files"],
+        route_prefixes=["/api/v1/files"],
     ),
     # Future feature flags go here, e.g.:
     # "skills": FeatureFlagDef(
@@ -181,6 +188,7 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
         # Feature-flagged repositories
         plan_repository = SqlitePlanRepository(db_adapter=db_adapter) if "planning" in enabled_features else None
         task_repository = SqliteTaskRepository(db_adapter=db_adapter) if "planning" in enabled_features else None
+        file_repository = SqliteFileRepository(db_adapter=db_adapter) if "files" in enabled_features else None
 
         @asynccontextmanager
         async def lifespan(app):
@@ -196,20 +204,25 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
             code_artifact_service = CodeArtifactService(code_artifact_repository, event_bus=None)
             document_service = DocumentService(document_repository, event_bus=None)
             entity_service = EntityService(entity_repository, event_bus=None)
+
+            # Feature-flagged services
+            plan_service = None
+            task_service = None
+            file_service = None
+            if "planning" in enabled_features:
+                plan_service = PlanService(plan_repository, event_bus=None)
+                task_service = TaskService(task_repository, plan_service=plan_service, event_bus=None)
+            if "files" in enabled_features:
+                file_service = FileService(file_repository, event_bus=None)
+
             graph_service = GraphService(
                 memory_repository,
                 entity_repository,
                 project_service=project_service,
                 document_service=document_service,
                 code_artifact_service=code_artifact_service,
+                file_service=file_service,
             )
-
-            # Feature-flagged services
-            plan_service = None
-            task_service = None
-            if "planning" in enabled_features:
-                plan_service = PlanService(plan_repository, event_bus=None)
-                task_service = TaskService(task_repository, plan_service=plan_service, event_bus=None)
 
             # Store core services on FastMCP instance
             mcp.user_service = user_service
@@ -227,6 +240,8 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
                 mcp.plan_service = plan_service
             if task_service:
                 mcp.task_service = task_service
+            if file_service:
+                mcp.file_service = file_service
 
             # Create and attach registry
             registry = ToolRegistry()
@@ -243,6 +258,7 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
                 entity_service=entity_service,
                 plan_service=plan_service,
                 task_service=task_service,
+                file_service=file_service,
             )
 
             # Resolve instance-level scope ceiling
@@ -267,6 +283,8 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
         activity.register(mcp)
 
         # Feature-flagged routes
+        if "files" in enabled_features:
+            files.register(mcp)
         if "planning" in enabled_features:
             plans.register(mcp)
             tasks.register(mcp)

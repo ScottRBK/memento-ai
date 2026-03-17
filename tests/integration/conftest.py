@@ -22,6 +22,12 @@ from app.models.document_models import (
     DocumentSummary,
     DocumentUpdate,
 )
+from app.models.file_models import (
+    File,
+    FileCreate,
+    FileSummary,
+    FileUpdate,
+)
 from app.models.entity_models import (
     Entity,
     EntityCreate,
@@ -60,6 +66,7 @@ from app.models.plan_models import (
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.protocols.document_protocol import DocumentRepository
+from app.protocols.file_protocol import FileRepository
 from app.protocols.entity_protocol import EntityRepository
 from app.protocols.memory_protocol import MemoryRepository
 from app.protocols.plan_protocol import PlanRepository
@@ -71,6 +78,7 @@ from app.exceptions import ConflictError
 from app.models.activity_models import ActivityEvent
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
+from app.services.file_service import FileService
 from app.services.entity_service import EntityService
 from app.services.memory_service import MemoryService
 from app.services.plan_service import PlanService
@@ -908,6 +916,116 @@ def test_document_service_with_event_bus(mock_document_repository):
     """Provides a DocumentService with event bus for testing event emission."""
     event_bus = CollectingEventBus()
     service = DocumentService(mock_document_repository, event_bus=event_bus)
+    return service, event_bus
+
+
+# ============ File Testing Fixtures ============
+
+
+class InMemoryFileRepository(FileRepository):
+    """In-memory implementation of FileRepository for testing"""
+
+    def __init__(self):
+        self._files: dict[UUID, dict[int, File]] = {}
+        self._next_id = 1
+
+    async def create_file(
+        self, user_id: UUID, file_data: FileCreate
+    ) -> File:
+        import base64
+        file_id = self._next_id
+        self._next_id += 1
+        now = datetime.now(timezone.utc)
+
+        decoded = base64.b64decode(file_data.data)
+        size_bytes = len(decoded)
+
+        new_file = File(
+            id=file_id,
+            filename=file_data.filename,
+            description=file_data.description,
+            data=file_data.data,
+            mime_type=file_data.mime_type,
+            size_bytes=size_bytes,
+            tags=file_data.tags,
+            project_id=file_data.project_id,
+            created_at=now,
+            updated_at=now,
+        )
+
+        if user_id not in self._files:
+            self._files[user_id] = {}
+        self._files[user_id][file_id] = new_file
+        return new_file
+
+    async def get_file_by_id(
+        self, user_id: UUID, file_id: int
+    ) -> File | None:
+        user_files = self._files.get(user_id, {})
+        return user_files.get(file_id)
+
+    async def list_files(
+        self,
+        user_id: UUID,
+        project_id: int | None = None,
+        mime_type: str | None = None,
+        tags: List[str] | None = None,
+    ) -> List[FileSummary]:
+        user_files = self._files.get(user_id, {})
+        files = list(user_files.values())
+
+        if project_id is not None:
+            files = [f for f in files if f.project_id == project_id]
+        if mime_type:
+            files = [f for f in files if f.mime_type == mime_type]
+        if tags:
+            files = [f for f in files if any(t in f.tags for t in tags)]
+
+        files.sort(key=lambda f: f.created_at, reverse=True)
+        return [FileSummary.model_validate(f) for f in files]
+
+    async def update_file(
+        self, user_id: UUID, file_id: int, file_data: FileUpdate
+    ) -> File:
+        import base64
+        file_obj = await self.get_file_by_id(user_id, file_id)
+        if not file_obj:
+            from app.exceptions import NotFoundError
+            raise NotFoundError(f"File {file_id} not found")
+
+        update_data = file_data.model_dump(exclude_unset=True)
+        if "data" in update_data and update_data["data"]:
+            decoded = base64.b64decode(update_data["data"])
+            update_data["size_bytes"] = len(decoded)
+
+        for field, value in update_data.items():
+            setattr(file_obj, field, value)
+        file_obj.updated_at = datetime.now(timezone.utc)
+        return file_obj
+
+    async def delete_file(self, user_id: UUID, file_id: int) -> bool:
+        user_files = self._files.get(user_id, {})
+        if file_id in user_files:
+            del user_files[file_id]
+            return True
+        return False
+
+
+@pytest.fixture
+def mock_file_repository():
+    return InMemoryFileRepository()
+
+
+@pytest.fixture
+def test_file_service(mock_file_repository):
+    return FileService(mock_file_repository)
+
+
+@pytest.fixture
+def test_file_service_with_event_bus(mock_file_repository):
+    """Provides a FileService with event bus for testing event emission."""
+    event_bus = CollectingEventBus()
+    service = FileService(mock_file_repository, event_bus=event_bus)
     return service, event_bus
 
 

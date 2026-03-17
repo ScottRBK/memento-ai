@@ -24,7 +24,7 @@ from app.exceptions import NotFoundError
 logger = logging.getLogger(__name__)
 
 # Regex pattern for parsing node IDs
-NODE_ID_PATTERN = re.compile(r'^(memory|entity|project|document|code_artifact)_(\d+)$')
+NODE_ID_PATTERN = re.compile(r'^(memory|entity|project|document|code_artifact|file)_(\d+)$')
 
 
 # Protocol for project service (to avoid circular imports)
@@ -42,6 +42,12 @@ class CodeArtifactServiceProtocol(Protocol):
     async def get_code_artifact(self, user_id: UUID, artifact_id: int) -> Any: ...
 
 
+# Protocol for file service (to avoid circular imports)
+class FileServiceProtocol(Protocol):
+    async def get_file(self, user_id: UUID, file_id: int) -> Any: ...
+    async def list_files(self, user_id: UUID, **kwargs) -> Any: ...
+
+
 class GraphService:
     """Service layer for graph traversal operations.
 
@@ -57,6 +63,7 @@ class GraphService:
         project_service: ProjectServiceProtocol | None = None,
         document_service: DocumentServiceProtocol | None = None,
         code_artifact_service: CodeArtifactServiceProtocol | None = None,
+        file_service: FileServiceProtocol | None = None,
     ):
         """Initialize with repository protocols and optional services.
 
@@ -66,12 +73,14 @@ class GraphService:
             project_service: Optional project service for fetching project data
             document_service: Optional document service for fetching document data
             code_artifact_service: Optional code artifact service for fetching artifact data
+            file_service: Optional file service for fetching file data
         """
         self.memory_repo = memory_repo
         self.entity_repo = entity_repo
         self.project_service = project_service
         self.document_service = document_service
         self.code_artifact_service = code_artifact_service
+        self.file_service = file_service
         logger.info("Graph service initialized")
 
     @staticmethod
@@ -93,7 +102,7 @@ class GraphService:
             raise ValueError(
                 f"Invalid node_id format: '{node_id}'. "
                 "Expected 'memory_{{id}}', 'entity_{{id}}', 'project_{{id}}', "
-                "'document_{{id}}', or 'code_artifact_{{id}}'."
+                "'document_{{id}}', 'code_artifact_{{id}}', or 'file_{{id}}'."
             )
         return match.group(1), int(match.group(2))
 
@@ -136,14 +145,15 @@ class GraphService:
         depth = max(1, min(depth, 3))
         max_nodes = max(1, min(max_nodes, 500))
 
-        # Determine which node types to include (default: all 5 types)
+        # Determine which node types to include (default: all types)
         if node_types is None:
-            node_types = ["memory", "entity", "project", "document", "code_artifact"]
+            node_types = ["memory", "entity", "project", "document", "code_artifact", "file"]
         include_memories = "memory" in node_types
         include_entities = "entity" in node_types
         include_projects = "project" in node_types
         include_documents = "document" in node_types
         include_code_artifacts = "code_artifact" in node_types
+        include_files = "file" in node_types
 
         logger.info(
             "Starting subgraph traversal",
@@ -167,6 +177,7 @@ class GraphService:
             include_projects=include_projects,
             include_documents=include_documents,
             include_code_artifacts=include_code_artifacts,
+            include_files=include_files,
             max_nodes=max_nodes,
         )
 
@@ -176,6 +187,7 @@ class GraphService:
         project_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "project"]
         document_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "document"]
         code_artifact_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "code_artifact"]
+        file_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "file"]
 
         # Build depth lookup
         depth_lookup = {
@@ -185,12 +197,12 @@ class GraphService:
 
         # Fetch full node data
         nodes = await self._fetch_node_data(
-            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, depth_lookup
+            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, depth_lookup
         )
 
         # Fetch edges between nodes in the subgraph
         edges = await self._fetch_edges(
-            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids
+            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids
         )
 
         # Build metadata
@@ -199,6 +211,7 @@ class GraphService:
         project_count = len([n for n in nodes if n.type == "project"])
         document_count = len([n for n in nodes if n.type == "document"])
         code_artifact_count = len([n for n in nodes if n.type == "code_artifact"])
+        file_count = len([n for n in nodes if n.type == "file"])
         memory_link_count = len([e for e in edges if e.type == "memory_link"])
         entity_relationship_count = len([e for e in edges if e.type == "entity_relationship"])
         entity_memory_count = len([e for e in edges if e.type == "entity_memory"])
@@ -208,6 +221,9 @@ class GraphService:
         code_artifact_project_count = len([e for e in edges if e.type == "code_artifact_project"])
         memory_document_count = len([e for e in edges if e.type == "memory_document"])
         memory_code_artifact_count = len([e for e in edges if e.type == "memory_code_artifact"])
+        memory_file_count = len([e for e in edges if e.type == "memory_file"])
+        file_project_count = len([e for e in edges if e.type == "file_project"])
+        entity_file_count = len([e for e in edges if e.type == "entity_file"])
 
         meta = SubgraphMeta(
             center_node_id=center_node_id,
@@ -219,6 +235,7 @@ class GraphService:
             project_count=project_count,
             document_count=document_count,
             code_artifact_count=code_artifact_count,
+            file_count=file_count,
             edge_count=len(edges),
             memory_link_count=memory_link_count,
             entity_relationship_count=entity_relationship_count,
@@ -229,6 +246,9 @@ class GraphService:
             code_artifact_project_count=code_artifact_project_count,
             memory_document_count=memory_document_count,
             memory_code_artifact_count=memory_code_artifact_count,
+            memory_file_count=memory_file_count,
+            file_project_count=file_project_count,
+            entity_file_count=entity_file_count,
             truncated=truncated,
         )
 
@@ -295,6 +315,15 @@ class GraphService:
             )
             if artifact is None:
                 raise NotFoundError(f"Code artifact {center_id} not found")
+        elif center_type == "file":
+            if self.file_service is None:
+                raise NotFoundError("File service not available")
+            file = await self.file_service.get_file(
+                user_id=user_id,
+                file_id=center_id
+            )
+            if file is None:
+                raise NotFoundError(f"File {center_id} not found")
         else:
             raise ValueError(f"Unknown center_type: {center_type}")
 
@@ -306,6 +335,7 @@ class GraphService:
         project_ids: List[int],
         document_ids: List[int],
         code_artifact_ids: List[int],
+        file_ids: List[int],
         depth_lookup: dict
     ) -> List[SubgraphNode]:
         """Fetch full data for all node types.
@@ -459,6 +489,34 @@ class GraphService:
                     logger.warning(f"Code artifact {artifact_id} not found during fetch")
                     continue
 
+        # Fetch files (use list_files once to get summaries, avoids loading binary data)
+        if self.file_service and file_ids:
+            try:
+                file_summaries = await self.file_service.list_files(user_id=user_id)
+                file_summary_map = {f.id: f for f in file_summaries}
+                for file_id in file_ids:
+                    file_summary = file_summary_map.get(file_id)
+                    if file_summary is None:
+                        logger.warning(f"File {file_id} not found during fetch")
+                        continue
+                    nodes.append(SubgraphNode(
+                        id=f"file_{file_summary.id}",
+                        type="file",
+                        depth=depth_lookup.get(("file", file_id), 0),
+                        label=file_summary.filename,
+                        data={
+                            "id": file_summary.id,
+                            "filename": file_summary.filename,
+                            "description": file_summary.description,
+                            "mime_type": file_summary.mime_type,
+                            "size_bytes": file_summary.size_bytes,
+                            "project_id": file_summary.project_id,
+                            "created_at": file_summary.created_at.isoformat() if file_summary.created_at else None,
+                        }
+                    ))
+            except Exception:
+                logger.warning("Failed to fetch file summaries for graph nodes")
+
         return nodes
 
     async def _fetch_edges(
@@ -468,7 +526,8 @@ class GraphService:
         entity_ids: List[int],
         project_ids: List[int],
         document_ids: List[int],
-        code_artifact_ids: List[int]
+        code_artifact_ids: List[int],
+        file_ids: List[int] | None = None
     ) -> List[SubgraphEdge]:
         """Fetch all edges between nodes in the subgraph.
 
@@ -501,6 +560,7 @@ class GraphService:
         project_id_set = set(project_ids)
         document_id_set = set(document_ids)
         code_artifact_id_set = set(code_artifact_ids)
+        file_id_set = set(file_ids or [])
 
         # Fetch memory-to-memory edges
         if memory_ids:
@@ -564,6 +624,19 @@ class GraphService:
                                     source=f"memory_{memory_id}",
                                     target=f"code_artifact_{artifact_id}",
                                     type="memory_code_artifact",
+                                ))
+
+                    # Memory -> File links
+                    for fid in memory.file_ids:
+                        if fid in file_id_set:
+                            edge_id = f"memory_{memory_id}_file_{fid}"
+                            if edge_id not in seen_edge_ids:
+                                seen_edge_ids.add(edge_id)
+                                edges.append(SubgraphEdge(
+                                    id=edge_id,
+                                    source=f"memory_{memory_id}",
+                                    target=f"file_{fid}",
+                                    type="memory_file",
                                 ))
 
                 except NotFoundError:
@@ -671,5 +744,40 @@ class GraphService:
                             ))
                 except NotFoundError:
                     continue
+
+        # Fetch file-to-project edges
+        if self.file_service and file_ids and project_ids:
+            try:
+                file_summaries = await self.file_service.list_files(user_id=user_id)
+                for fs in file_summaries:
+                    if fs.id in file_id_set and fs.project_id and fs.project_id in project_id_set:
+                        edge_id = f"file_{fs.id}_project_{fs.project_id}"
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
+                            edges.append(SubgraphEdge(
+                                id=edge_id,
+                                source=f"file_{fs.id}",
+                                target=f"project_{fs.project_id}",
+                                type="file_project",
+                            ))
+            except Exception:
+                logger.warning("Failed to fetch file-project edges")
+
+        # Fetch entity-to-file edges
+        if entity_ids and file_ids:
+            entity_file_links = await self.entity_repo.get_all_entity_file_links(
+                user_id=user_id
+            )
+            for entity_id, fid in entity_file_links:
+                if entity_id in entity_id_set and fid in file_id_set:
+                    edge_id = f"entity_{entity_id}_file_{fid}"
+                    if edge_id not in seen_edge_ids:
+                        seen_edge_ids.add(edge_id)
+                        edges.append(SubgraphEdge(
+                            id=edge_id,
+                            source=f"entity_{entity_id}",
+                            target=f"file_{fid}",
+                            type="entity_file",
+                        ))
 
         return edges

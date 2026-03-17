@@ -23,6 +23,7 @@ from sqlalchemy import (
     Boolean,
     Index,
     JSON,
+    LargeBinary,
 )
 from uuid import uuid4
 from datetime import datetime, timezone
@@ -55,6 +56,22 @@ memory_document_association = Table(
     Base.metadata,
     Column("memory_id", Integer, ForeignKey("memories.id", ondelete="CASCADE"), primary_key=True),
     Column("document_id", Integer, ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True),
+)
+
+# Association table for many-to-many relationship between memories and files
+memory_file_association = Table(
+    "memory_file_association",
+    Base.metadata,
+    Column("memory_id", Integer, ForeignKey("memories.id", ondelete="CASCADE"), primary_key=True),
+    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True),
+)
+
+# Association table for many-to-many relationship between entities and files
+entity_file_association = Table(
+    "entity_file_association",
+    Base.metadata,
+    Column("entity_id", Integer, ForeignKey("entities.id", ondelete="CASCADE"), primary_key=True),
+    Column("file_id", Integer, ForeignKey("files.id", ondelete="CASCADE"), primary_key=True),
 )
 
 # Association table for many-to-many relationship between memories and entities
@@ -116,6 +133,9 @@ class UsersTable(Base):
     )
     entities: Mapped[List["EntitiesTable"]] = relationship(
         "EntitiesTable", back_populates="user", cascade="all, delete-orphan"
+    )
+    files: Mapped[List["FilesTable"]] = relationship(
+        "FilesTable", back_populates="user", cascade="all, delete-orphan"
     )
     plans: Mapped[List["PlansTable"]] = relationship(
         "PlansTable", back_populates="user", cascade="all, delete-orphan"
@@ -188,6 +208,11 @@ class MemoryTable(Base):
     documents: Mapped[List["DocumentsTable"]] = relationship(
         "DocumentsTable",
         secondary=memory_document_association,
+        back_populates="memories",
+    )
+    files: Mapped[List["FilesTable"]] = relationship(
+        "FilesTable",
+        secondary=memory_file_association,
         back_populates="memories",
     )
     entities: Mapped[List["EntitiesTable"]] = relationship(
@@ -287,6 +312,22 @@ class MemoryTable(Base):
         insp = inspect(self)
         if insp.attrs.documents.loaded_value is not NO_VALUE:
             return [d.id for d in self.documents]
+        return []
+
+    @property
+    def file_ids(self) -> List[int]:
+        """
+        Compute file IDs from files relationship.
+
+        Returns:
+            List of file IDs, or empty list if relationship not loaded
+        """
+        from sqlalchemy import inspect
+        from sqlalchemy.orm.attributes import NO_VALUE
+
+        insp = inspect(self)
+        if insp.attrs.files.loaded_value is not NO_VALUE:
+            return [f.id for f in self.files]
         return []
 
     @property
@@ -390,6 +431,10 @@ class ProjectsTable(Base):
         "EntitiesTable",
         secondary=entity_project_association,
         back_populates="projects",
+    )
+    files: Mapped[List["FilesTable"]] = relationship(
+        "FilesTable",
+        back_populates="project",
     )
     plans: Mapped[List["PlansTable"]] = relationship(
         "PlansTable",
@@ -513,6 +558,65 @@ class DocumentsTable(Base):
     )
 
 
+class FilesTable(Base):
+    """
+    Table for storing binary files (images, PDFs, fonts, etc.)
+
+    Supports dual relationships:
+    - Direct project link (project_id) for project-specific files
+    - Memory references (many-to-many via memory_file_association) for cross-project reuse
+    - Entity references (many-to-many via entity_file_association)
+    """
+
+    __tablename__ = "files"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id: Mapped[int] = mapped_column(Integer, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True)
+
+    # File information
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(255), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    tags: Mapped[List[str]] = mapped_column(JSON, nullable=False)  # ARRAY -> JSON
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    # Relationships
+    user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="files")
+    project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="files")
+    memories: Mapped[List["MemoryTable"]] = relationship(
+        "MemoryTable",
+        secondary=memory_file_association,
+        back_populates="files",
+    )
+    entities: Mapped[List["EntitiesTable"]] = relationship(
+        "EntitiesTable",
+        secondary=entity_file_association,
+        back_populates="files",
+    )
+
+    __table_args__ = (
+        Index("ix_files_user_id", "user_id"),
+        Index("ix_files_project_id", "project_id"),
+        Index("ix_files_mime_type", "mime_type"),
+        # No GIN index for tags in SQLite
+    )
+
+
 class EntitiesTable(Base):
     """
     Table for storing entities (organizations, individuals, teams, devices, etc.)
@@ -559,6 +663,11 @@ class EntitiesTable(Base):
     memories: Mapped[List["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_entity_association,
+        back_populates="entities",
+    )
+    files: Mapped[List["FilesTable"]] = relationship(
+        "FilesTable",
+        secondary=entity_file_association,
         back_populates="entities",
     )
 
