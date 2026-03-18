@@ -5,7 +5,7 @@ Tests the build_auth_provider() factory and its helpers (_required, _scopes)
 that construct FastMCP v3 auth providers from settings.
 """
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from app.config.auth import build_auth_provider, _required, _scopes
 
