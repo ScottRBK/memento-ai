@@ -3,11 +3,13 @@ Auth provider factory for FastMCP v3.
 
 FastMCP v3 removed automatic auth provider construction from environment
 variables. This factory reads the same FASTMCP_SERVER_AUTH + FASTMCP_SERVER_AUTH_*
-env vars that users already configure and constructs providers explicitly.
+settings that users already configure and constructs providers explicitly.
+
+All auth settings flow through settings.py for consistency with the rest of
+the codebase (supports .env, docker/.env, and platform config .env files).
 
 Users change nothing — same env vars, same behavior.
 """
-import os
 import logging
 
 from app.config.settings import settings
@@ -26,24 +28,17 @@ def _register(class_path: str):
     return wrapper
 
 
-def _env(key: str, default: str | None = None) -> str | None:
-    """Read a FASTMCP_SERVER_AUTH_* env var."""
-    return os.getenv(f"FASTMCP_SERVER_AUTH_{key}", default)
-
-
-def _env_required(key: str) -> str:
-    """Read a required FASTMCP_SERVER_AUTH_* env var."""
-    value = _env(key)
+def _required(value: str, field_name: str) -> str:
+    """Validate a required setting is not empty."""
     if not value:
         raise ValueError(
-            f"FASTMCP_SERVER_AUTH_{key} is required when using this auth provider"
+            f"{field_name} is required when using this auth provider"
         )
     return value
 
 
-def _env_scopes(key: str) -> list[str] | None:
-    """Read a comma-separated scopes env var, returns None if not set."""
-    raw = _env(key)
+def _scopes(raw: str) -> list[str] | None:
+    """Parse comma-separated scopes string, returns None if empty."""
     if not raw:
         return None
     return [s.strip() for s in raw.split(",") if s.strip()]
@@ -54,10 +49,10 @@ def _build_github():
     from fastmcp.server.auth.providers.github import GitHubProvider
 
     return GitHubProvider(
-        client_id=_env_required("GITHUB_CLIENT_ID"),
-        client_secret=_env_required("GITHUB_CLIENT_SECRET"),
-        base_url=_env_required("GITHUB_BASE_URL"),
-        required_scopes=_env_scopes("GITHUB_REQUIRED_SCOPES"),
+        client_id=_required(settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID, "FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID"),
+        client_secret=_required(settings.FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET, "FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET"),
+        base_url=_required(settings.FASTMCP_SERVER_AUTH_GITHUB_BASE_URL, "FASTMCP_SERVER_AUTH_GITHUB_BASE_URL"),
+        required_scopes=_scopes(settings.FASTMCP_SERVER_AUTH_GITHUB_REQUIRED_SCOPES),
     )
 
 
@@ -66,10 +61,10 @@ def _build_google():
     from fastmcp.server.auth.providers.google import GoogleProvider
 
     return GoogleProvider(
-        client_id=_env_required("GOOGLE_CLIENT_ID"),
-        client_secret=_env_required("GOOGLE_CLIENT_SECRET"),
-        base_url=_env_required("GOOGLE_BASE_URL"),
-        required_scopes=_env_scopes("GOOGLE_REQUIRED_SCOPES"),
+        client_id=_required(settings.FASTMCP_SERVER_AUTH_GOOGLE_CLIENT_ID, "FASTMCP_SERVER_AUTH_GOOGLE_CLIENT_ID"),
+        client_secret=_required(settings.FASTMCP_SERVER_AUTH_GOOGLE_CLIENT_SECRET, "FASTMCP_SERVER_AUTH_GOOGLE_CLIENT_SECRET"),
+        base_url=_required(settings.FASTMCP_SERVER_AUTH_GOOGLE_BASE_URL, "FASTMCP_SERVER_AUTH_GOOGLE_BASE_URL"),
+        required_scopes=_scopes(settings.FASTMCP_SERVER_AUTH_GOOGLE_REQUIRED_SCOPES),
     )
 
 
@@ -77,9 +72,8 @@ def _build_google():
 def _build_jwt():
     from fastmcp.server.auth.providers.jwt import JWTVerifier
 
-    # JWTVerifier needs either jwks_uri or public_key
-    jwks_uri = _env("JWT_JWKS_URI")
-    public_key = _env("JWT_PUBLIC_KEY")
+    jwks_uri = settings.FASTMCP_SERVER_AUTH_JWT_JWKS_URI or None
+    public_key = settings.FASTMCP_SERVER_AUTH_JWT_PUBLIC_KEY or None
 
     if not jwks_uri and not public_key:
         raise ValueError(
@@ -90,9 +84,9 @@ def _build_jwt():
     return JWTVerifier(
         jwks_uri=jwks_uri,
         public_key=public_key,
-        issuer=_env("JWT_ISSUER"),
-        audience=_env("JWT_AUDIENCE"),
-        required_scopes=_env_scopes("JWT_REQUIRED_SCOPES"),
+        issuer=settings.FASTMCP_SERVER_AUTH_JWT_ISSUER or None,
+        audience=settings.FASTMCP_SERVER_AUTH_JWT_AUDIENCE or None,
+        required_scopes=_scopes(settings.FASTMCP_SERVER_AUTH_JWT_REQUIRED_SCOPES),
     )
 
 
@@ -101,10 +95,10 @@ def _build_introspection():
     from fastmcp.server.auth.providers.introspection import IntrospectionTokenVerifier
 
     return IntrospectionTokenVerifier(
-        introspection_url=_env_required("INTROSPECTION_URL"),
-        client_id=_env_required("INTROSPECTION_CLIENT_ID"),
-        client_secret=_env_required("INTROSPECTION_CLIENT_SECRET"),
-        required_scopes=_env_scopes("INTROSPECTION_REQUIRED_SCOPES"),
+        introspection_url=_required(settings.FASTMCP_SERVER_AUTH_INTROSPECTION_URL, "FASTMCP_SERVER_AUTH_INTROSPECTION_URL"),
+        client_id=_required(settings.FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_ID, "FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_ID"),
+        client_secret=_required(settings.FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_SECRET, "FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_SECRET"),
+        required_scopes=_scopes(settings.FASTMCP_SERVER_AUTH_INTROSPECTION_REQUIRED_SCOPES),
         cache_ttl_seconds=settings.TOKEN_CACHE_TTL_SECONDS,
         max_cache_size=settings.TOKEN_CACHE_MAX_SIZE,
     )
@@ -112,12 +106,12 @@ def _build_introspection():
 
 def build_auth_provider():
     """
-    Build auth provider from FASTMCP_SERVER_AUTH environment variable.
+    Build auth provider from FASTMCP_SERVER_AUTH setting.
 
     Returns None when FASTMCP_SERVER_AUTH is not set (no auth mode).
     Raises ValueError for unrecognized provider class paths.
     """
-    auth_class_path = os.getenv("FASTMCP_SERVER_AUTH")
+    auth_class_path = settings.FASTMCP_SERVER_AUTH
 
     if not auth_class_path:
         logger.info("No auth provider configured (FASTMCP_SERVER_AUTH not set)")

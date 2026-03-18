@@ -53,6 +53,35 @@ class Settings(BaseSettings):
     DEFAULT_USER_NAME: str = "default-user-name"
     DEFAULT_USER_EMAIL: str = "default-user-email"
 
+    # FastMCP Auth Provider Configuration
+    # Set FASTMCP_SERVER_AUTH to enable authentication (omit for no-auth default user mode)
+    FASTMCP_SERVER_AUTH: str = ""              # Fully-qualified provider class path
+
+    # GitHub OAuth Provider
+    FASTMCP_SERVER_AUTH_GITHUB_CLIENT_ID: str = ""
+    FASTMCP_SERVER_AUTH_GITHUB_CLIENT_SECRET: str = ""
+    FASTMCP_SERVER_AUTH_GITHUB_BASE_URL: str = ""
+    FASTMCP_SERVER_AUTH_GITHUB_REQUIRED_SCOPES: str = ""
+
+    # Google OAuth Provider
+    FASTMCP_SERVER_AUTH_GOOGLE_CLIENT_ID: str = ""
+    FASTMCP_SERVER_AUTH_GOOGLE_CLIENT_SECRET: str = ""
+    FASTMCP_SERVER_AUTH_GOOGLE_BASE_URL: str = ""
+    FASTMCP_SERVER_AUTH_GOOGLE_REQUIRED_SCOPES: str = ""
+
+    # JWT Verification
+    FASTMCP_SERVER_AUTH_JWT_JWKS_URI: str = ""
+    FASTMCP_SERVER_AUTH_JWT_PUBLIC_KEY: str = ""
+    FASTMCP_SERVER_AUTH_JWT_ISSUER: str = ""
+    FASTMCP_SERVER_AUTH_JWT_AUDIENCE: str = ""
+    FASTMCP_SERVER_AUTH_JWT_REQUIRED_SCOPES: str = ""
+
+    # Token Introspection (RFC 7662)
+    FASTMCP_SERVER_AUTH_INTROSPECTION_URL: str = ""
+    FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_ID: str = ""
+    FASTMCP_SERVER_AUTH_INTROSPECTION_CLIENT_SECRET: str = ""
+    FASTMCP_SERVER_AUTH_INTROSPECTION_REQUIRED_SCOPES: str = ""
+
     # OAuth Storage Configuration
     OAUTH_STORAGE_PATH: str = str(_default_data_dir / "oauth")  # Platform-specific path for OAuth tokens
 
