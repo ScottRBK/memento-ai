@@ -1,7 +1,6 @@
 """
 Authentication Middleware helpers for integrating with FastMCP and FastAPI
 """
-import os
 import json
 import hashlib
 import time
@@ -110,12 +109,10 @@ async def get_user_from_auth(ctx: Context) -> User:
     """
     Provides user context for MCP and API interaction.
 
-    FastMCP handles authentication via environment variables. This function detects
-    the auth mode and provisions users accordingly:
-    - When FASTMCP_SERVER_AUTH is not set: Uses default user (no auth)
-    - When FASTMCP_SERVER_AUTH is set: Extracts user from validated access token
-
-    See: https://fastmcp.wiki/en/servers/auth/authentication
+    Detects auth mode via ctx.fastmcp.auth (the auth provider passed to FastMCP)
+    and provisions users accordingly:
+    - When auth is not configured: Uses default user (no auth)
+    - When auth is configured: Extracts user from validated access token
 
     Args:
         ctx: FastMCP Context object (automatically injected by FastMCP)
@@ -125,10 +122,8 @@ async def get_user_from_auth(ctx: Context) -> User:
     """
     user_service: UserService = ctx.fastmcp.user_service
 
-    auth_provider = os.getenv("FASTMCP_SERVER_AUTH")
-
-    if not auth_provider:
-        logger.info("Authentication disabled (FASTMCP_SERVER_AUTH not set) - using default user")
+    if not ctx.fastmcp.auth:
+        logger.info("Authentication disabled (no auth provider configured) - using default user")
         default_user = UserCreate(
             external_id=settings.DEFAULT_USER_ID,
             name=settings.DEFAULT_USER_NAME,
@@ -136,7 +131,7 @@ async def get_user_from_auth(ctx: Context) -> User:
         )
         return await user_service.get_or_create_user(user=default_user)
 
-    logger.info(f"Authentication enabled ({auth_provider}) - extracting user from token")
+    logger.info(f"Authentication enabled ({type(ctx.fastmcp.auth).__name__}) - extracting user from token")
     token: AccessToken | None = get_access_token()
 
     if token is None:

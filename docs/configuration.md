@@ -201,6 +201,8 @@ Forgetful provides three Docker Compose configurations:
 
 Forgetful leverages **FastMCP's built-in authentication system** via environment variables. This provides flexible auth options without custom code.
 
+Forgetful reads the same `FASTMCP_SERVER_AUTH` and `FASTMCP_SERVER_AUTH_*` environment variables documented below and constructs the appropriate auth provider at startup. Users configure auth entirely through env vars — no code changes required.
+
 **📚 Official Documentation**:
 - [FastMCP Auth Guide](https://fastmcp.wiki/en/servers/auth/authentication)
 - [Auth Examples](https://github.com/jlowin/fastmcp/tree/main/docs/servers/auth)

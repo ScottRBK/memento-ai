@@ -11,14 +11,15 @@ from app.config.settings import settings
 
 class MockFastMCP:
     """Mock FastMCP instance for testing context pattern"""
-    def __init__(self, user_service):
+    def __init__(self, user_service, auth=None):
         self.user_service = user_service
+        self.auth = auth
 
 
 class MockContext:
     """Mock Context object for testing"""
-    def __init__(self, user_service):
-        self.fastmcp = MockFastMCP(user_service)
+    def __init__(self, user_service, auth=None):
+        self.fastmcp = MockFastMCP(user_service, auth=auth)
 
 
 class MockAccessToken:
@@ -28,14 +29,10 @@ class MockAccessToken:
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
-async def test_get_user_from_auth_default_user(mock_getenv, test_user_service):
-    """Test that get_user_from_auth returns default user when AUTH_ENABLED=false"""
-    # Mock auth not configured
-    mock_getenv.return_value = None
-
-    # Create mock context with test service
-    ctx = MockContext(test_user_service)
+async def test_get_user_from_auth_default_user(test_user_service):
+    """Test that get_user_from_auth returns default user when no auth configured"""
+    # Create mock context with no auth provider
+    ctx = MockContext(test_user_service, auth=None)
 
     # Get user (should auto-create default user)
     user = await auth.get_user_from_auth(ctx)
@@ -47,13 +44,9 @@ async def test_get_user_from_auth_default_user(mock_getenv, test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
-async def test_get_user_from_auth_idempotent(mock_getenv, test_user_service):
+async def test_get_user_from_auth_idempotent(test_user_service):
     """Test that calling get_user_from_auth multiple times returns same user"""
-    # Mock auth not configured
-    mock_getenv.return_value = None
-
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=None)
 
     # Call twice
     user1 = await auth.get_user_from_auth(ctx)
@@ -70,13 +63,9 @@ async def test_get_user_from_auth_idempotent(mock_getenv, test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_with_valid_token(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_with_valid_token(mock_get_token, test_user_service):
     """Test auth-enabled mode with valid bearer token"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock valid access token with all required claims
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-123",
@@ -85,7 +74,7 @@ async def test_auth_enabled_with_valid_token(mock_get_token, mock_getenv, test_u
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Verify user provisioned from token claims
@@ -96,17 +85,13 @@ async def test_auth_enabled_with_valid_token(mock_get_token, mock_getenv, test_u
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_missing_token(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_missing_token(mock_get_token, test_user_service):
     """Test auth-enabled mode fails when no bearer token provided"""
-    # Mock auth provider configured (auth required)
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock no token provided
     mock_get_token.return_value = None
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
 
     # Should raise ValueError
     with pytest.raises(ValueError, match="Authentication required but no bearer token provided"):
@@ -114,13 +99,9 @@ async def test_auth_enabled_missing_token(mock_get_token, mock_getenv, test_user
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_missing_sub_claim(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_missing_sub_claim(mock_get_token, test_user_service):
     """Test auth-enabled mode fails when token missing 'sub' claim"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock token missing 'sub' claim
     mock_token = MockAccessToken(claims={
         "name": "Test User",
@@ -128,7 +109,7 @@ async def test_auth_enabled_missing_sub_claim(mock_get_token, mock_getenv, test_
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
 
     # Should raise ValueError
     with pytest.raises(ValueError, match="Token contains no 'sub' claim"):
@@ -136,13 +117,9 @@ async def test_auth_enabled_missing_sub_claim(mock_get_token, mock_getenv, test_
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_missing_name_generates_fallback(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_missing_name_generates_fallback(mock_get_token, test_user_service):
     """Test auth-enabled mode generates fallback name when all name claims missing"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock token missing all name claims (name, preferred_username, login)
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-123",
@@ -150,7 +127,7 @@ async def test_auth_enabled_missing_name_generates_fallback(mock_get_token, mock
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Should generate fallback name from sub
@@ -161,13 +138,9 @@ async def test_auth_enabled_missing_name_generates_fallback(mock_get_token, mock
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_preferred_username_fallback(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_preferred_username_fallback(mock_get_token, test_user_service):
     """Test auth-enabled mode uses 'preferred_username' when 'name' missing"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock token with preferred_username but no name
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-456",
@@ -176,7 +149,7 @@ async def test_auth_enabled_preferred_username_fallback(mock_get_token, mock_get
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Verify user created with preferred_username as name
@@ -187,13 +160,9 @@ async def test_auth_enabled_preferred_username_fallback(mock_get_token, mock_get
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_idempotency(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_idempotency(mock_get_token, test_user_service):
     """Test auth-enabled mode returns same user for repeated calls with same token"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock same token for both calls
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-789",
@@ -202,7 +171,7 @@ async def test_auth_enabled_idempotency(mock_get_token, mock_getenv, test_user_s
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
 
     # Call twice with same token
     user1 = await auth.get_user_from_auth(ctx)
@@ -220,13 +189,9 @@ async def test_auth_enabled_idempotency(mock_get_token, mock_getenv, test_user_s
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_login_fallback(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_login_fallback(mock_get_token, test_user_service):
     """Test auth uses 'login' claim when name/preferred_username missing (GitHub pattern)"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.github.GitHubProvider"
-
     # Mock token with login but no name/preferred_username (GitHub OAuth pattern)
     mock_token = MockAccessToken(claims={
         "sub": "12345678",
@@ -235,7 +200,7 @@ async def test_auth_enabled_login_fallback(mock_get_token, mock_getenv, test_use
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Should use login as name
@@ -246,13 +211,9 @@ async def test_auth_enabled_login_fallback(mock_get_token, mock_getenv, test_use
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_missing_email_generates_placeholder(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_missing_email_generates_placeholder(mock_get_token, test_user_service):
     """Test auth generates placeholder email when email claim missing"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock token missing email claim
     mock_token = MockAccessToken(claims={
         "sub": "oauth2|user-without-email",
@@ -260,7 +221,7 @@ async def test_auth_enabled_missing_email_generates_placeholder(mock_get_token, 
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Should generate placeholder email from sub
@@ -271,13 +232,9 @@ async def test_auth_enabled_missing_email_generates_placeholder(mock_get_token, 
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, test_user_service):
     """Test auth handles null email value (OAuth provider returns null instead of omitting)"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.github.GitHubProvider"
-
     # Mock token with null email (actual bug: GitHub returns {"email": null} when not public)
     mock_token = MockAccessToken(claims={
         "sub": "87654321",
@@ -287,7 +244,7 @@ async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, moc
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Should handle null gracefully with fallbacks
@@ -298,13 +255,9 @@ async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, moc
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_all_nulls_uses_sub_fallback(mock_get_token, mock_getenv, test_user_service):
+async def test_auth_enabled_all_nulls_uses_sub_fallback(mock_get_token, test_user_service):
     """Test auth handles all name claims null (uses sub-based fallback)"""
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
-
     # Mock token with all possible name claims as null
     mock_token = MockAccessToken(claims={
         "sub": "minimal-oauth-user-999",
@@ -315,7 +268,7 @@ async def test_auth_enabled_all_nulls_uses_sub_fallback(mock_get_token, mock_get
     })
     mock_get_token.return_value = mock_token
 
-    ctx = MockContext(test_user_service)
+    ctx = MockContext(test_user_service, auth=True)
     user = await auth.get_user_from_auth(ctx)
 
     # Should use sub-based fallbacks for both name and email

@@ -7,7 +7,7 @@ Integration tests (test_auth.py) mock dependencies for fast unit testing.
 These E2E tests validate the full stack with in-process FastMCP and in-memory SQLite.
 """
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.asyncio
@@ -59,9 +59,8 @@ class MockAccessToken:
 
 
 @pytest.mark.asyncio
-@patch('os.getenv')
 @patch('app.middleware.auth.get_access_token')
-async def test_auth_enabled_user_from_token_sqlite(mock_get_token, mock_getenv, mcp_client):
+async def test_auth_enabled_user_from_token_sqlite(mock_get_token, sqlite_app, mcp_client):
     """
     Test that user is provisioned from bearer token when auth enabled
 
@@ -72,8 +71,8 @@ async def test_auth_enabled_user_from_token_sqlite(mock_get_token, mock_getenv, 
     4. Tool execution uses the authenticated user
     5. Multiple calls with same token return same user (from database)
     """
-    # Mock auth provider configured
-    mock_getenv.return_value = "fastmcp.server.auth.providers.jwt.JWTVerifier"
+    # Set auth on the app instance to simulate auth being configured
+    sqlite_app.auth = MagicMock()
 
     # Mock access token with test claims
     mock_token = MockAccessToken(claims={

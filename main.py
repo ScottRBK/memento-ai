@@ -19,6 +19,7 @@ from app.routes.api import files as files_routes
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
+from app.config.auth import build_auth_provider
 
 # NOTE: Logging is configured inside lifespan() to avoid STDIO pollution
 # before MCP handshake completes. Do NOT add module-level logging here.
@@ -316,7 +317,7 @@ async def lifespan(app):
     logger.info("Session shutdown complete")
 
 
-mcp = FastMCP(settings.SERVICE_NAME, lifespan=lifespan)
+mcp = FastMCP(settings.SERVICE_NAME, lifespan=lifespan, auth=build_auth_provider())
 
 
 @mcp.custom_route("/", methods=["GET"])
