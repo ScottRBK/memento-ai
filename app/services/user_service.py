@@ -1,7 +1,9 @@
 """
 Service for user management and auto-provisioning
 """
-from uuid import UUID 
+from uuid import UUID
+
+from sqlalchemy.exc import IntegrityError
 
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.user_protocol import UserRepository
@@ -40,7 +42,7 @@ class UserService:
         """
         
         existing_user = await self.user_repo.get_user_by_external_id(external_id=user.external_id)
-        
+
         if existing_user:
             changed_fields = get_changed_fields(user, existing_user)
             if changed_fields:
@@ -52,18 +54,26 @@ class UserService:
                             })
                 update_data = UserUpdate(**user.model_dump())
                 return await self.user_repo.update_user(
-                    user_id=existing_user.id, 
+                    user_id=existing_user.id,
                     updated_user=update_data)
             else:
-                return existing_user        
-        else: 
+                return existing_user
+        else:
             logger.info("Creating user",
                         extra={
                             "external_id": user.external_id,
                             "user_name": user.name})
-            new_user = await self.user_repo.create_user(user=user)
-            logger.info("User created")
-            return new_user
+            try:
+                new_user = await self.user_repo.create_user(user=user)
+                logger.info("User created")
+                return new_user
+            except IntegrityError:
+                # Race condition: another request created this user between our
+                # SELECT and INSERT. Re-fetch the winner's row.
+                logger.info("User creation race condition, fetching existing user",
+                            extra={"external_id": user.external_id})
+                return await self.user_repo.get_user_by_external_id(
+                    external_id=user.external_id)
     
     async def update_user(self, user_update: UserUpdate) -> User | None:
         """
@@ -93,12 +103,19 @@ class UserService:
                 return existing_user        
         else:
             logger.info("User record not found, creating user",
-            extra={
-                "external_id": user_update.external_id,
-                "user_name": user_update.name})
+                        extra={
+                            "external_id": user_update.external_id,
+                            "user_name": user_update.name})
             create_user = UserCreate(**user_update.model_dump())
-            logger.info("User created")
-            return await self.user_repo.create_user(user=create_user)
+            try:
+                new_user = await self.user_repo.create_user(user=create_user)
+                logger.info("User created")
+                return new_user
+            except IntegrityError:
+                logger.info("User creation race condition, fetching existing user",
+                            extra={"external_id": user_update.external_id})
+                return await self.user_repo.get_user_by_external_id(
+                    external_id=user_update.external_id)
         
         
 

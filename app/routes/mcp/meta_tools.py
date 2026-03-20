@@ -220,6 +220,8 @@ def register(mcp: FastMCP):
         - Update: execute_forgetful_tool("update_memory", {"memory_id": 1, "content": "new content"})
         - Get: execute_forgetful_tool("get_memory", {"memory_id": 1})
         - Link: execute_forgetful_tool("link_memories", {"memory_id": 1, "related_ids": [2, 3]})
+        - Unlink: execute_forgetful_tool("unlink_memories", {"source_id": 1, "target_id": 2})
+        - Obsolete: execute_forgetful_tool("mark_memory_obsolete", {"memory_id": 42, "reason": "Outdated approach", "superseded_by": 100})
 
         **Project Organization:**
         - List: execute_forgetful_tool("list_projects", {})
