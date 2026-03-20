@@ -4,12 +4,11 @@ Integration tests for UserService with stubbed database
 Tests critical workflows without real PostgreSQL dependency
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from sqlalchemy.exc import IntegrityError
 
 from app.models.user_models import UserCreate, UserUpdate
-from app.services.user_service import UserService
 
 
 @pytest.mark.asyncio
