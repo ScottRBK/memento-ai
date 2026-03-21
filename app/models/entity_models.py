@@ -62,17 +62,17 @@ class EntityCreate(BaseModel):
         max_length=settings.ENTITY_NOTES_MAX_LENGTH,
         description="Additional context and information about this entity (bio, description, purpose, etc.)"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['engineering', 'leadership'], ['ai', 'startup'])"
     )
-    aka: List[str] = Field(
+    aka: list[str] = Field(
         default_factory=list,
         max_length=settings.ENTITY_AKA_MAX_COUNT,
         description="Alternative names/aliases for this entity (e.g., ['Johnny', 'J.S.'] for 'John Smith', ['MSFT'] for 'Microsoft')"
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         default=None,
         description="Optional project IDs for immediate association with projects"
     )
@@ -166,17 +166,17 @@ class EntityUpdate(BaseModel):
         max_length=settings.ENTITY_NOTES_MAX_LENGTH,
         description="New notes. Unchanged if null. Empty string clears."
     )
-    tags: List[str] | None = Field(
+    tags: list[str] | None = Field(
         default=None,
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
         description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
     )
-    aka: List[str] | None = Field(
+    aka: list[str] | None = Field(
         default=None,
         max_length=settings.ENTITY_AKA_MAX_COUNT,
         description="New alternative names (replaces existing). Unchanged if null. Empty list [] clears."
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         default=None,
         description="New project associations (replaces existing). Unchanged if null. Empty list [] clears associations."
     )
@@ -259,7 +259,7 @@ class Entity(EntityCreate):
         ...,
         description="Unique entity identifier (auto-generated)"
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         default=None,
         description="Associated project IDs. Empty list if not linked to any projects."
     )
@@ -300,15 +300,15 @@ class EntitySummary(BaseModel):
         default=None,
         description="Custom entity type (if entity_type is 'Other')"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         ...,
         description="Tags for categorization"
     )
-    aka: List[str] = Field(
+    aka: list[str] = Field(
         ...,
         description="Alternative names/aliases"
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         default=None,
         description="Associated project IDs"
     )
@@ -330,7 +330,7 @@ class EntityListResponse(BaseModel):
     Used by GET /api/v1/entities endpoint for returning
     paginated entity results with total count metadata.
     """
-    entities: List[EntitySummary] = Field(
+    entities: list[EntitySummary] = Field(
         ...,
         description="List of entity summaries for the current page"
     )
@@ -388,7 +388,7 @@ class EntityRelationshipCreate(BaseModel):
         le=1.0,
         description="Confidence score (0.0-1.0), indicating certainty about this relationship"
     )
-    metadata: Dict[str, Any] | None = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None,
         description="Flexible metadata dictionary for additional context (e.g., {'source': 'linkedin', 'last_verified': '2025-03-21'})"
     )
@@ -443,7 +443,7 @@ class EntityRelationshipUpdate(BaseModel):
         le=1.0,
         description="New confidence. Unchanged if null."
     )
-    metadata: Dict[str, Any] | None = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None,
         description="New metadata (replaces existing). Unchanged if null. Empty dict {} clears metadata."
     )

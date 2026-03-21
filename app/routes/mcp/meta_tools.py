@@ -27,7 +27,7 @@ def register(mcp: FastMCP):
     async def discover_forgetful_tools(
         category: Optional[str] = None,
         ctx: Context = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Discover available tools, optionally filtered by category
 
@@ -159,7 +159,7 @@ def register(mcp: FastMCP):
     async def how_to_use_forgetful_tool(
         tool_name: str,
         ctx: Context = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get detailed documentation for a specific tool
 
@@ -205,7 +205,7 @@ def register(mcp: FastMCP):
     @mcp.tool()
     async def execute_forgetful_tool(
         tool_name: str,
-        arguments: Dict[str, Any],
+        arguments: dict[str, Any],
         ctx: Context
     ) -> Any:
         """

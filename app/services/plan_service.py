@@ -98,7 +98,7 @@ class PlanService:
         user_id: UUID,
         project_id: int | None = None,
         status: PlanStatus | None = None,
-    ) -> List[PlanSummary]:
+    ) -> list[PlanSummary]:
         logger.info("listing plans", extra={"user_id": str(user_id), "project_id": project_id, "status": status.value if status else None})
         plans = await self.plan_repo.list_plans(user_id=user_id, project_id=project_id, status=status)
         logger.info("plans retrieved", extra={"count": len(plans)})

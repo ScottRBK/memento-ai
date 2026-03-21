@@ -142,7 +142,7 @@ def reranker_adapter():
 # App Builder — shared between sqlite_app and feature-flag-off fixtures
 # ============================================================================
 
-async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features: Set[str] | None = None):
+async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features: set[str] | None = None):
     """
     Build a fully-wired FastMCP app with in-memory SQLite.
 

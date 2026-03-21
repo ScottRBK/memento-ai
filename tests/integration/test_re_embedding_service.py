@@ -27,7 +27,7 @@ def _make_memory(memory_id: int, title: str = "Test", content: str = "Content") 
     )
 
 
-def _make_mock_repo(memories: List[Memory]):
+def _make_mock_repo(memories: list[Memory]):
     """Create a mock MemoryRepository with re-embedding methods"""
     repo = AsyncMock()
     repo.count_all_memories.return_value = len(memories)

@@ -49,7 +49,7 @@ class PostgresProjectRepository:
         status: ProjectStatus | None = None,
         repo_name: str | None = None,
         name: str | None = None,
-    ) -> List[ProjectSummary]:
+    ) -> list[ProjectSummary]:
         """List projects with optional filtering
 
         Retrieves lightweight project summaries. Filters by status and/or

@@ -19,6 +19,7 @@ class ToolCategory(str, Enum):
     PLAN = "plan"
     TASK = "task"
     FILE = "file"
+    SKILL = "skill"
 
 class ToolParameter(BaseModel):
     """Parameters metadata for a tool"""
@@ -34,13 +35,13 @@ class ToolMetadata(BaseModel):
     name: str
     category: ToolCategory
     description: str
-    parameters: List[ToolParameter]
+    parameters: list[ToolParameter]
     returns: str
-    examples: List[str] = Field(default_factory=list)
-    tags: List[str] = Field(default_factory=list)
+    examples: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
     mutates: bool = Field(default=False, description="Whether this tool mutates state (write operation)")
 
-    def to_discovery_dict(self) -> Dict[str, Any]:
+    def to_discovery_dict(self) -> dict[str, Any]:
         """Returns minimal info for discover_tools (lightweight)"""
         return {
             "name": self.name,
@@ -60,7 +61,7 @@ class ToolMetadata(BaseModel):
             "example": self.examples[0] if self.examples else None
         }
 
-    def to_detailed_dict(self) -> Dict[str, Any]:
+    def to_detailed_dict(self) -> dict[str, Any]:
         """Returns full info for how_to_use (comprehensive)"""
         return {
             "name": self.name,
@@ -84,7 +85,7 @@ class ToolMetadata(BaseModel):
             "json_schema": self._generate_json_schema()
         }
 
-    def _generate_json_schema(self) -> Dict[str, Any]:
+    def _generate_json_schema(self) -> dict[str, Any]:
         """Generate JSON schema for tool parameters"""
         properties = {}
         required = []
@@ -144,8 +145,8 @@ class ToolMetadata(BaseModel):
 
 class ToolDataDetailed(ToolMetadata):
     """Extended tool metadata with additional examples (for backwards compatibility)"""
-    json_schema: Dict[str, Any]
-    further_examples: List[str] = Field(default_factory=list)
+    json_schema: dict[str, Any]
+    further_examples: list[str] = Field(default_factory=list)
 
 
 @dataclass

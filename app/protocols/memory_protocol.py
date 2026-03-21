@@ -27,9 +27,9 @@ class MemoryRepository(Protocol):
             query_context: str,
             k: int, 
             importance_threshold: int | None,
-            project_ids: List[int] | None,
-            exclude_ids: List[int] | None
-    ) -> List[Memory]:
+            project_ids: list[int] | None,
+            exclude_ids: list[int] | None
+    ) -> list[Memory]:
         ...
     async def create_memory(
             self,
@@ -41,8 +41,8 @@ class MemoryRepository(Protocol):
             self,
             user_id: UUID,
             source_id: int,
-            target_ids: List[int],
-    ) -> List[int]:
+            target_ids: list[int],
+    ) -> list[int]:
         ...
     async def get_memory_by_id(
             self,
@@ -71,16 +71,16 @@ class MemoryRepository(Protocol):
             self,
             user_id: UUID,
             memory_id: int,
-            project_ids: List[int] | None,
+            project_ids: list[int] | None,
             max_links: int = 5,
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         ...
     async def find_similar_memories(
             self,
             user_id: UUID,
             memory_id: int,
             max_links: int
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         ...
 
     async def get_recent_memories(
@@ -88,12 +88,12 @@ class MemoryRepository(Protocol):
             user_id: UUID,
             limit: int,
             offset: int = 0,
-            project_ids: List[int] | None = None,
+            project_ids: list[int] | None = None,
             include_obsolete: bool = False,
             sort_by: str = "created_at",
             sort_order: str = "desc",
-            tags: List[str] | None = None,
-    ) -> tuple[List[Memory], int]:
+            tags: list[str] | None = None,
+    ) -> tuple[list[Memory], int]:
         """
         Get memories with pagination, sorting, and filtering.
 
@@ -144,7 +144,7 @@ class MemoryRepository(Protocol):
             include_documents: bool,
             include_code_artifacts: bool,
             max_nodes: int
-    ) -> Tuple[List[Dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """
         Traverse graph using recursive CTE from center node.
 
@@ -182,7 +182,7 @@ class MemoryRepository(Protocol):
         """Count all non-obsolete memories across all users"""
         ...
 
-    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> list[Memory]:
         """Fetch memories in batches for re-embedding (all users, ordered by id)"""
         ...
 
@@ -192,7 +192,7 @@ class MemoryRepository(Protocol):
         Postgres: ALTER embedding column type"""
         ...
 
-    async def bulk_update_embeddings(self, updates: List[Tuple[int, List[float]]]) -> None:
+    async def bulk_update_embeddings(self, updates: list[tuple[int, list[float]]]) -> None:
         """Write new embeddings for a batch of memory IDs"""
         ...
 

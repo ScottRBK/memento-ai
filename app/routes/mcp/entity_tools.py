@@ -36,9 +36,9 @@ def register(mcp: FastMCP):
         ctx: Context,
         custom_type: str = None,
         notes: str = None,
-        tags: List[str] = None,
-        aka: List[str] = None,
-        project_ids: List[int] = None,
+        tags: list[str] = None,
+        aka: list[str] = None,
+        project_ids: list[int] = None,
     ) -> Entity:
         """
         Create entity representing a real-world entity (organization, individual, team, device).
@@ -191,9 +191,9 @@ def register(mcp: FastMCP):
     @mcp.tool()
     async def list_entities(
         ctx: Context,
-        project_ids: List[int] = None,
+        project_ids: list[int] = None,
         entity_type: str = None,
-        tags: List[str] = None
+        tags: list[str] = None
     ) -> dict:
         """
         List entities with optional filtering.
@@ -262,7 +262,7 @@ def register(mcp: FastMCP):
         query: str,
         ctx: Context,
         entity_type: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
         limit: int = 20
     ) -> dict:
         """
@@ -347,9 +347,9 @@ def register(mcp: FastMCP):
         entity_type: str = None,
         custom_type: str = None,
         notes: str = None,
-        tags: List[str] = None,
-        aka: List[str] = None,
-        project_ids: List[int] = None
+        tags: list[str] = None,
+        aka: list[str] = None,
+        project_ids: list[int] = None
     ) -> Entity:
         """
         Update existing entity (PATCH semantics - only provided fields changed).
@@ -695,7 +695,7 @@ def register(mcp: FastMCP):
         ctx: Context,
         strength: float = None,
         confidence: float = None,
-        metadata: Dict[str, Any] = None
+        metadata: dict[str, Any] = None
     ) -> EntityRelationship:
         """
         Create typed relationship between two entities (knowledge graph edge).
@@ -870,7 +870,7 @@ def register(mcp: FastMCP):
         relationship_type: str = None,
         strength: float = None,
         confidence: float = None,
-        metadata: Dict[str, Any] = None
+        metadata: dict[str, Any] = None
     ) -> EntityRelationship:
         """
         Update entity relationship (PATCH semantics - only provided fields changed).

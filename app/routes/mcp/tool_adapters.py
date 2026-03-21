@@ -88,7 +88,7 @@ class UserToolAdapters:
         return UserResponse(**updated_user.model_dump())
 
 
-def create_user_adapters(user_service: UserService) -> Dict[str, Any]:
+def create_user_adapters(user_service: UserService) -> dict[str, Any]:
     """Create all user tool adapters and return as dict"""
     adapters = UserToolAdapters(user_service)
     return {
@@ -114,16 +114,16 @@ class MemoryToolAdapters:
         title: str,
         content: str,
         context: str,
-        keywords: List[str],
-        tags: List[str],
+        keywords: list[str],
+        tags: list[str],
         importance: int,
         ctx: Context,
-        project_ids: Optional[List[int]] = None,
-        code_artifact_ids: Optional[List[int]] = None,
-        document_ids: Optional[List[int]] = None,
+        project_ids: Optional[list[int]] = None,
+        code_artifact_ids: Optional[list[int]] = None,
+        document_ids: Optional[list[int]] = None,
         # Provenance tracking fields
         source_repo: Optional[str] = None,
-        source_files: Optional[List[str]] = None,
+        source_files: Optional[list[str]] = None,
         source_url: Optional[str] = None,
         confidence: Optional[float] = None,
         encoding_agent: Optional[str] = None,
@@ -186,7 +186,7 @@ class MemoryToolAdapters:
         include_links: bool = True,
         max_links_per_primary: int = 5,
         importance_threshold: Optional[int] = None,
-        project_ids: Optional[List[int]] = None,
+        project_ids: Optional[list[int]] = None,
         strict_project_filter: bool = False,
     ) -> MemoryQueryResult:
         """Adapter for query_memory tool"""
@@ -234,15 +234,15 @@ class MemoryToolAdapters:
         title: Optional[str] = None,
         content: Optional[str] = None,
         context: Optional[str] = None,
-        keywords: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
+        keywords: Optional[list[str]] = None,
+        tags: Optional[list[str]] = None,
         importance: Optional[int] = None,
-        project_ids: Optional[List[int]] = None,
-        code_artifact_ids: Optional[List[int]] = None,
-        document_ids: Optional[List[int]] = None,
+        project_ids: Optional[list[int]] = None,
+        code_artifact_ids: Optional[list[int]] = None,
+        document_ids: Optional[list[int]] = None,
         # Provenance tracking fields
         source_repo: Optional[str] = None,
-        source_files: Optional[List[str]] = None,
+        source_files: Optional[list[str]] = None,
         source_url: Optional[str] = None,
         confidence: Optional[float] = None,
         encoding_agent: Optional[str] = None,
@@ -287,7 +287,7 @@ class MemoryToolAdapters:
     async def link_memories(
         self,
         memory_id: int,
-        related_ids: List[int],
+        related_ids: list[int],
         ctx: Context,
     ) -> dict:
         """Adapter for link_memories tool"""
@@ -392,8 +392,8 @@ class MemoryToolAdapters:
         self,
         ctx: Context,
         limit: int = 10,
-        project_ids: Optional[List[int]] = None,
-    ) -> List[Memory]:
+        project_ids: Optional[list[int]] = None,
+    ) -> list[Memory]:
         """Adapter for get_recent_memories tool"""
         logger.info(
             "MCP Tool -> get_recent_memories",
@@ -412,7 +412,7 @@ class MemoryToolAdapters:
 
 def create_memory_adapters(
     memory_service: MemoryService, user_service: UserService
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create all memory tool adapters and return as dict"""
     adapters = MemoryToolAdapters(memory_service, user_service)
     return {
@@ -551,7 +551,7 @@ class ProjectToolAdapters:
 
 def create_project_adapters(
     project_service: ProjectService, user_service: UserService
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create all project tool adapters and return as dict"""
     adapters = ProjectToolAdapters(project_service, user_service)
     return {
@@ -584,7 +584,7 @@ class CodeArtifactToolAdapters:
         code: str,
         language: str,
         ctx: Context,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         project_id: Optional[int] = None,
     ) -> CodeArtifact:
         """Adapter for create_code_artifact tool"""
@@ -620,7 +620,7 @@ class CodeArtifactToolAdapters:
         ctx: Context,
         project_id: Optional[int] = None,
         language: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Adapter for list_code_artifacts tool"""
         user = await get_user_from_auth(ctx)
@@ -642,7 +642,7 @@ class CodeArtifactToolAdapters:
         description: Optional[str] = None,
         code: Optional[str] = None,
         language: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         project_id: Optional[int] = None,
     ) -> CodeArtifact:
         """Adapter for update_code_artifact tool"""
@@ -680,7 +680,7 @@ class CodeArtifactToolAdapters:
 
 def create_code_artifact_adapters(
     code_artifact_service: CodeArtifactService, user_service: UserService
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create all code artifact tool adapters and return as dict"""
     adapters = CodeArtifactToolAdapters(code_artifact_service, user_service)
     return {
@@ -712,7 +712,7 @@ class DocumentToolAdapters:
         ctx: Context,
         document_type: str = "text",
         filename: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         project_id: Optional[int] = None,
     ) -> Document:
         """Adapter for create_document tool"""
@@ -749,7 +749,7 @@ class DocumentToolAdapters:
         ctx: Context,
         project_id: Optional[int] = None,
         document_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Adapter for list_documents tool"""
         user = await get_user_from_auth(ctx)
@@ -772,7 +772,7 @@ class DocumentToolAdapters:
         content: Optional[str] = None,
         document_type: Optional[str] = None,
         filename: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         project_id: Optional[int] = None,
     ) -> Document:
         """Adapter for update_document tool"""
@@ -811,7 +811,7 @@ class DocumentToolAdapters:
 
 def create_document_adapters(
     document_service: DocumentService, user_service: UserService
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create all document tool adapters and return as dict"""
     adapters = DocumentToolAdapters(document_service, user_service)
     return {
@@ -842,9 +842,9 @@ class EntityToolAdapters:
         ctx: Context,
         custom_type: str | None = None,
         notes: str | None = None,
-        tags: List[str] | None = None,
-        aka: List[str] | None = None,
-        project_ids: List[int] | None = None,
+        tags: list[str] | None = None,
+        aka: list[str] | None = None,
+        project_ids: list[int] | None = None,
     ) -> Entity:
         """Adapter for create_entity tool"""
         user = await get_user_from_auth(ctx)
@@ -880,9 +880,9 @@ class EntityToolAdapters:
     async def list_entities(
         self,
         ctx: Context,
-        project_ids: Optional[List[int]] = None,
+        project_ids: Optional[list[int]] = None,
         entity_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Adapter for list_entities tool"""
         user = await get_user_from_auth(ctx)
@@ -906,7 +906,7 @@ class EntityToolAdapters:
         query: str,
         ctx: Context,
         entity_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         limit: int = 20,
     ) -> dict:
         """Adapter for search_entities tool"""
@@ -938,9 +938,9 @@ class EntityToolAdapters:
         entity_type: str | None = None,
         custom_type: str | None = None,
         notes: str | None = None,
-        tags: List[str] | None = None,
-        aka: List[str] | None = None,
-        project_ids: List[int] | None = None,
+        tags: list[str] | None = None,
+        aka: list[str] | None = None,
+        project_ids: list[int] | None = None,
     ) -> Entity:
         """Adapter for update_entity tool"""
         user = await get_user_from_auth(ctx)
@@ -1031,7 +1031,7 @@ class EntityToolAdapters:
         ctx: Context,
         strength: Optional[float] = None,
         confidence: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> EntityRelationship:
         """Adapter for create_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
@@ -1077,7 +1077,7 @@ class EntityToolAdapters:
         relationship_type: Optional[str] = None,
         strength: Optional[float] = None,
         confidence: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> EntityRelationship:
         """Adapter for update_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
@@ -1124,7 +1124,7 @@ class EntityToolAdapters:
 
 def create_entity_adapters(
     entity_service: EntityService, user_service: UserService
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create all entity tool adapters and return as dict"""
     adapters = EntityToolAdapters(entity_service, user_service)
     return {
@@ -1218,7 +1218,7 @@ class PlanToolAdapters:
         return {"plans": plans, "total_count": len(plans)}
 
 
-def create_plan_adapters(plan_service, user_service) -> Dict[str, Any]:
+def create_plan_adapters(plan_service, user_service) -> dict[str, Any]:
     """Create all plan tool adapters and return as dict"""
     adapters = PlanToolAdapters(plan_service, user_service)
     return {
@@ -1249,8 +1249,8 @@ class TaskToolAdapters:
         description: Optional[str] = None,
         priority: str = "P2",
         assigned_agent: Optional[str] = None,
-        criteria: Optional[List[Dict[str, Any]]] = None,
-        dependency_ids: Optional[List[int]] = None,
+        criteria: Optional[list[dict[str, Any]]] = None,
+        dependency_ids: Optional[list[int]] = None,
     ):
         from app.models.plan_models import TaskCreate, TaskPriority, CriterionCreate
         user = await get_user_from_auth(ctx)
@@ -1396,7 +1396,7 @@ class TaskToolAdapters:
         return {"success": success}
 
 
-def create_task_adapters(task_service, user_service) -> Dict[str, Any]:
+def create_task_adapters(task_service, user_service) -> dict[str, Any]:
     """Create all task tool adapters and return as dict"""
     adapters = TaskToolAdapters(task_service, user_service)
     return {
@@ -1433,7 +1433,7 @@ class FileToolAdapters:
         data: str,
         mime_type: str,
         ctx: Context,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         project_id: Optional[int] = None,
     ):
         """Adapter for create_file tool"""
@@ -1471,7 +1471,7 @@ class FileToolAdapters:
         ctx: Context,
         project_id: Optional[int] = None,
         mime_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
     ) -> dict:
         """Adapter for list_files tool"""
         user = await get_user_from_auth(ctx)
@@ -1493,7 +1493,7 @@ class FileToolAdapters:
         description: Optional[str] = None,
         data: Optional[str] = None,
         mime_type: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        tags: Optional[list[str]] = None,
         project_id: Optional[int] = None,
     ):
         """Adapter for update_file tool"""
@@ -1531,7 +1531,7 @@ class FileToolAdapters:
         return {"success": result, "deleted_id": file_id}
 
 
-def create_file_adapters(file_service, user_service: UserService) -> Dict[str, Any]:
+def create_file_adapters(file_service, user_service: UserService) -> dict[str, Any]:
     """Create all file tool adapters and return as dict"""
     adapters = FileToolAdapters(file_service, user_service)
     return {

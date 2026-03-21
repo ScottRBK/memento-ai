@@ -84,7 +84,7 @@ class GraphService:
         logger.info("Graph service initialized")
 
     @staticmethod
-    def parse_node_id(node_id: str) -> Tuple[str, int]:
+    def parse_node_id(node_id: str) -> tuple[str, int]:
         """Parse node_id string into type and numeric ID.
 
         Args:
@@ -111,7 +111,7 @@ class GraphService:
         user_id: UUID,
         center_node_id: str,
         depth: int = 2,
-        node_types: List[str] | None = None,
+        node_types: list[str] | None = None,
         max_nodes: int = 200
     ) -> SubgraphResponse:
         """Get subgraph centered on a node using recursive CTE traversal.
@@ -330,14 +330,14 @@ class GraphService:
     async def _fetch_node_data(
         self,
         user_id: UUID,
-        memory_ids: List[int],
-        entity_ids: List[int],
-        project_ids: List[int],
-        document_ids: List[int],
-        code_artifact_ids: List[int],
-        file_ids: List[int],
+        memory_ids: list[int],
+        entity_ids: list[int],
+        project_ids: list[int],
+        document_ids: list[int],
+        code_artifact_ids: list[int],
+        file_ids: list[int],
         depth_lookup: dict
-    ) -> List[SubgraphNode]:
+    ) -> list[SubgraphNode]:
         """Fetch full data for all node types.
 
         Args:
@@ -352,7 +352,7 @@ class GraphService:
         Returns:
             List of SubgraphNode with full data
         """
-        nodes: List[SubgraphNode] = []
+        nodes: list[SubgraphNode] = []
 
         # Fetch memories
         for memory_id in memory_ids:
@@ -522,13 +522,13 @@ class GraphService:
     async def _fetch_edges(
         self,
         user_id: UUID,
-        memory_ids: List[int],
-        entity_ids: List[int],
-        project_ids: List[int],
-        document_ids: List[int],
-        code_artifact_ids: List[int],
-        file_ids: List[int] | None = None
-    ) -> List[SubgraphEdge]:
+        memory_ids: list[int],
+        entity_ids: list[int],
+        project_ids: list[int],
+        document_ids: list[int],
+        code_artifact_ids: list[int],
+        file_ids: list[int] | None = None
+    ) -> list[SubgraphEdge]:
         """Fetch all edges between nodes in the subgraph.
 
         Retrieves:
@@ -552,8 +552,8 @@ class GraphService:
         Returns:
             List of SubgraphEdge
         """
-        edges: List[SubgraphEdge] = []
-        seen_edge_ids: Set[str] = set()
+        edges: list[SubgraphEdge] = []
+        seen_edge_ids: set[str] = set()
 
         memory_id_set = set(memory_ids)
         entity_id_set = set(entity_ids)

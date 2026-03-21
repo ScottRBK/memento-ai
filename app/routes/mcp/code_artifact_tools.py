@@ -30,7 +30,7 @@ def register(mcp: FastMCP):
         code: str,
         language: str,
         ctx: Context,
-        tags: List[str] = None,
+        tags: list[str] = None,
         project_id: int = None,
     ) -> CodeArtifact:
         """
@@ -169,7 +169,7 @@ def register(mcp: FastMCP):
         ctx: Context,
         project_id: int = None,
         language: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
     ) -> dict:
         """
         List code artifacts with optional filtering.
@@ -247,7 +247,7 @@ def register(mcp: FastMCP):
         description: str = None,
         code: str = None,
         language: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
         project_id: int = None,
     ) -> CodeArtifact:
         """

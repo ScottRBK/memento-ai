@@ -31,7 +31,7 @@ def register(mcp: FastMCP):
         ctx: Context,
         document_type: str = "text",
         filename: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
         project_id: int = None,
     ) -> Document:
         """
@@ -177,7 +177,7 @@ def register(mcp: FastMCP):
         ctx: Context,
         project_id: int = None,
         document_type: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
     ) -> dict:
         """
         List documents with optional filtering.
@@ -256,7 +256,7 @@ def register(mcp: FastMCP):
         content: str = None,
         document_type: str = None,
         filename: str = None,
-        tags: List[str] = None,
+        tags: list[str] = None,
         project_id: int = None,
     ) -> Document:
         """

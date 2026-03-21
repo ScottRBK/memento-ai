@@ -62,8 +62,8 @@ class CodeArtifactRepository(Protocol):
         user_id: UUID,
         project_id: int | None = None,
         language: str | None = None,
-        tags: List[str] | None = None
-    ) -> List[CodeArtifactSummary]:
+        tags: list[str] | None = None
+    ) -> list[CodeArtifactSummary]:
         """List code artifacts with optional filtering
 
         Args:

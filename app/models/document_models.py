@@ -55,7 +55,7 @@ class DocumentCreate(BaseModel):
         ge=0,
         description="Document size in bytes (metadata only, auto-calculated if not provided)"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         max_length=settings.DOCUMENT_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['architecture', 'design', 'api'])"
@@ -154,7 +154,7 @@ class DocumentUpdate(BaseModel):
         ge=0,
         description="New size. Unchanged if null. Auto-calculated from content if content provided."
     )
-    tags: List[str] | None = Field(
+    tags: list[str] | None = Field(
         default=None,
         max_length=settings.DOCUMENT_TAGS_MAX_COUNT,
         description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
@@ -264,7 +264,7 @@ class DocumentSummary(BaseModel):
         ...,
         description="Document size in bytes"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         ...,
         description="Tags for categorization"
     )

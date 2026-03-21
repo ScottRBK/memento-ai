@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class EmbeddingsAdapter(Protocol):
     """Contract for an Embeddings Adapter"""
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         ...
 
 class FastEmbeddingAdapter(EmbeddingsAdapter):
@@ -39,7 +39,7 @@ class FastEmbeddingAdapter(EmbeddingsAdapter):
             "cache_dir": settings.FASTEMBED_CACHE_DIR
         })
         
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         try:
             embeddings = list(self.model.embed(text))
         except Exception:
@@ -68,7 +68,7 @@ class AzureOpenAIAdapter(EmbeddingsAdapter):
         )
         self.model = settings.AZURE_DEPLOYMENT
         
-    async def generate_embedding(self, text) -> List[float]:
+    async def generate_embedding(self, text) -> list[float]:
         try:
             response = self.client.embeddings.create(
                 input=[text],
@@ -105,7 +105,7 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
 
         self.client = genai.Client(api_key=api_key)
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         try:
             response = await self.client.aio.models.embed_content(
                 model=self.model,
@@ -158,7 +158,7 @@ class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
         self.client = OpenAI(**client_kwargs)
         self.model = settings.EMBEDDING_MODEL
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         kwargs = {
             "input": [text],
             "model": self.model,
@@ -197,7 +197,7 @@ class OllamaEmbeddingsAdapter(EmbeddingsAdapter):
         self.client = AsyncClient(host=settings.OLLAMA_BASE_URL)
         self.model = settings.EMBEDDING_MODEL
 
-    async def generate_embedding(self, text: str) -> List[float]:
+    async def generate_embedding(self, text: str) -> list[float]:
         try:
             response = await self.client.embed(
                 model=self.model,

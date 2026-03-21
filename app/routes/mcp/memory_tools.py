@@ -31,16 +31,16 @@ def register(mcp: FastMCP):
         title: str,
         content: str,
         context: str,
-        keywords: List[str],
-        tags: List[str],
+        keywords: list[str],
+        tags: list[str],
         importance: int,
         ctx: Context,
-        project_ids: List[int] = None,
-        code_artifact_ids: List[int] = None,
-        document_ids: List[int] = None,
+        project_ids: list[int] = None,
+        code_artifact_ids: list[int] = None,
+        document_ids: list[int] = None,
         # Provenance tracking fields (optional)
         source_repo: str = None,
-        source_files: List[str] = None,
+        source_files: list[str] = None,
         source_url: str = None,
         confidence: float = None,
         encoding_agent: str = None,
@@ -182,7 +182,7 @@ def register(mcp: FastMCP):
         include_links: bool = True,
         max_links_per_primary: int = 5,
         importance_threshold: int = None,
-        project_ids: List[int] = None,
+        project_ids: list[int] = None,
         strict_project_filter: bool = False
     ) -> MemoryQueryResult:
         """
@@ -289,15 +289,15 @@ def register(mcp: FastMCP):
         title: str | None = None,
         content: str | None = None,
         context: str | None = None,
-        keywords: List[str] | None = None,
-        tags: List[str] | None = None,
+        keywords: list[str] | None = None,
+        tags: list[str] | None = None,
         importance: int | None = None,
-        project_ids: List[int] | None = None,
-        code_artifact_ids: List[int] | None = None,
-        document_ids: List[int] | None = None,
+        project_ids: list[int] | None = None,
+        code_artifact_ids: list[int] | None = None,
+        document_ids: list[int] | None = None,
         # Provenance tracking fields (optional)
         source_repo: str | None = None,
-        source_files: List[str] | None = None,
+        source_files: list[str] | None = None,
         source_url: str | None = None,
         confidence: float | None = None,
         encoding_agent: str | None = None,
@@ -405,9 +405,9 @@ def register(mcp: FastMCP):
     @mcp.tool()
     async def link_memories(
         memory_id: int,
-        related_ids: List[int],
+        related_ids: list[int],
         ctx: Context,
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Manually create bidirectional links between memories
 
@@ -551,8 +551,8 @@ def register(mcp: FastMCP):
     async def get_recent_memories(
         ctx: Context,
         limit: int = 10,
-        project_ids: List[int] = None
-    ) -> List[Memory]:
+        project_ids: list[int] = None
+    ) -> list[Memory]:
         """
         Retrieve most recent memories by creation timestamp
 

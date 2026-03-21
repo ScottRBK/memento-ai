@@ -62,8 +62,8 @@ class DocumentRepository(Protocol):
         user_id: UUID,
         project_id: int | None = None,
         document_type: str | None = None,
-        tags: List[str] | None = None
-    ) -> List[DocumentSummary]:
+        tags: list[str] | None = None
+    ) -> list[DocumentSummary]:
         """List documents with optional filtering
 
         Args:

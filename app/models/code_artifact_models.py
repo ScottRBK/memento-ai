@@ -47,7 +47,7 @@ class CodeArtifactCreate(BaseModel):
         max_length=100,
         description="Programming language. Use full names not abbreviations (e.g., 'python' not 'py', 'javascript' not 'js', 'typescript' not 'ts'). Will be stored as lowercase."
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         max_length=settings.CODE_ARTIFACT_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['auth', 'fastapi', 'middleware'])"
@@ -131,7 +131,7 @@ class CodeArtifactUpdate(BaseModel):
         max_length=100,
         description="New language. Use full names (e.g., 'python' not 'py'). Unchanged if null."
     )
-    tags: List[str] | None = Field(
+    tags: list[str] | None = Field(
         default=None,
         max_length=settings.CODE_ARTIFACT_TAGS_MAX_COUNT,
         description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
@@ -240,7 +240,7 @@ class CodeArtifactSummary(BaseModel):
         ...,
         description="Programming language"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         ...,
         description="Tags for categorization"
     )

@@ -147,6 +147,18 @@ class Settings(BaseSettings):
     TASK_DESCRIPTION_MAX_LENGTH: int = 5000
     TASK_AGENT_MAX_LENGTH: int = 200
     CRITERION_DESCRIPTION_MAX_LENGTH: int = 1000
+    
+
+    # Skills Feature Flag
+    SKILLS_ENABLED: bool = False 
+    
+    # Skills Configuration
+    SKILL_NAME_MAX_LENGTH: int = 64
+    SKILL_DESCRIPTION_MAX_LENGTH: int = 1024 
+    SKILL_CONTENT_MAX_LENGTH: int = 100000
+    SKILL_LICENCE_MAX_LENGTH: int = 100
+    SKILL_COMPATABILITY_MAX_LENGTH: int = 500
+    SKILL_TAGS_MAX_COUNT: int = 10
 
     # Activity Tracking Configuration
     ACTIVITY_ENABLED: bool = False               # Enable activity event tracking

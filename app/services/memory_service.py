@@ -159,7 +159,7 @@ class MemoryService:
             self,
             user_id: UUID,
             memory_data: MemoryCreate
-    ) -> tuple[Memory, List[MemorySummary]]:
+    ) -> tuple[Memory, list[MemorySummary]]:
         """
         Create a new memory in the system
 
@@ -374,12 +374,12 @@ class MemoryService:
             user_id: UUID,
             limit: int = 10,
             offset: int = 0,
-            project_ids: List[int] | None = None,
+            project_ids: list[int] | None = None,
             include_obsolete: bool = False,
             sort_by: str = "created_at",
             sort_order: str = "desc",
-            tags: List[str] | None = None,
-    ) -> tuple[List[Memory], int]:
+            tags: list[str] | None = None,
+    ) -> tuple[list[Memory], int]:
         """
         Retrieve memories with pagination, sorting, and filtering.
 
@@ -411,8 +411,8 @@ class MemoryService:
             self,
             user_id: UUID,
             memory_id: int,
-            related_ids: List[int]
-    ) -> List[int]:
+            related_ids: list[int]
+    ) -> list[int]:
         """
         Creates a bidirectional links between memories
 
@@ -496,10 +496,10 @@ class MemoryService:
     async def _fetch_linked_memories(
             self,
             user_id,
-            primary_memories: List[Memory],
+            primary_memories: list[Memory],
             max_links_per_primary: int,
-            project_ids: List[int] | None
-    ) -> List[LinkedMemory]:
+            project_ids: list[int] | None
+    ) -> list[LinkedMemory]:
         """
         Fetch linked memories for each primary result
 
@@ -549,11 +549,11 @@ class MemoryService:
 
     async def _apply_token_budget(
             self,
-            primary_memories: List[Memory],
-            linked_memories: List[LinkedMemory],
+            primary_memories: list[Memory],
+            linked_memories: list[LinkedMemory],
             max_tokens: int,
             max_memories: int,
-    ) -> tuple[List[Memory], List[LinkedMemory], int, bool]:
+    ) -> tuple[list[Memory], list[LinkedMemory], int, bool]:
         """
         Apply token budget and count limits to memory results
 
@@ -629,10 +629,10 @@ class MemoryService:
     
     async def truncate_memories_by_budget(
             self,
-            memories: List[Memory],
+            memories: list[Memory],
             max_tokens: int,
             max_count: int
-    ) -> tuple[List[Memory], int, bool]:
+    ) -> tuple[list[Memory], int, bool]:
         """
         Truncate memory list to fit within token budget
 

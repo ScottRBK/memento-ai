@@ -195,8 +195,8 @@ class FileService:
         user_id: UUID,
         project_id: int | None = None,
         mime_type: str | None = None,
-        tags: List[str] | None = None
-    ) -> List[FileSummary]:
+        tags: list[str] | None = None
+    ) -> list[FileSummary]:
         """List files with optional filtering
 
         Args:

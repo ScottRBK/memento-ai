@@ -51,9 +51,9 @@ class PostgresMemoryRepository:
             query_context: str,
             k: int,
             importance_threshold: int | None,
-            project_ids: List[int] | None,
-            exclude_ids: List[int] | None,
-    ) -> List[Memory]:
+            project_ids: list[int] | None,
+            exclude_ids: list[int] | None,
+    ) -> list[Memory]:
         """
             Performs four stage memory retrieval
             1 -> performs a dense search for a list of candidate memories based on the query 
@@ -116,9 +116,9 @@ class PostgresMemoryRepository:
             query: str,
             k: int,
             importance_threshold: int | None,
-            project_ids: List[int] | None,
-            exclude_ids: List[int] | None,
-    ) -> List[Memory]:
+            project_ids: list[int] | None,
+            exclude_ids: list[int] | None,
+    ) -> list[Memory]:
         """
         Perform semantic search using vector similarity
 
@@ -441,7 +441,7 @@ class PostgresMemoryRepository:
             user_id: UUID,
             memory_id: int,
             max_links: int
-    ) -> List[Memory]: 
+    ) -> list[Memory]: 
         """
         Finds similar memories for a given memory
 
@@ -483,9 +483,9 @@ class PostgresMemoryRepository:
             self,
             user_id: UUID,
             memory_id: int,
-            project_ids: List[int] | None,
+            project_ids: list[int] | None,
             max_links: int = 5,
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         """
         Get memories linked to a specific memory (1-hop neighbors)
 
@@ -609,8 +609,8 @@ class PostgresMemoryRepository:
             self,
             user_id: UUID,
             source_id: int,
-            target_ids: List[int]
-    ) -> List[int]:
+            target_ids: list[int]
+    ) -> list[int]:
         """
         Create multiple links from one memory to many others
 
@@ -700,12 +700,12 @@ class PostgresMemoryRepository:
             user_id: UUID,
             limit: int,
             offset: int = 0,
-            project_ids: List[int] | None = None,
+            project_ids: list[int] | None = None,
             include_obsolete: bool = False,
             sort_by: str = "created_at",
             sort_order: str = "desc",
-            tags: List[str] | None = None,
-    ) -> tuple[List[Memory], int]:
+            tags: list[str] | None = None,
+    ) -> tuple[list[Memory], int]:
         """
         Get memories with pagination, sorting, and filtering.
 
@@ -801,7 +801,7 @@ class PostgresMemoryRepository:
             self,
             session,
             memory: MemoryTable,
-            project_ids: List[int],
+            project_ids: list[int],
             user_id: UUID
     ) -> None:
         """Link memory to projects"""
@@ -823,7 +823,7 @@ class PostgresMemoryRepository:
             self,
             session,
             memory: MemoryTable,
-            code_artifact_ids: List[int],
+            code_artifact_ids: list[int],
             user_id: UUID
     ) -> None:
         """Link memory to code artifacts"""
@@ -845,7 +845,7 @@ class PostgresMemoryRepository:
             self,
             session,
             memory: MemoryTable,
-            document_ids: List[int],
+            document_ids: list[int],
             user_id: UUID
     ) -> None:
         """Link memory to documents"""
@@ -867,7 +867,7 @@ class PostgresMemoryRepository:
             self,
             session,
             memory: MemoryTable,
-            file_ids: List[int],
+            file_ids: list[int],
             user_id: UUID
     ) -> None:
         """Link memory to files"""
@@ -898,7 +898,7 @@ class PostgresMemoryRepository:
             )
             return result
 
-    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> list[Memory]:
         """Fetch memories in batches for re-embedding (all users, ordered by id)"""
         async with self.db_adapter.system_session() as session:
             stmt = (
@@ -944,7 +944,7 @@ class PostgresMemoryRepository:
                 "dimensions": dims
             })
 
-    async def bulk_update_embeddings(self, updates: List[Tuple[int, List[float]]]) -> None:
+    async def bulk_update_embeddings(self, updates: list[tuple[int, list[float]]]) -> None:
         """Write new embeddings for a batch of memory IDs"""
         async with self.db_adapter.system_session() as session:
             for memory_id, embedding in updates:
@@ -1016,7 +1016,7 @@ class PostgresMemoryRepository:
             )
             return search_result.fetchone() is not None
 
-    async def _generate_embeddings(self, text: str) -> List[float]:
+    async def _generate_embeddings(self, text: str) -> list[float]:
         return await self.embedding_adapter.generate_embedding(text=text)
 
     async def get_subgraph_nodes(
@@ -1032,7 +1032,7 @@ class PostgresMemoryRepository:
         include_code_artifacts: bool,
         include_files: bool,
         max_nodes: int
-    ) -> Tuple[List[Dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """
         Traverse graph using recursive CTE from center node.
 

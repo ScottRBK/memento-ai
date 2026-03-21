@@ -126,8 +126,8 @@ def register(mcp: FastMCP):
                     status_code=400
                 )
 
-        nodes: List[Dict[str, Any]] = []
-        edges: List[Dict[str, Any]] = []
+        nodes: list[dict[str, Any]] = []
+        edges: list[dict[str, Any]] = []
         seen_memory_ids = set()
         seen_edge_ids = set()
         seen_project_ids = set()
@@ -491,8 +491,8 @@ def register(mcp: FastMCP):
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
 
-        nodes: List[Dict[str, Any]] = []
-        edges: List[Dict[str, Any]] = []
+        nodes: list[dict[str, Any]] = []
+        edges: list[dict[str, Any]] = []
         seen_memory_ids = set()
 
         async def add_memory_node(memory, level: int):

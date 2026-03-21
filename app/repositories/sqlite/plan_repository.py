@@ -62,7 +62,7 @@ class SqlitePlanRepository:
         user_id: UUID,
         project_id: int | None = None,
         status: PlanStatus | None = None,
-    ) -> List[PlanSummary]:
+    ) -> list[PlanSummary]:
         logger.info("Listing plans", extra={"user_id": str(user_id)})
 
         async with self.db_adapter.session(user_id) as session:

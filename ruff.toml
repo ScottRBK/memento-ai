@@ -1,0 +1,20 @@
+line-length = 88
+target-version = "py312"
+
+[lint]
+select = ["ALL"]
+ignore = [
+    "ANN002",
+    "ANN003",
+    "ANN101",
+    "ANN102",
+    "PLR0913",
+    "FIX002",
+]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401", "F403", "F405"]
+"tests/**/*" = ["PLR0915", "ANN001", "ANN201", "ANN202"]
+
+[lint.pydocstyle]
+convention = "google"

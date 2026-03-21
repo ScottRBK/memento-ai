@@ -74,7 +74,7 @@ class ReEmbeddingService:
                 break
 
             # Generate embeddings for this batch
-            updates: List[Tuple[int, List[float]]] = []
+            updates: list[tuple[int, list[float]]] = []
             for memory in memories:
                 embedding_text = build_embedding_text(memory)
                 embedding = await self.embedding_adapter.generate_embedding(embedding_text)

@@ -58,9 +58,9 @@ class SqliteMemoryRepository:
         query_context: str,
         k: int,
         importance_threshold: int | None,
-        project_ids: List[int] | None,
-        exclude_ids: List[int] | None,
-    ) -> List[Memory]:
+        project_ids: list[int] | None,
+        exclude_ids: list[int] | None,
+    ) -> list[Memory]:
         """
         Performs four stage memory retrieval
         1 -> performs a dense search for a list of candidate memories based on the query
@@ -121,9 +121,9 @@ class SqliteMemoryRepository:
         query: str,
         k: int,
         importance_threshold: int | None,
-        project_ids: List[int] | None,
-        exclude_ids: List[int] | None,
-    ) -> List[Memory]:
+        project_ids: list[int] | None,
+        exclude_ids: list[int] | None,
+    ) -> list[Memory]:
         """
         Perform semantic search using vector similarity with sqlite-vec
 
@@ -487,7 +487,7 @@ class SqliteMemoryRepository:
 
             return True
 
-    async def find_similar_memories(self, user_id: UUID, memory_id: int, max_links: int) -> List[Memory]:
+    async def find_similar_memories(self, user_id: UUID, memory_id: int, max_links: int) -> list[Memory]:
         """
         Finds similar memories for a given memory using vector similarity
 
@@ -564,9 +564,9 @@ class SqliteMemoryRepository:
         self,
         user_id: UUID,
         memory_id: int,
-        project_ids: List[int] | None,
+        project_ids: list[int] | None,
         max_links: int = 5,
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         """
         Get memories linked to a specific memory (1-hop neighbors)
 
@@ -684,7 +684,7 @@ class SqliteMemoryRepository:
                 await session.rollback()
                 raise
 
-    async def create_links_batch(self, user_id: UUID, source_id: int, target_ids: List[int]) -> List[int]:
+    async def create_links_batch(self, user_id: UUID, source_id: int, target_ids: list[int]) -> list[int]:
         """
         Create multiple links from one memory to many others
 
@@ -767,12 +767,12 @@ class SqliteMemoryRepository:
             user_id: UUID,
             limit: int,
             offset: int = 0,
-            project_ids: List[int] | None = None,
+            project_ids: list[int] | None = None,
             include_obsolete: bool = False,
             sort_by: str = "created_at",
             sort_order: str = "desc",
-            tags: List[str] | None = None,
-    ) -> tuple[List[Memory], int]:
+            tags: list[str] | None = None,
+    ) -> tuple[list[Memory], int]:
         """
         Get memories with pagination, sorting, and filtering.
 
@@ -862,7 +862,7 @@ class SqliteMemoryRepository:
 
             return [Memory.model_validate(m) for m in paginated_memories], total
 
-    async def _link_projects(self, session, memory: MemoryTable, project_ids: List[int], user_id: UUID) -> None:
+    async def _link_projects(self, session, memory: MemoryTable, project_ids: list[int], user_id: UUID) -> None:
         """Link memory to projects"""
         stmt = select(ProjectsTable).where(
             ProjectsTable.id.in_(project_ids), ProjectsTable.user_id == str(user_id)
@@ -877,7 +877,7 @@ class SqliteMemoryRepository:
 
         await session.run_sync(lambda sync_session: memory.projects.extend(projects))
 
-    async def _link_code_artifacts(self, session, memory: MemoryTable, code_artifact_ids: List[int], user_id: UUID) -> None:
+    async def _link_code_artifacts(self, session, memory: MemoryTable, code_artifact_ids: list[int], user_id: UUID) -> None:
         """Link memory to code artifacts"""
         stmt = select(CodeArtifactsTable).where(
             CodeArtifactsTable.id.in_(code_artifact_ids), CodeArtifactsTable.user_id == str(user_id)
@@ -892,7 +892,7 @@ class SqliteMemoryRepository:
 
         await session.run_sync(lambda sync_session: memory.code_artifacts.extend(artifacts))
 
-    async def _link_documents(self, session, memory: MemoryTable, document_ids: List[int], user_id: UUID) -> None:
+    async def _link_documents(self, session, memory: MemoryTable, document_ids: list[int], user_id: UUID) -> None:
         """Link memory to documents"""
         stmt = select(DocumentsTable).where(
             DocumentsTable.id.in_(document_ids), DocumentsTable.user_id == str(user_id)
@@ -907,7 +907,7 @@ class SqliteMemoryRepository:
 
         await session.run_sync(lambda sync_session: memory.documents.extend(documents))
 
-    async def _link_files(self, session, memory: MemoryTable, file_ids: List[int], user_id: UUID) -> None:
+    async def _link_files(self, session, memory: MemoryTable, file_ids: list[int], user_id: UUID) -> None:
         """Link memory to files"""
         stmt = select(FilesTable).where(
             FilesTable.id.in_(file_ids), FilesTable.user_id == str(user_id)
@@ -932,7 +932,7 @@ class SqliteMemoryRepository:
             )
             return result.scalar()
 
-    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> list[Memory]:
         """Fetch memories in batches for re-embedding (all users, ordered by id)"""
         async with self.db_adapter.system_session() as session:
             stmt = (
@@ -970,7 +970,7 @@ class SqliteMemoryRepository:
                 "dimensions": settings.EMBEDDING_DIMENSIONS
             })
 
-    async def bulk_update_embeddings(self, updates: List[Tuple[int, List[float]]]) -> None:
+    async def bulk_update_embeddings(self, updates: list[tuple[int, list[float]]]) -> None:
         """Write new embeddings for a batch of memory IDs into vec_memories"""
         async with self.db_adapter.system_session() as session:
             for memory_id, embedding in updates:
@@ -1043,7 +1043,7 @@ class SqliteMemoryRepository:
             )
             return search_result.fetchone() is not None
 
-    async def _generate_embeddings(self, text: str) -> List[float]:
+    async def _generate_embeddings(self, text: str) -> list[float]:
         return await self.embedding_adapter.generate_embedding(text=text)
 
     async def get_subgraph_nodes(
@@ -1059,7 +1059,7 @@ class SqliteMemoryRepository:
         include_code_artifacts: bool,
         include_files: bool,
         max_nodes: int
-    ) -> Tuple[List[Dict[str, Any]], bool]:
+    ) -> tuple[list[dict[str, Any]], bool]:
         """
         Traverse graph using recursive CTE from center node.
 

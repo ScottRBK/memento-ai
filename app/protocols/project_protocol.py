@@ -24,7 +24,7 @@ class ProjectRepository(Protocol):
         status: ProjectStatus | None = None,
         repo_name: str | None = None,
         name: str | None = None,
-    ) -> List[ProjectSummary]:
+    ) -> list[ProjectSummary]:
         """List projects with optional filtering
 
         Args:

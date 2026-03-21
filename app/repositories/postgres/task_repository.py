@@ -74,7 +74,7 @@ class PostgresTaskRepository:
         state: TaskState | None = None,
         priority: TaskPriority | None = None,
         assigned_agent: str | None = None,
-    ) -> List[TaskSummary]:
+    ) -> list[TaskSummary]:
         async with self.db_adapter.session(user_id) as session:
             stmt = (
                 select(TasksTable)
@@ -274,7 +274,7 @@ class PostgresTaskRepository:
 
     async def get_criteria_for_task(
         self, user_id: UUID, task_id: int
-    ) -> List[Criterion]:
+    ) -> list[Criterion]:
         async with self.db_adapter.session(user_id) as session:
             stmt = (
                 select(CriteriaTable)
@@ -314,7 +314,7 @@ class PostgresTaskRepository:
             result = await session.execute(stmt)
             return result.rowcount > 0
 
-    async def get_dependencies(self, user_id: UUID, task_id: int) -> List[int]:
+    async def get_dependencies(self, user_id: UUID, task_id: int) -> list[int]:
         async with self.db_adapter.session(user_id) as session:
             stmt = (
                 select(TaskDependenciesTable.depends_on_task_id)
@@ -326,7 +326,7 @@ class PostgresTaskRepository:
             result = await session.execute(stmt)
             return [row[0] for row in result.all()]
 
-    async def get_dependents(self, user_id: UUID, task_id: int) -> List[int]:
+    async def get_dependents(self, user_id: UUID, task_id: int) -> list[int]:
         async with self.db_adapter.session(user_id) as session:
             stmt = (
                 select(TaskDependenciesTable.task_id)

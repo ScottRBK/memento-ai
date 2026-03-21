@@ -45,7 +45,7 @@ class FileCreate(BaseModel):
         max_length=255,
         description="MIME type (e.g., 'image/png', 'application/pdf', 'font/woff2')"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         max_length=settings.FILE_TAGS_MAX_COUNT,
         description="Tags for categorization and discovery (e.g., ['screenshot', 'ui', 'v2'])"
@@ -133,7 +133,7 @@ class FileUpdate(BaseModel):
         max_length=255,
         description="New MIME type. Unchanged if null."
     )
-    tags: List[str] | None = Field(
+    tags: list[str] | None = Field(
         default=None,
         max_length=settings.FILE_TAGS_MAX_COUNT,
         description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
@@ -251,7 +251,7 @@ class FileSummary(BaseModel):
         ...,
         description="Size of decoded binary content in bytes"
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         ...,
         description="Tags for categorization"
     )

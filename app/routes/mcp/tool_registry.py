@@ -22,18 +22,18 @@ class ToolRegistry:
 
     def __init__(self):
         """Initialize an empty tool registry"""
-        self._tools: Dict[str, ToolImplementation] = {}
+        self._tools: dict[str, ToolImplementation] = {}
 
     def register(
         self,
         name: str,
         category: ToolCategory,
         description: str,
-        parameters: List[ToolParameter],
+        parameters: list[ToolParameter],
         returns: str,
         implementation: Any,  # Callable[..., Awaitable[Any]]
-        examples: List[str] = None,
-        tags: List[str] = None,
+        examples: list[str] = None,
+        tags: list[str] = None,
         mutates: bool = False,
     ) -> None:
         """
@@ -83,7 +83,7 @@ class ToolRegistry:
         """
         return self._tools.get(name)
 
-    def list_all_tools(self) -> List[ToolMetadata]:
+    def list_all_tools(self) -> list[ToolMetadata]:
         """
         List all registered tools
 
@@ -92,7 +92,7 @@ class ToolRegistry:
         """
         return [impl.metadata for impl in self._tools.values()]
 
-    def list_by_category(self, category: ToolCategory) -> List[ToolMetadata]:
+    def list_by_category(self, category: ToolCategory) -> list[ToolMetadata]:
         """
         List tools filtered by category
 
@@ -108,14 +108,14 @@ class ToolRegistry:
             if impl.metadata.category == category
         ]
 
-    def list_categories(self) -> Dict[str, int]:
+    def list_categories(self) -> dict[str, int]:
         """
         List all categories with tool counts
 
         Returns:
             Dict mapping category name to count of tools
         """
-        categories: Dict[str, int] = {}
+        categories: dict[str, int] = {}
         for impl in self._tools.values():
             cat_name = impl.metadata.category.value
             categories[cat_name] = categories.get(cat_name, 0) + 1
@@ -133,7 +133,7 @@ class ToolRegistry:
         """
         return name in self._tools
 
-    def get_permitted_tools(self, permitted: set) -> List[ToolMetadata]:
+    def get_permitted_tools(self, permitted: set) -> list[ToolMetadata]:
         """List tools filtered to only those in the permitted set.
 
         Args:
@@ -148,7 +148,7 @@ class ToolRegistry:
             if impl.metadata.name in permitted
         ]
 
-    def get_permitted_by_category(self, category: ToolCategory, permitted: set) -> List[ToolMetadata]:
+    def get_permitted_by_category(self, category: ToolCategory, permitted: set) -> list[ToolMetadata]:
         """List tools filtered by category AND permitted set.
 
         Args:
@@ -164,7 +164,7 @@ class ToolRegistry:
             if impl.metadata.category == category and impl.metadata.name in permitted
         ]
 
-    def get_permitted_categories(self, permitted: set) -> Dict[str, int]:
+    def get_permitted_categories(self, permitted: set) -> dict[str, int]:
         """List categories with counts, filtered to permitted tools only.
 
         Args:
@@ -173,7 +173,7 @@ class ToolRegistry:
         Returns:
             Dict mapping category name to count of permitted tools
         """
-        categories: Dict[str, int] = {}
+        categories: dict[str, int] = {}
         for impl in self._tools.values():
             if impl.metadata.name in permitted:
                 cat_name = impl.metadata.category.value
@@ -195,7 +195,7 @@ class ToolRegistry:
     async def execute(
         self,
         name: str,
-        arguments: Dict[str, Any],
+        arguments: dict[str, Any],
         **context
     ) -> Any:
         """

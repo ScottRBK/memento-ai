@@ -109,37 +109,37 @@ class UsersTable(Base):
         nullable=False)
 
     # Relationships
-    memories:   Mapped[List["MemoryTable"]] = relationship(
+    memories:   Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    projects: Mapped[List["ProjectsTable"]] = relationship(
+    projects: Mapped[list["ProjectsTable"]] = relationship(
         "ProjectsTable",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    code_artifacts: Mapped[List["CodeArtifactsTable"]] = relationship(
+    code_artifacts: Mapped[list["CodeArtifactsTable"]] = relationship(
         "CodeArtifactsTable",
         back_populates="user",
         cascade="all, delete-orphan"
     ) 
-    documents: Mapped[List["DocumentsTable"]] = relationship(
+    documents: Mapped[list["DocumentsTable"]] = relationship(
         "DocumentsTable",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    entities: Mapped[List["EntitiesTable"]] = relationship(
+    entities: Mapped[list["EntitiesTable"]] = relationship(
         "EntitiesTable",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    files: Mapped[List["FilesTable"]] = relationship(
+    files: Mapped[list["FilesTable"]] = relationship(
         "FilesTable",
         back_populates="user",
         cascade="all, delete-orphan"
     )
-    plans: Mapped[List["PlansTable"]] = relationship(
+    plans: Mapped[list["PlansTable"]] = relationship(
         "PlansTable",
         back_populates="user",
         cascade="all, delete-orphan"
@@ -159,8 +159,8 @@ class MemoryTable(Base):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     context: Mapped[str] = mapped_column(Text, nullable=False)
-    keywords: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
-    tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+    keywords: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
 
    # Meta Data
     importance: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -168,7 +168,7 @@ class MemoryTable(Base):
 
     # Provenance tracking (optional) - for tracing AI-generated content
     source_repo: Mapped[str] = mapped_column(Text, nullable=True)
-    source_files: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=True)
+    source_files: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=True)
     source_url: Mapped[str] = mapped_column(Text, nullable=True)
     confidence: Mapped[float] = mapped_column(nullable=True)
     encoding_agent: Mapped[str] = mapped_column(Text, nullable=True)
@@ -195,33 +195,33 @@ class MemoryTable(Base):
     
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="memories")  
-    projects: Mapped[List["ProjectsTable"]] = relationship(
+    projects: Mapped[list["ProjectsTable"]] = relationship(
         "ProjectsTable",
         secondary=memory_project_association,
         back_populates="memories",
     )
-    code_artifacts: Mapped[List["CodeArtifactsTable"]] = relationship(
+    code_artifacts: Mapped[list["CodeArtifactsTable"]] = relationship(
         "CodeArtifactsTable",
         secondary=memory_code_artifact_association,
         back_populates="memories",
     )
-    documents: Mapped[List["DocumentsTable"]] = relationship(
+    documents: Mapped[list["DocumentsTable"]] = relationship(
         "DocumentsTable",
         secondary=memory_document_association,
         back_populates="memories",
     )
-    files: Mapped[List["FilesTable"]] = relationship(
+    files: Mapped[list["FilesTable"]] = relationship(
         "FilesTable",
         secondary=memory_file_association,
         back_populates="memories",
     )
-    entities: Mapped[List["EntitiesTable"]] = relationship(
+    entities: Mapped[list["EntitiesTable"]] = relationship(
         "EntitiesTable",
         secondary=memory_entity_association,
         back_populates="memories",
     )
 
-    linked_memories: Mapped[List["MemoryTable"]] = relationship(
+    linked_memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary="memory_links",
         primaryjoin="MemoryTable.id==MemoryLinkTable.source_id",
@@ -229,7 +229,7 @@ class MemoryTable(Base):
         back_populates="linking_memories"
     )
     
-    linking_memories: Mapped[List["MemoryTable"]] = relationship(
+    linking_memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary="memory_links",
         primaryjoin="MemoryTable.id==MemoryLinkTable.target_id",
@@ -239,7 +239,7 @@ class MemoryTable(Base):
     )
 
     @property
-    def linked_memory_ids(self) -> List[int]:
+    def linked_memory_ids(self) -> list[int]:
         """
         Compute linked memory IDs from bidirectional relationships.
 
@@ -267,7 +267,7 @@ class MemoryTable(Base):
         return result
 
     @property
-    def project_ids(self) -> List[int]:
+    def project_ids(self) -> list[int]:
         """
         Compute project IDs from projects relationship.
 
@@ -283,7 +283,7 @@ class MemoryTable(Base):
         return []
 
     @property
-    def code_artifact_ids(self) -> List[int]:
+    def code_artifact_ids(self) -> list[int]:
         """
         Compute code artifact IDs from code_artifacts relationship.
 
@@ -299,7 +299,7 @@ class MemoryTable(Base):
         return []
 
     @property
-    def document_ids(self) -> List[int]:
+    def document_ids(self) -> list[int]:
         """
         Compute document IDs from documents relationship.
 
@@ -315,7 +315,7 @@ class MemoryTable(Base):
         return []
 
     @property
-    def file_ids(self) -> List[int]:
+    def file_ids(self) -> list[int]:
         """
         Compute file IDs from files relationship.
 
@@ -331,7 +331,7 @@ class MemoryTable(Base):
         return []
 
     @property
-    def entity_ids(self) -> List[int]:
+    def entity_ids(self) -> list[int]:
         """
         Compute entity IDs from entities relationship.
 
@@ -412,29 +412,29 @@ class ProjectsTable(Base):
 
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="projects")
-    memories: Mapped[List["MemoryTable"]] = relationship(
+    memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_project_association,
         back_populates="projects",
     )
-    code_artifacts: Mapped[List["CodeArtifactsTable"]] = relationship(
+    code_artifacts: Mapped[list["CodeArtifactsTable"]] = relationship(
         "CodeArtifactsTable",
         back_populates="project",
     )
-    documents: Mapped[List["DocumentsTable"]] = relationship(
+    documents: Mapped[list["DocumentsTable"]] = relationship(
         "DocumentsTable",
         back_populates="project",
     )
-    entities: Mapped[List["EntitiesTable"]] = relationship(
+    entities: Mapped[list["EntitiesTable"]] = relationship(
         "EntitiesTable",
         secondary=entity_project_association,
         back_populates="projects",
     )
-    files: Mapped[List["FilesTable"]] = relationship(
+    files: Mapped[list["FilesTable"]] = relationship(
         "FilesTable",
         back_populates="project",
     )
-    plans: Mapped[List["PlansTable"]] = relationship(
+    plans: Mapped[list["PlansTable"]] = relationship(
         "PlansTable",
         back_populates="project",
     )
@@ -469,7 +469,7 @@ class CodeArtifactsTable(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     code: Mapped[str] = mapped_column(Text, nullable=False)
     language: Mapped[str] = mapped_column(String(100), nullable=False)
-    tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -487,7 +487,7 @@ class CodeArtifactsTable(Base):
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="code_artifacts")
     project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="code_artifacts")
-    memories: Mapped[List["MemoryTable"]] = relationship(
+    memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_code_artifact_association,
         back_populates="code_artifacts",
@@ -521,7 +521,7 @@ class DocumentsTable(Base):
     document_type: Mapped[str] = mapped_column(String(100), default="text", nullable=True)
     filename: Mapped[str] = mapped_column(String(500), nullable=True)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -538,7 +538,7 @@ class DocumentsTable(Base):
      # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="documents")
     project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="documents")
-    memories: Mapped[List["MemoryTable"]] = relationship(
+    memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_document_association,
         back_populates="documents",
@@ -573,7 +573,7 @@ class FilesTable(Base):
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(255), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -591,12 +591,12 @@ class FilesTable(Base):
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="files")
     project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="files")
-    memories: Mapped[List["MemoryTable"]] = relationship(
+    memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_file_association,
         back_populates="files",
     )
-    entities: Mapped[List["EntitiesTable"]] = relationship(
+    entities: Mapped[list["EntitiesTable"]] = relationship(
         "EntitiesTable",
         secondary=entity_file_association,
         back_populates="files",
@@ -629,8 +629,8 @@ class EntitiesTable(Base):
     entity_type: Mapped[str] = mapped_column(String(100), nullable=False)  # Organization, Individual, Team, Device, Other
     custom_type: Mapped[str] = mapped_column(String(100), nullable=True)  # Used when entity_type is "Other"
     notes: Mapped[str] = mapped_column(Text, nullable=True)
-    tags: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False)
-    aka: Mapped[List[str]] = mapped_column(ARRAY(String), nullable=False, default=list)  # Alternative names/aliases
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False)
+    aka: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, default=list)  # Alternative names/aliases
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -647,24 +647,24 @@ class EntitiesTable(Base):
 
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="entities")
-    projects: Mapped[List["ProjectsTable"]] = relationship(
+    projects: Mapped[list["ProjectsTable"]] = relationship(
         "ProjectsTable",
         secondary=entity_project_association,
         back_populates="entities",
     )
-    memories: Mapped[List["MemoryTable"]] = relationship(
+    memories: Mapped[list["MemoryTable"]] = relationship(
         "MemoryTable",
         secondary=memory_entity_association,
         back_populates="entities",
     )
-    files: Mapped[List["FilesTable"]] = relationship(
+    files: Mapped[list["FilesTable"]] = relationship(
         "FilesTable",
         secondary=entity_file_association,
         back_populates="entities",
     )
 
     # Entity relationships (as source)
-    outgoing_relationships: Mapped[List["EntityRelationshipsTable"]] = relationship(
+    outgoing_relationships: Mapped[list["EntityRelationshipsTable"]] = relationship(
         "EntityRelationshipsTable",
         foreign_keys="EntityRelationshipsTable.source_entity_id",
         back_populates="source_entity",
@@ -672,7 +672,7 @@ class EntitiesTable(Base):
     )
 
     # Entity relationships (as target)
-    incoming_relationships: Mapped[List["EntityRelationshipsTable"]] = relationship(
+    incoming_relationships: Mapped[list["EntityRelationshipsTable"]] = relationship(
         "EntityRelationshipsTable",
         foreign_keys="EntityRelationshipsTable.target_entity_id",
         back_populates="target_entity",
@@ -680,7 +680,7 @@ class EntitiesTable(Base):
     )
 
     @property
-    def project_ids(self) -> List[int]:
+    def project_ids(self) -> list[int]:
         """
         Compute project IDs from projects relationship.
 
@@ -792,7 +792,7 @@ class PlansTable(Base):
     # Relationships
     user: Mapped["UsersTable"] = relationship("UsersTable", back_populates="plans")
     project: Mapped["ProjectsTable"] = relationship("ProjectsTable", back_populates="plans")
-    tasks: Mapped[List["TasksTable"]] = relationship(
+    tasks: Mapped[list["TasksTable"]] = relationship(
         "TasksTable",
         back_populates="plan",
         cascade="all, delete-orphan",
@@ -840,14 +840,14 @@ class TasksTable(Base):
 
     # Relationships
     plan: Mapped["PlansTable"] = relationship("PlansTable", back_populates="tasks")
-    criteria: Mapped[List["CriteriaTable"]] = relationship(
+    criteria: Mapped[list["CriteriaTable"]] = relationship(
         "CriteriaTable",
         back_populates="task",
         cascade="all, delete-orphan",
     )
 
     @property
-    def dependency_ids(self) -> List[int]:
+    def dependency_ids(self) -> list[int]:
         from sqlalchemy import inspect
         from sqlalchemy.orm.attributes import NO_VALUE
 
@@ -856,7 +856,7 @@ class TasksTable(Base):
             return [d.depends_on_task_id for d in self.depends_on]
         return []
 
-    depends_on: Mapped[List["TaskDependenciesTable"]] = relationship(
+    depends_on: Mapped[list["TaskDependenciesTable"]] = relationship(
         "TaskDependenciesTable",
         foreign_keys="TaskDependenciesTable.task_id",
         back_populates="task",

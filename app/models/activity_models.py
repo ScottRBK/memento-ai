@@ -27,6 +27,7 @@ class EntityType(str, Enum):
     CRITERION = "criterion"
     TASK_DEPENDENCY = "task_dependency"
     FILE = "file"
+    SKILL = "skill"
 
 
 class ActionType(str, Enum):
@@ -128,7 +129,7 @@ class ActivityListResponse(BaseModel):
     """
     Paginated response for GET /api/v1/activity endpoint.
     """
-    events: List[ActivityLogEntry] = Field(
+    events: list[ActivityLogEntry] = Field(
         ...,
         description="Activity events matching query filters"
     )

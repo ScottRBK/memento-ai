@@ -140,7 +140,7 @@ class TaskService:
         state: TaskState | None = None,
         priority: TaskPriority | None = None,
         assigned_agent: str | None = None,
-    ) -> List[TaskSummary]:
+    ) -> list[TaskSummary]:
         logger.info("listing tasks", extra={"plan_id": plan_id})
         tasks = await self.task_repo.list_tasks(
             user_id=user_id, plan_id=plan_id,

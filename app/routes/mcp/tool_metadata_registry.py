@@ -27,11 +27,11 @@ def register_simplified_tool(
     name: str,
     category: ToolCategory,
     description: str,
-    parameters: List[dict],
+    parameters: list[dict],
     returns: str,
     implementation: Any,
-    examples: List[str] = None,
-    tags: List[str] = None,
+    examples: list[str] = None,
+    tags: list[str] = None,
     mutates: bool = False,
 ):
     """
@@ -80,7 +80,7 @@ def register_simplified_tool(
 
 def register_user_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register user tool metadata and implementations"""
 
@@ -152,7 +152,7 @@ def register_user_tools_metadata(
 
 def register_memory_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register memory tool metadata and implementations"""
 
@@ -783,7 +783,7 @@ def register_all_tools_metadata(
 
 def register_project_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register project tool metadata and implementations"""
 
@@ -894,7 +894,7 @@ def register_project_tools_metadata(
 
 def register_code_artifact_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register code artifact tool metadata and implementations"""
 
@@ -1006,7 +1006,7 @@ def register_code_artifact_tools_metadata(
 
 def register_document_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register document tool metadata and implementations"""
 
@@ -1120,7 +1120,7 @@ def register_document_tools_metadata(
 
 def register_entity_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register entity tool metadata and implementations"""
 
@@ -1391,7 +1391,7 @@ def register_entity_tools_metadata(
 
 def register_plan_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register plan tool metadata and implementations"""
 
@@ -1485,7 +1485,7 @@ def register_plan_tools_metadata(
 
 def register_task_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register task tool metadata and implementations"""
 
@@ -1688,7 +1688,7 @@ def register_task_tools_metadata(
 
 def register_file_tools_metadata(
     registry: ToolRegistry,
-    adapters: Dict[str, Any]
+    adapters: dict[str, Any]
 ):
     """Register file tool metadata and implementations"""
 

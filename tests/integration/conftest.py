@@ -166,7 +166,7 @@ class MockEmbeddingsAdapter:
     def __init__(self, dimensions: int = 384):
         self.dimensions = dimensions
 
-    async def embed_text(self, text: str) -> List[float]:
+    async def embed_text(self, text: str) -> list[float]:
         """Generate deterministic embeddings from text using hash-based seeding"""
         # Use MD5 hash for reproducibility (same text -> same embedding)
         hash_value = hashlib.md5(text.encode()).hexdigest()
@@ -243,9 +243,9 @@ class InMemoryMemoryRepository(MemoryRepository):
         query_context: str,
         k: int,
         importance_threshold: int | None,
-        project_ids: List[int] | None,
-        exclude_ids: List[int] | None = None,
-    ) -> List[Memory]:
+        project_ids: list[int] | None,
+        exclude_ids: list[int] | None = None,
+    ) -> list[Memory]:
         """Mock semantic search - returns memories sorted by importance"""
         user_memories = self._memories.get(user_id, {})
 
@@ -273,7 +273,7 @@ class InMemoryMemoryRepository(MemoryRepository):
 
     async def find_similar_memories(
         self, user_id: UUID, memory_id: int, max_links: int
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         """Find similar memories - uses keyword overlap as proxy for similarity"""
         user_memories = self._memories.get(user_id, {})
 
@@ -301,8 +301,8 @@ class InMemoryMemoryRepository(MemoryRepository):
         return similar[:max_links]
 
     async def create_links_batch(
-        self, user_id: UUID, source_id: int, target_ids: List[int]
-    ) -> List[int]:
+        self, user_id: UUID, source_id: int, target_ids: list[int]
+    ) -> list[int]:
         """Create bidirectional links between memories"""
         if not target_ids:
             return []
@@ -347,9 +347,9 @@ class InMemoryMemoryRepository(MemoryRepository):
         self,
         user_id: UUID,
         memory_id: int,
-        project_ids: List[int] | None,
+        project_ids: list[int] | None,
         max_links: int = 5,
-    ) -> List[Memory]:
+    ) -> list[Memory]:
         """Get linked memories (1-hop neighbors)"""
         linked_ids = self._links.get(memory_id, set())
 
@@ -421,12 +421,12 @@ class InMemoryMemoryRepository(MemoryRepository):
         user_id: UUID,
         limit: int,
         offset: int = 0,
-        project_ids: List[int] | None = None,
+        project_ids: list[int] | None = None,
         include_obsolete: bool = False,
         sort_by: str = "created_at",
         sort_order: str = "desc",
-        tags: List[str] | None = None,
-    ) -> tuple[List[Memory], int]:
+        tags: list[str] | None = None,
+    ) -> tuple[list[Memory], int]:
         """Get memories with pagination, sorting, and filtering"""
         user_memories = self._memories.get(user_id, {})
         memories = list(user_memories.values())
@@ -498,7 +498,7 @@ class InMemoryMemoryRepository(MemoryRepository):
             for m in user_mems.values() if not m.is_obsolete
         )
 
-    async def get_memories_for_reembedding(self, limit: int, offset: int) -> List[Memory]:
+    async def get_memories_for_reembedding(self, limit: int, offset: int) -> list[Memory]:
         all_memories = [
             m for user_mems in self._memories.values()
             for m in user_mems.values() if not m.is_obsolete
@@ -582,7 +582,7 @@ class InMemoryProjectRepository(ProjectRepository):
         status: ProjectStatus | None = None,
         repo_name: str | None = None,
         name: str | None = None,
-    ) -> List[ProjectSummary]:
+    ) -> list[ProjectSummary]:
         """List projects with optional filtering"""
         user_projects = self._projects.get(user_id, {})
 
@@ -750,8 +750,8 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         user_id: UUID,
         project_id: int | None = None,
         language: str | None = None,
-        tags: List[str] | None = None,
-    ) -> List[CodeArtifactSummary]:
+        tags: list[str] | None = None,
+    ) -> list[CodeArtifactSummary]:
         user_artifacts = self._artifacts.get(user_id, {})
         artifacts = list(user_artifacts.values())
 
@@ -860,8 +860,8 @@ class InMemoryDocumentRepository(DocumentRepository):
         user_id: UUID,
         project_id: int | None = None,
         document_type: str | None = None,
-        tags: List[str] | None = None,
-    ) -> List[DocumentSummary]:
+        tags: list[str] | None = None,
+    ) -> list[DocumentSummary]:
         user_documents = self._documents.get(user_id, {})
         documents = list(user_documents.values())
 
@@ -969,8 +969,8 @@ class InMemoryFileRepository(FileRepository):
         user_id: UUID,
         project_id: int | None = None,
         mime_type: str | None = None,
-        tags: List[str] | None = None,
-    ) -> List[FileSummary]:
+        tags: list[str] | None = None,
+    ) -> list[FileSummary]:
         user_files = self._files.get(user_id, {})
         files = list(user_files.values())
 
@@ -1078,12 +1078,12 @@ class InMemoryEntityRepository(EntityRepository):
     async def list_entities(
         self,
         user_id: UUID,
-        project_ids: List[int] | None = None,
+        project_ids: list[int] | None = None,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None,
+        tags: list[str] | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[List[EntitySummary], int]:
+    ) -> tuple[list[EntitySummary], int]:
         user_entities = self._entities.get(user_id, {})
         entities = list(user_entities.values())
 
@@ -1112,9 +1112,9 @@ class InMemoryEntityRepository(EntityRepository):
         user_id: UUID,
         search_query: str,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None,
+        tags: list[str] | None = None,
         limit: int = 20,
-    ) -> List[EntitySummary]:
+    ) -> list[EntitySummary]:
         """Search entities by name or aka using case-insensitive text matching"""
         user_entities = self._entities.get(user_id, {})
         entities = list(user_entities.values())
@@ -1273,7 +1273,7 @@ class InMemoryEntityRepository(EntityRepository):
         entity_id: int,
         direction: str | None = None,
         relationship_type: str | None = None,
-    ) -> List[EntityRelationship]:
+    ) -> list[EntityRelationship]:
         user_relationships = self._relationships.get(user_id, {})
         relationships = list(user_relationships.values())
 
@@ -1332,14 +1332,14 @@ class InMemoryEntityRepository(EntityRepository):
 
     async def get_all_entity_relationships(
         self, user_id: UUID
-    ) -> List[EntityRelationship]:
+    ) -> list[EntityRelationship]:
         """Get all entity relationships for a user (for graph visualization)"""
         user_relationships = self._relationships.get(user_id, {})
         relationships = list(user_relationships.values())
         relationships.sort(key=lambda r: r.created_at, reverse=True)
         return relationships
 
-    async def get_all_entity_memory_links(self, user_id: UUID) -> List[tuple[int, int]]:
+    async def get_all_entity_memory_links(self, user_id: UUID) -> list[tuple[int, int]]:
         """Get all entity-memory associations for a user (for graph visualization)"""
         user_entities = self._entities.get(user_id, {})
         links = []
@@ -1349,7 +1349,7 @@ class InMemoryEntityRepository(EntityRepository):
                 links.append((entity_id, memory_id))
         return links
 
-    async def get_entity_memories(self, user_id: UUID, entity_id: int) -> List[int]:
+    async def get_entity_memories(self, user_id: UUID, entity_id: int) -> list[int]:
         """Get all memory IDs linked to a specific entity"""
         # Verify entity exists
         entity = await self.get_entity_by_id(user_id, entity_id)
@@ -1423,7 +1423,7 @@ class InMemoryPlanRepository(PlanRepository):
         user_id: UUID,
         project_id: int | None = None,
         status: PlanStatus | None = None,
-    ) -> List[PlanSummary]:
+    ) -> list[PlanSummary]:
         user_plans = self._plans.get(user_id, {})
         plans = list(user_plans.values())
 
@@ -1553,7 +1553,7 @@ class InMemoryTaskRepository(TaskRepository):
         state: TaskState | None = None,
         priority: TaskPriority | None = None,
         assigned_agent: str | None = None,
-    ) -> List[TaskSummary]:
+    ) -> list[TaskSummary]:
         user_tasks = self._tasks.get(user_id, {})
         tasks = [t for t in user_tasks.values() if t.plan_id == plan_id]
 
@@ -1725,7 +1725,7 @@ class InMemoryTaskRepository(TaskRepository):
 
     async def get_criteria_for_task(
         self, user_id: UUID, task_id: int
-    ) -> List[Criterion]:
+    ) -> list[Criterion]:
         user_criteria = self._criteria.get(user_id, {})
         criteria = [c for c in user_criteria.values() if c.task_id == task_id]
         criteria.sort(key=lambda c: c.id)
@@ -1762,7 +1762,7 @@ class InMemoryTaskRepository(TaskRepository):
                 return True
         return False
 
-    async def get_dependencies(self, user_id: UUID, task_id: int) -> List[int]:
+    async def get_dependencies(self, user_id: UUID, task_id: int) -> list[int]:
         """Get IDs of tasks that this task depends on."""
         user_deps = self._dependencies.get(user_id, {})
         return [
@@ -1771,7 +1771,7 @@ class InMemoryTaskRepository(TaskRepository):
             if dep.task_id == task_id
         ]
 
-    async def get_dependents(self, user_id: UUID, task_id: int) -> List[int]:
+    async def get_dependents(self, user_id: UUID, task_id: int) -> list[int]:
         """Get IDs of tasks that depend on this task."""
         user_deps = self._dependencies.get(user_id, {})
         return [

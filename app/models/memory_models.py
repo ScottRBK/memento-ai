@@ -34,12 +34,12 @@ class MemoryCreate(BaseModel):
         max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
         description="WHY this matters, HOW it relates to other concepts, WHAT implications. Enables intelligent auto-linking and semantic retrieval."
     )
-    keywords: List[str] = Field(
+    keywords: list[str] = Field(
         ...,
         max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
         description="Search terms for semantic discovery (e.g., 'python', 'asyncio', 'logging'). Max 10."
     )
-    tags: List[str] = Field(
+    tags: list[str] = Field(
         ...,
         max_length=settings.MEMORY_TAGS_MAX_COUNT,
         description="Categories for grouping memories (e.g., 'pattern', 'decision', 'bug-fix'). Max 10."
@@ -50,21 +50,25 @@ class MemoryCreate(BaseModel):
         le=10,
         description="Importance 1-10 (default 7): 9-10=personal facts/foundational patterns, 8-9=critical solutions/decisions, 7-8=useful patterns/preferences, 6-7=milestones/solutions, <6=discourage."
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         default=None,
         description="Link to project(s) for scoped queries. Enables 'show memories for Project X' filtering."
     )
-    code_artifact_ids: List[int] | None = Field(
+    code_artifact_ids: list[int] | None = Field(
         default=None,
         description="Code artifact IDs to link (create artifacts first). Links implementation examples to this memory."
     )
-    document_ids: List[int] | None = Field(
+    document_ids: list[int] | None = Field(
         default=None,
         description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
     )
-    file_ids: List[int] | None = Field(
+    file_ids: list[int] | None = Field(
         default=None,
         description="File IDs to link (create files first). Links binary assets (images, PDFs, etc.) to this memory."
+    )
+    skill_ids: list[int] | None = Field(
+        default=None,
+        description="Skill IDs to link (create sklls first) to this memory"
     )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
@@ -73,7 +77,7 @@ class MemoryCreate(BaseModel):
         max_length=200,
         description="Repository/project source (e.g., 'owner/repo')"
     )
-    source_files: List[str] | None = Field(
+    source_files: list[str] | None = Field(
         default=None,
         description="Files that informed this memory (JSON list of paths)"
     )
@@ -141,12 +145,12 @@ class MemoryUpdate(BaseModel):
         max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
         description="New context (WHY/HOW/WHAT for auto-linking). Unchanged if null."
     )
-    keywords: List[str] | None = Field(
+    keywords: list[str] | None = Field(
         None,
         max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
         description="New search terms (max 10). Replaces existing if provided, unchanged if null."
     )
-    tags: List[str] | None = Field(
+    tags: list[str] | None = Field(
         None,
         max_length=settings.MEMORY_TAGS_MAX_COUNT,
         description="New categories (max 10). Replaces existing if provided, unchanged if null."
@@ -157,21 +161,25 @@ class MemoryUpdate(BaseModel):
         le=10,
         description="New importance 1-10: 9-10=personal/foundational, 8-9=critical, 7-8=useful, 6-7=milestones, <6=discourage. Unchanged if null."
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         None,
         description="New project associations. Replaces existing if provided, unchanged if null."
     )
-    code_artifact_ids: List[int] | None = Field(
+    code_artifact_ids: list[int] | None = Field(
         None,
         description="New code artifact links. Replaces existing if provided, unchanged if null."
     )
-    document_ids: List[int] | None = Field(
+    document_ids: list[int] | None = Field(
         None,
         description="New document links. Replaces existing if provided, unchanged if null."
     )
-    file_ids: List[int] | None = Field(
+    file_ids: list[int] | None = Field(
         None,
         description="New file links. Replaces existing if provided, unchanged if null."
+    )
+    skill_ids: list[int] |None = Field(
+        None, 
+        description="New skill IDs to link (create sklls first) to this memory"
     )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
@@ -180,7 +188,7 @@ class MemoryUpdate(BaseModel):
         max_length=200,
         description="New repository/project source. Unchanged if null."
     )
-    source_files: List[str] | None = Field(
+    source_files: list[str] | None = Field(
         None,
         description="New source files list. Replaces existing if provided, unchanged if null."
     )
@@ -235,11 +243,12 @@ class Memory(MemoryCreate):
     id: int
     created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
-    project_ids: List[int] = Field(default_factory=list)
-    linked_memory_ids: List[int] = Field(default_factory=list)
-    code_artifact_ids: List[int] = Field(default_factory=list, description="Linked code artifact IDs")
-    document_ids: List[int] = Field(default_factory=list, description="Linked document IDs")
-    file_ids: List[int] = Field(default_factory=list, description="Linked file IDs")
+    project_ids: list[int] = Field(default_factory=list)
+    linked_memory_ids: list[int] = Field(default_factory=list)
+    code_artifact_ids: list[int] = Field(default_factory=list, description="Linked code artifact IDs")
+    document_ids: list[int] = Field(default_factory=list, description="Linked document IDs")
+    file_ids: list[int] = Field(default_factory=list, description="Linked file IDs")
+    skill_ids: list[int] = Field(default_factory=list, description="Linked skill Ids")
 
     # Lifecycle management fields
     is_obsolete: bool = Field(default=False, description="Whether this memory has been marked obsolete")
@@ -253,8 +262,8 @@ class MemorySummary(BaseModel):
     """Lightweight memory summary for list views"""
     id: int
     title: str
-    keywords: List[str]
-    tags: List[str]
+    keywords: list[str]
+    tags: list[str]
     importance: int
     created_at: datetime
     updated_at: datetime
@@ -265,12 +274,13 @@ class MemoryCreateResponse(BaseModel):
     """Lightweight response information to confirm memory creation"""
     id: int
     title: str
-    linked_memory_ids: List[int] = Field(default_factory=list)
-    project_ids: List[int] = Field(default_factory=list)
-    code_artifact_ids: List[int] = Field(default_factory=list)
-    document_ids: List[int] = Field(default_factory=list)
-    file_ids: List[int] = Field(default_factory=list)
-    similar_memories: List[MemorySummary] = Field(
+    linked_memory_ids: list[int] = Field(default_factory=list)
+    project_ids: list[int] = Field(default_factory=list)
+    code_artifact_ids: list[int] = Field(default_factory=list)
+    document_ids: list[int] = Field(default_factory=list)
+    file_ids: list[int] = Field(default_factory=list)
+    skill_ids: list[int] = Field(default_factory=list)
+    similar_memories: list[MemorySummary] = Field(
         default_factory=list,
         description="Summaries of similar memories that were auto-linked for review"
     )
@@ -278,7 +288,7 @@ class MemoryCreateResponse(BaseModel):
 
 class MemoryListResponse(BaseModel):
     """Paginated list of memories for REST API"""
-    memories: List[Memory]
+    memories: list[Memory]
     total: int = Field(..., description="Total count of memories matching filters")
     limit: int = Field(..., description="Maximum results per page")
     offset: int = Field(..., description="Number of results skipped")
@@ -325,7 +335,7 @@ class MemoryQueryRequest(BaseModel):
         le=10,
         description="Filter out memories below this importance (e.g., 7=only important memories)"
     )
-    project_ids: List[int] | None = Field(
+    project_ids: list[int] | None = Field(
         None,
         description="Filter results to specific projects (scoped search within project context)"
     )
@@ -344,8 +354,8 @@ class LinkedMemory(BaseModel):
 class MemoryQueryResult(BaseModel):
     """Response Model for memory query"""
     query: str
-    primary_memories: List[Memory]
-    linked_memories: List[LinkedMemory] = Field(default_factory=list)
+    primary_memories: list[Memory]
+    linked_memories: list[LinkedMemory] = Field(default_factory=list)
     total_count: int
     token_count: int
     truncated: bool = Field(False, description="Whether the results were truncated due to token budget")
@@ -353,7 +363,7 @@ class MemoryQueryResult(BaseModel):
 class MemoryLinkRequest(BaseModel):
     """Request model for linking memories"""
     memory_id: int = Field(..., description="Source memory ID")
-    related_ids: List[int] = Field(..., min_length=1, description="Target memory IDs to link")
+    related_ids: list[int] = Field(..., min_length=1, description="Target memory IDs to link")
     
     @field_validator("related_ids")
     @classmethod
@@ -365,5 +375,4 @@ class MemoryLinkRequest(BaseModel):
 
         
         
-    
     

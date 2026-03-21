@@ -14,7 +14,7 @@ class SubgraphNode(BaseModel):
         ...,
         description="Prefixed node ID in format 'memory_123', 'entity_456', 'project_789', 'document_123', 'code_artifact_456', or 'file_789'"
     )
-    type: Literal["memory", "entity", "project", "document", "code_artifact", "file"] = Field(
+    type: Literal["memory", "entity", "project", "document", "code_artifact", "file", "skill"] = Field(
         ...,
         description="Node type: 'memory', 'entity', 'project', 'document', 'code_artifact', or 'file'"
     )
@@ -27,7 +27,7 @@ class SubgraphNode(BaseModel):
         ...,
         description="Display label (memory title, entity name, project name, document title, or artifact title)"
     )
-    data: Dict[str, Any] = Field(
+    data: dict[str, Any] = Field(
         default_factory=dict,
         description="Full node data including all relevant fields"
     )
@@ -57,15 +57,20 @@ class SubgraphEdge(BaseModel):
         "document_project",
         "code_artifact_project",
         "memory_document",
+        "memory_skill",
         "memory_code_artifact",
         "memory_file",
         "file_project",
-        "entity_file"
+        "entity_file",
+        "skill_project",
+        "skill_file",
+        "skill_code_artifact",
+        "skill_document",
     ] = Field(
         ...,
         description="Edge type indicating relationship kind"
     )
-    data: Dict[str, Any] | None = Field(
+    data: dict[str, Any] | None = Field(
         default=None,
         description="Additional edge metadata (for entity_relationship: relationship_type, strength, confidence)"
     )
@@ -82,7 +87,7 @@ class SubgraphMeta(BaseModel):
         ...,
         description="The depth parameter used for traversal"
     )
-    node_types: List[str] = Field(
+    node_types: list[str] = Field(
         ...,
         description="Node types included in traversal"
     )
@@ -187,6 +192,36 @@ class SubgraphMeta(BaseModel):
         ge=0,
         description="Number of entity-to-file edges"
     )
+    skill_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of skills"
+    )
+    memory_skill_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of memory-to-skill edges"
+    )
+    skill_project_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of skill-to-project edges",
+    )
+    skill_file_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of skill-to-file edges"
+    )
+    skill_code_artifact_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of skill-to-code-artifact edges"
+    )
+    skill_document_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of skill-to-document edges"
+    )
     truncated: bool = Field(
         False,
         description="True if max_nodes limit was reached and result is incomplete"
@@ -196,11 +231,11 @@ class SubgraphMeta(BaseModel):
 class SubgraphResponse(BaseModel):
     """Complete response for subgraph traversal."""
 
-    nodes: List[SubgraphNode] = Field(
+    nodes: list[SubgraphNode] = Field(
         ...,
         description="List of nodes in the subgraph with depth info"
     )
-    edges: List[SubgraphEdge] = Field(
+    edges: list[SubgraphEdge] = Field(
         ...,
         description="List of edges between nodes in the subgraph"
     )

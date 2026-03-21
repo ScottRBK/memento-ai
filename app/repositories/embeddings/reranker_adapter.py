@@ -11,8 +11,8 @@ class RerankAdapter(Protocol):
     """Contract for a Reranker Adapter"""
     async def rerank(self, 
                      query: str,
-                     documents: List[str],
-    ) -> List[tuple[int, float]]:
+                     documents: list[str],
+    ) -> list[tuple[int, float]]:
         ...
 
 class FastEmbedCrossEncoderAdapter: 
@@ -39,8 +39,8 @@ class FastEmbedCrossEncoderAdapter:
     async def rerank(
             self,
             query: str,
-            documents: List[str],
-    ) -> List[tuple[int, float]]:
+            documents: list[str],
+    ) -> list[tuple[int, float]]:
         """Score documents by relevance to query"""
         
         if not documents:
@@ -57,7 +57,7 @@ class FastEmbedCrossEncoderAdapter:
         
         return ranked
     
-    def _rerank_sync(self, query: str, documents: List[str])-> List[tuple[int,float]]:
+    def _rerank_sync(self, query: str, documents: list[str])-> list[tuple[int,float]]:
         """Synchronus reranking implementation"""
         scores = list(self._model.rerank(query=query, documents=documents))
         ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
@@ -86,8 +86,8 @@ class HttpRerankAdapter:
     async def rerank(
             self,
             query: str,
-            documents: List[str]
-    ) -> List[tuple[int, float]]:
+            documents: list[str]
+    ) -> list[tuple[int, float]]:
 
         if not documents:
             return []

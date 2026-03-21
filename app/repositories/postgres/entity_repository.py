@@ -152,12 +152,12 @@ class PostgresEntityRepository:
     async def list_entities(
         self,
         user_id: UUID,
-        project_ids: List[int] | None = None,
+        project_ids: list[int] | None = None,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None,
+        tags: list[str] | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> tuple[List[EntitySummary], int]:
+    ) -> tuple[list[EntitySummary], int]:
         """List entities with optional filtering and pagination
 
         Args:
@@ -254,9 +254,9 @@ class PostgresEntityRepository:
         user_id: UUID,
         search_query: str,
         entity_type: EntityType | None = None,
-        tags: List[str] | None = None,
+        tags: list[str] | None = None,
         limit: int = 20
-    ) -> List[EntitySummary]:
+    ) -> list[EntitySummary]:
         """Search entities by name using text matching
 
         Args:
@@ -803,7 +803,7 @@ class PostgresEntityRepository:
         entity_id: int,
         direction: str | None = None,
         relationship_type: str | None = None
-    ) -> List[EntityRelationship]:
+    ) -> list[EntityRelationship]:
         """Get relationships for an entity
 
         Args:
@@ -1020,7 +1020,7 @@ class PostgresEntityRepository:
     async def get_all_entity_relationships(
         self,
         user_id: UUID
-    ) -> List[EntityRelationship]:
+    ) -> list[EntityRelationship]:
         """Get all entity relationships for a user (for graph visualization)
 
         Args:
@@ -1067,7 +1067,7 @@ class PostgresEntityRepository:
     async def get_all_entity_memory_links(
         self,
         user_id: UUID
-    ) -> List[tuple[int, int]]:
+    ) -> list[tuple[int, int]]:
         """Get all entity-memory associations for a user (for graph visualization)
 
         Args:
@@ -1112,7 +1112,7 @@ class PostgresEntityRepository:
     async def get_all_entity_project_links(
         self,
         user_id: UUID
-    ) -> List[tuple[int, int]]:
+    ) -> list[tuple[int, int]]:
         """Get all entity-project associations for a user (for graph visualization)
 
         Args:
@@ -1157,7 +1157,7 @@ class PostgresEntityRepository:
     async def get_all_entity_file_links(
         self,
         user_id: UUID
-    ) -> List[tuple[int, int]]:
+    ) -> list[tuple[int, int]]:
         """Get all entity-file associations for a user (for graph visualization)
 
         Args:
@@ -1203,7 +1203,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         entity_id: int
-    ) -> List[int]:
+    ) -> list[int]:
         """Get all memory IDs linked to a specific entity
 
         Args:

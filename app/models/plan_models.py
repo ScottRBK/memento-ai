@@ -8,7 +8,6 @@ These are tightly coupled aggregates forming the hierarchy:
 
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -83,12 +82,12 @@ class CriterionCreate(BaseModel):
 
 class CriterionUpdate(BaseModel):
     """PATCH model for updating a criterion."""
-    description: Optional[str] = Field(None, max_length=settings.CRITERION_DESCRIPTION_MAX_LENGTH)
-    met: Optional[bool] = None
+    description: str | None = Field(None, max_length=settings.CRITERION_DESCRIPTION_MAX_LENGTH)
+    met: bool | None = None
 
     @field_validator("description")
     @classmethod
-    def strip_description(cls, v: Optional[str]) -> Optional[str]:
+    def strip_description(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
 
@@ -98,7 +97,7 @@ class Criterion(BaseModel):
     task_id: int
     description: str
     met: bool = False
-    met_at: Optional[datetime] = None
+    met_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -142,8 +141,8 @@ class PlanCreate(BaseModel):
     """Input model for creating a plan."""
     title: str = Field(..., max_length=settings.PLAN_TITLE_MAX_LENGTH)
     project_id: int
-    goal: Optional[str] = Field(None, max_length=settings.PLAN_GOAL_MAX_LENGTH)
-    context: Optional[str] = Field(None, max_length=settings.PLAN_CONTEXT_MAX_LENGTH)
+    goal: str | None = Field(None, max_length=settings.PLAN_GOAL_MAX_LENGTH)
+    context: str | None = Field(None, max_length=settings.PLAN_CONTEXT_MAX_LENGTH)
     status: PlanStatus = PlanStatus.DRAFT
 
     @field_validator("title")
@@ -153,25 +152,25 @@ class PlanCreate(BaseModel):
 
     @field_validator("goal", "context")
     @classmethod
-    def strip_optional(cls, v: Optional[str]) -> Optional[str]:
+    def strip_optional(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
 
 class PlanUpdate(BaseModel):
     """PATCH model for updating a plan."""
-    title: Optional[str] = Field(None, max_length=settings.PLAN_TITLE_MAX_LENGTH)
-    goal: Optional[str] = Field(None, max_length=settings.PLAN_GOAL_MAX_LENGTH)
-    context: Optional[str] = Field(None, max_length=settings.PLAN_CONTEXT_MAX_LENGTH)
-    status: Optional[PlanStatus] = None
+    title: str | None = Field(None, max_length=settings.PLAN_TITLE_MAX_LENGTH)
+    goal: str | None = Field(None, max_length=settings.PLAN_GOAL_MAX_LENGTH)
+    context: str | None = Field(None, max_length=settings.PLAN_CONTEXT_MAX_LENGTH)
+    status: PlanStatus | None = None
 
     @field_validator("title")
     @classmethod
-    def strip_title(cls, v: Optional[str]) -> Optional[str]:
+    def strip_title(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
     @field_validator("goal", "context")
     @classmethod
-    def strip_optional(cls, v: Optional[str]) -> Optional[str]:
+    def strip_optional(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
 
@@ -207,11 +206,11 @@ class TaskCreate(BaseModel):
     """Input model for creating a task."""
     title: str = Field(..., max_length=settings.TASK_TITLE_MAX_LENGTH)
     plan_id: int
-    description: Optional[str] = Field(None, max_length=settings.TASK_DESCRIPTION_MAX_LENGTH)
+    description: str | None = Field(None, max_length=settings.TASK_DESCRIPTION_MAX_LENGTH)
     priority: TaskPriority = TaskPriority.P2
-    assigned_agent: Optional[str] = Field(None, max_length=settings.TASK_AGENT_MAX_LENGTH)
-    criteria: Optional[List[CriterionCreate]] = None
-    dependency_ids: Optional[List[int]] = None
+    assigned_agent: str | None = Field(None, max_length=settings.TASK_AGENT_MAX_LENGTH)
+    criteria: list[CriterionCreate] | None = None
+    dependency_ids: list[int] | None = None
 
     @field_validator("title")
     @classmethod
@@ -220,24 +219,24 @@ class TaskCreate(BaseModel):
 
     @field_validator("description")
     @classmethod
-    def strip_description(cls, v: Optional[str]) -> Optional[str]:
+    def strip_description(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
 
 class TaskUpdate(BaseModel):
     """PATCH model for updating task metadata. State changes go through transition_task."""
-    title: Optional[str] = Field(None, max_length=settings.TASK_TITLE_MAX_LENGTH)
-    description: Optional[str] = Field(None, max_length=settings.TASK_DESCRIPTION_MAX_LENGTH)
-    priority: Optional[TaskPriority] = None
+    title: str | None = Field(None, max_length=settings.TASK_TITLE_MAX_LENGTH)
+    description: str | None = Field(None, max_length=settings.TASK_DESCRIPTION_MAX_LENGTH)
+    priority: TaskPriority | None = None
 
     @field_validator("title")
     @classmethod
-    def strip_title(cls, v: Optional[str]) -> Optional[str]:
+    def strip_title(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
     @field_validator("description")
     @classmethod
-    def strip_description(cls, v: Optional[str]) -> Optional[str]:
+    def strip_description(cls, v: str | None) -> str | None:
         return v.strip() if v else v
 
 
@@ -246,13 +245,13 @@ class Task(BaseModel):
     id: int
     plan_id: int
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     state: TaskState = TaskState.TODO
     priority: TaskPriority = TaskPriority.P2
-    assigned_agent: Optional[str] = None
+    assigned_agent: str | None = None
     version: int = 1
-    criteria: List[Criterion] = Field(default_factory=list)
-    dependency_ids: List[int] = Field(default_factory=list)
+    criteria: list[Criterion] = Field(default_factory=list)
+    dependency_ids: list[int] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -266,7 +265,7 @@ class TaskSummary(BaseModel):
     plan_id: int
     state: TaskState
     priority: TaskPriority
-    assigned_agent: Optional[str] = None
+    assigned_agent: str | None = None
     version: int = 1
     criteria_met: int = 0
     criteria_total: int = 0
