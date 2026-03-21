@@ -154,10 +154,11 @@ class Settings(BaseSettings):
     
     # Skills Configuration
     SKILL_NAME_MAX_LENGTH: int = 64
-    SKILL_DESCRIPTION_MAX_LENGTH: int = 1024 
+    SKILL_DESCRIPTION_MAX_LENGTH: int = 1024
     SKILL_CONTENT_MAX_LENGTH: int = 100000
-    SKILL_LICENCE_MAX_LENGTH: int = 100
-    SKILL_COMPATABILITY_MAX_LENGTH: int = 500
+    SKILL_LICENSE_MAX_LENGTH: int = 100
+    SKILL_COMPATIBILITY_MAX_LENGTH: int = 500
+    SKILL_ALLOWED_TOOLS_MAX_LENGTH: int = 2000
     SKILL_TAGS_MAX_COUNT: int = 10
 
     # Activity Tracking Configuration

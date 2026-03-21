@@ -40,6 +40,7 @@ CATEGORY_TO_SCOPE: dict[str, str] = {
     ToolCategory.PLAN.value: "plans",
     ToolCategory.TASK.value: "tasks",
     ToolCategory.FILE.value: "files",
+    ToolCategory.SKILL.value: "skills",
 }
 
 # Reverse map: scope category -> ToolCategory enum values

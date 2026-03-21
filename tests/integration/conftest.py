@@ -63,6 +63,12 @@ from app.models.plan_models import (
     CriterionUpdate,
     TaskDependency,
 )
+from app.models.skill_models import (
+    Skill,
+    SkillCreate,
+    SkillSummary,
+    SkillUpdate,
+)
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.protocols.document_protocol import DocumentRepository
@@ -71,6 +77,7 @@ from app.protocols.entity_protocol import EntityRepository
 from app.protocols.memory_protocol import MemoryRepository
 from app.protocols.plan_protocol import PlanRepository
 from app.protocols.project_protocol import ProjectRepository
+from app.protocols.skill_protocol import SkillRepository
 from app.protocols.task_protocol import TaskRepository
 from app.protocols.user_protocol import UserRepository
 from app.events import EventBus
@@ -84,6 +91,7 @@ from app.services.memory_service import MemoryService
 from app.services.plan_service import PlanService
 from app.services.project_service import ProjectService
 from app.services.task_service import TaskService
+from app.services.skill_service import SkillService
 from app.services.user_service import UserService
 
 
@@ -1793,3 +1801,151 @@ def test_task_service(test_plan_service, mock_task_repository):
     repo = mock_task_repository
     service = TaskService(repo, plan_service=test_plan_service, event_bus=None)
     return service, test_plan_service
+
+
+# ============ Skill Testing Fixtures ============
+
+
+class InMemorySkillRepository(SkillRepository):
+    """In-memory implementation of SkillRepository for testing"""
+
+    def __init__(self):
+        self._skills: dict[UUID, dict[int, Skill]] = {}
+        self._skill_memory_links: set[tuple[int, int]] = set()  # (skill_id, memory_id)
+        self._next_id = 1
+
+    async def create_skill(
+        self, user_id: UUID, skill_data: SkillCreate
+    ) -> Skill:
+        skill_id = self._next_id
+        self._next_id += 1
+        now = datetime.now(timezone.utc)
+
+        new_skill = Skill(
+            id=skill_id,
+            name=skill_data.name,
+            description=skill_data.description,
+            content=skill_data.content,
+            license=skill_data.license,
+            compatibility=skill_data.compatibility,
+            allowed_tools=skill_data.allowed_tools,
+            metadata=skill_data.metadata,
+            tags=skill_data.tags,
+            importance=skill_data.importance,
+            project_id=skill_data.project_id,
+            created_at=now,
+            updated_at=now,
+        )
+
+        if user_id not in self._skills:
+            self._skills[user_id] = {}
+        self._skills[user_id][skill_id] = new_skill
+        return new_skill
+
+    async def get_skill_by_id(
+        self, user_id: UUID, skill_id: int
+    ) -> Skill | None:
+        user_skills = self._skills.get(user_id, {})
+        return user_skills.get(skill_id)
+
+    async def list_skills(
+        self,
+        user_id: UUID,
+        project_id: int | None = None,
+        tags: list[str] | None = None,
+        importance_threshold: int | None = None,
+    ) -> list[SkillSummary]:
+        user_skills = self._skills.get(user_id, {})
+        skills = list(user_skills.values())
+
+        if project_id is not None:
+            skills = [s for s in skills if s.project_id == project_id]
+        if tags:
+            skills = [s for s in skills if any(t in s.tags for t in tags)]
+        if importance_threshold is not None:
+            skills = [s for s in skills if s.importance >= importance_threshold]
+
+        skills.sort(key=lambda s: s.created_at, reverse=True)
+        return [SkillSummary.model_validate(s) for s in skills]
+
+    async def update_skill(
+        self, user_id: UUID, skill_id: int, skill_data: SkillUpdate
+    ) -> Skill:
+        skill = await self.get_skill_by_id(user_id, skill_id)
+        if not skill:
+            from app.exceptions import NotFoundError
+
+            raise NotFoundError(f"Skill {skill_id} not found")
+
+        update_data = skill_data.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(skill, field, value)
+        skill.updated_at = datetime.now(timezone.utc)
+        return skill
+
+    async def delete_skill(self, user_id: UUID, skill_id: int) -> bool:
+        user_skills = self._skills.get(user_id, {})
+        if skill_id in user_skills:
+            del user_skills[skill_id]
+            # Clean up any memory links for this skill
+            self._skill_memory_links = {
+                (sid, mid) for sid, mid in self._skill_memory_links if sid != skill_id
+            }
+            return True
+        return False
+
+    async def search_skills(
+        self,
+        user_id: UUID,
+        query: str,
+        k: int = 5,
+        project_id: int | None = None,
+    ) -> list[SkillSummary]:
+        """Simple substring match on description (no real embeddings)"""
+        user_skills = self._skills.get(user_id, {})
+        skills = list(user_skills.values())
+
+        query_lower = query.lower()
+        skills = [s for s in skills if query_lower in s.description.lower()]
+
+        if project_id is not None:
+            skills = [s for s in skills if s.project_id == project_id]
+
+        skills.sort(key=lambda s: s.created_at, reverse=True)
+        return [SkillSummary.model_validate(s) for s in skills[:k]]
+
+    async def link_skill_to_memory(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        memory_id: int,
+    ) -> dict:
+        self._skill_memory_links.add((skill_id, memory_id))
+        return {
+            "skill_id": skill_id,
+            "memory_id": memory_id,
+            "linked": True,
+        }
+
+    async def unlink_skill_from_memory(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        memory_id: int,
+    ) -> dict:
+        self._skill_memory_links.discard((skill_id, memory_id))
+        return {
+            "skill_id": skill_id,
+            "memory_id": memory_id,
+            "unlinked": True,
+        }
+
+
+@pytest.fixture
+def mock_skill_repository():
+    return InMemorySkillRepository()
+
+
+@pytest.fixture
+def test_skill_service(mock_skill_repository):
+    return SkillService(mock_skill_repository, event_bus=None)

@@ -14,6 +14,7 @@ from app.routes.mcp.tool_adapters import (
     create_plan_adapters,
     create_task_adapters,
     create_file_adapters,
+    create_skill_adapters,
 )
 from app.services.user_service import UserService
 from app.services.memory_service import MemoryService
@@ -711,6 +712,7 @@ def register_all_tools_metadata(
     plan_service=None,
     task_service=None,
     file_service=None,
+    skill_service=None,
 ):
     """
     Register all tool metadata and implementations
@@ -726,6 +728,7 @@ def register_all_tools_metadata(
         plan_service: PlanService instance (optional, behind PLANNING_ENABLED)
         task_service: TaskService instance (optional, behind PLANNING_ENABLED)
         file_service: FileService instance (optional, behind FILES_ENABLED)
+        skill_service: SkillService instance (optional, behind SKILLS_ENABLED)
     """
     logger.info("Starting tool registration")
 
@@ -769,6 +772,12 @@ def register_all_tools_metadata(
         file_adapters = create_file_adapters(file_service, user_service)
         register_file_tools_metadata(registry, file_adapters)
         logger.info("File tools registered")
+
+    # Conditionally register skill tools (behind SKILLS_ENABLED)
+    if skill_service is not None:
+        skill_adapters = create_skill_adapters(skill_service, user_service)
+        register_skill_tools_metadata(registry, skill_adapters)
+        logger.info("Skill tools registered")
 
     # Log summary
     categories = registry.list_categories()
@@ -1792,3 +1801,198 @@ def register_file_tools_metadata(
         )
 
     logger.info(f"Registered {len(tools)} file tools")
+
+
+# ============================================================================
+# Skill Tools Metadata
+# ============================================================================
+
+def register_skill_tools_metadata(
+    registry: ToolRegistry,
+    adapters: dict[str, Any]
+):
+    """Register skill tool metadata and implementations"""
+
+    tools = [
+        {
+            "name": "create_skill",
+            "mutates": True,
+            "description": "Create a skill for procedural memory (Agent Skills format). Skills provide steps and examples for agents to perform tasks.",
+            "parameters": [
+                {"name": "name", "type": "str", "description": "Kebab-case skill name (e.g., 'pdf-processing', 'code-review'). Must match ^[a-z0-9]+(-[a-z0-9]+)*$", "required": True, "example": "code-review"},
+                {"name": "description", "type": "str", "description": "What the skill does and when to use it. Gets embedded for semantic search.", "required": True, "example": "Review code changes for quality, security, and best practices"},
+                {"name": "content", "type": "str", "description": "Full SKILL.md body (markdown instructions with steps and examples)", "required": True, "example": "## Steps\n1. Check for security issues\n2. Review naming conventions"},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "license", "type": "Optional[str]", "description": "License identifier (e.g., 'MIT', 'Apache-2.0')", "required": False, "default": None, "example": "MIT"},
+                {"name": "compatibility", "type": "Optional[str]", "description": "Environment requirements (e.g., 'Requires Python 3.14+ and uv')", "required": False, "default": None, "example": "Requires Python 3.12+"},
+                {"name": "allowed_tools", "type": "Optional[List[str]]", "description": "Tool restrictions (e.g., ['Bash(python:*)', 'Read', 'WebFetch'])", "required": False, "default": None, "example": ["Bash", "Read", "Grep"]},
+                {"name": "metadata", "type": "Optional[Dict[str, Any]]", "description": "Custom key-value pairs (author, version, mcp-server, etc.)", "required": False, "default": None, "example": {"author": "scottesh", "version": "1.0.0"}},
+                {"name": "tags", "type": "Optional[List[str]]", "description": "Categorization tags", "required": False, "default": None, "example": ["code", "review", "quality"]},
+                {"name": "importance", "type": "int", "description": "Importance 1-10 (default 7)", "required": False, "default": 7, "example": 8},
+                {"name": "project_id", "type": "Optional[int]", "description": "Optional project association", "required": False, "default": None, "example": 1},
+            ],
+            "returns": "Skill with id, name, and timestamps",
+            "examples": [
+                'execute_forgetful_tool("create_skill", {"name": "code-review", "description": "Review code for quality", "content": "## Steps\\n1. Check security\\n2. Review naming"})',
+            ],
+            "tags": ["skill", "create", "procedural-memory"],
+        },
+        {
+            "name": "get_skill",
+            "description": "Retrieve skill by ID with complete details including full content",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill to retrieve", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Complete Skill object with full content",
+            "examples": [
+                'execute_forgetful_tool("get_skill", {"skill_id": 1})',
+            ],
+            "tags": ["skill", "retrieve", "read"],
+        },
+        {
+            "name": "list_skills",
+            "description": "List skills with optional filtering by project, tags, or importance threshold (returns summaries without full content)",
+            "parameters": [
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "project_id", "type": "Optional[int]", "description": "Filter by project", "required": False, "default": None, "example": 1},
+                {"name": "tags", "type": "Optional[List[str]]", "description": "Filter by tags (returns skills with ANY of these tags)", "required": False, "default": None, "example": ["code", "review"]},
+                {"name": "importance_threshold", "type": "Optional[int]", "description": "Minimum importance level (1-10)", "required": False, "default": None, "example": 7},
+            ],
+            "returns": "Dictionary with skills list (summaries) and total_count",
+            "examples": [
+                'execute_forgetful_tool("list_skills", {})',
+                'execute_forgetful_tool("list_skills", {"tags": ["code"], "importance_threshold": 8})',
+            ],
+            "tags": ["skill", "list", "query"],
+        },
+        {
+            "name": "update_skill",
+            "mutates": True,
+            "description": "Update skill (PATCH semantics - only provided fields changed)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill to update", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "name", "type": "Optional[str]", "description": "New kebab-case name", "required": False, "default": None, "example": "updated-skill"},
+                {"name": "description", "type": "Optional[str]", "description": "New description", "required": False, "default": None, "example": "Updated description"},
+                {"name": "content", "type": "Optional[str]", "description": "New content (markdown body)", "required": False, "default": None, "example": "## Updated Steps\\n1. New step"},
+                {"name": "license", "type": "Optional[str]", "description": "New license", "required": False, "default": None, "example": "Apache-2.0"},
+                {"name": "compatibility", "type": "Optional[str]", "description": "New compatibility string", "required": False, "default": None, "example": "Requires Node 20+"},
+                {"name": "allowed_tools", "type": "Optional[List[str]]", "description": "New tool restrictions (replaces existing)", "required": False, "default": None, "example": ["Read", "Write"]},
+                {"name": "metadata", "type": "Optional[Dict[str, Any]]", "description": "New metadata (replaces existing)", "required": False, "default": None, "example": {"version": "2.0.0"}},
+                {"name": "tags", "type": "Optional[List[str]]", "description": "New tags (replaces existing)", "required": False, "default": None, "example": ["updated"]},
+                {"name": "importance", "type": "Optional[int]", "description": "New importance 1-10", "required": False, "default": None, "example": 9},
+                {"name": "project_id", "type": "Optional[int]", "description": "New project association", "required": False, "default": None, "example": 2},
+            ],
+            "returns": "Updated Skill object",
+            "examples": [
+                'execute_forgetful_tool("update_skill", {"skill_id": 1, "importance": 9, "tags": ["updated"]})',
+            ],
+            "tags": ["skill", "update", "patch"],
+        },
+        {
+            "name": "delete_skill",
+            "mutates": True,
+            "description": "Delete skill (removes skill and its memory associations)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill to delete", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with deletion confirmation",
+            "examples": [
+                'execute_forgetful_tool("delete_skill", {"skill_id": 1})',
+            ],
+            "tags": ["skill", "delete", "remove"],
+        },
+        {
+            "name": "search_skills",
+            "description": "Semantic search across skills to find relevant procedural knowledge",
+            "parameters": [
+                {"name": "query", "type": "str", "description": "Natural language search query", "required": True, "example": "how to review code"},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "k", "type": "int", "description": "Number of results to return (default: 5)", "required": False, "default": 5, "example": 5},
+                {"name": "project_id", "type": "Optional[int]", "description": "Filter by project", "required": False, "default": None, "example": 1},
+            ],
+            "returns": "Dictionary with skills list (summaries), total_count, and search_query",
+            "examples": [
+                'execute_forgetful_tool("search_skills", {"query": "code review best practices"})',
+                'execute_forgetful_tool("search_skills", {"query": "deployment process", "k": 3, "project_id": 1})',
+            ],
+            "tags": ["skill", "search", "semantic", "query"],
+        },
+        {
+            "name": "import_skill",
+            "mutates": True,
+            "description": "Import a skill from Agent Skills markdown format (YAML frontmatter between --- delimiters)",
+            "parameters": [
+                {"name": "skill_md_content", "type": "str", "description": "Raw SKILL.md content with YAML frontmatter between --- delimiters", "required": True, "example": "---\\nname: my-skill\\ndescription: A skill\\n---\\n\\n## Steps\\n1. Do something"},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+                {"name": "project_id", "type": "Optional[int]", "description": "Project association (overrides frontmatter)", "required": False, "default": None, "example": 1},
+                {"name": "importance", "type": "int", "description": "Importance level (default: 7)", "required": False, "default": 7, "example": 8},
+            ],
+            "returns": "Created Skill from parsed markdown",
+            "examples": [
+                'execute_forgetful_tool("import_skill", {"skill_md_content": "---\\nname: my-skill\\ndescription: Does things\\n---\\n\\nInstructions here"})',
+            ],
+            "tags": ["skill", "import", "markdown", "agent-skills"],
+        },
+        {
+            "name": "export_skill",
+            "description": "Export a skill to Agent Skills markdown format (YAML frontmatter + content body)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill to export", "required": True, "example": 1},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Formatted SKILL.md string with YAML frontmatter",
+            "examples": [
+                'execute_forgetful_tool("export_skill", {"skill_id": 1})',
+            ],
+            "tags": ["skill", "export", "markdown", "agent-skills"],
+        },
+        {
+            "name": "link_skill_to_memory",
+            "mutates": True,
+            "description": "Link a skill to a memory (establishes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "memory_id", "type": "int", "description": "ID of the memory", "required": True, "example": 5},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with link confirmation",
+            "examples": [
+                'execute_forgetful_tool("link_skill_to_memory", {"skill_id": 1, "memory_id": 5})',
+            ],
+            "tags": ["skill", "memory", "link"],
+        },
+        {
+            "name": "unlink_skill_from_memory",
+            "mutates": True,
+            "description": "Unlink a skill from a memory (removes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "memory_id", "type": "int", "description": "ID of the memory", "required": True, "example": 5},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with unlink confirmation",
+            "examples": [
+                'execute_forgetful_tool("unlink_skill_from_memory", {"skill_id": 1, "memory_id": 5})',
+            ],
+            "tags": ["skill", "memory", "unlink"],
+        },
+    ]
+
+    for tool_def in tools:
+        register_simplified_tool(
+            registry=registry,
+            name=tool_def["name"],
+            category=ToolCategory.SKILL,
+            description=tool_def["description"],
+            parameters=tool_def["parameters"],
+            returns=tool_def["returns"],
+            implementation=adapters[tool_def["name"]],
+            examples=tool_def.get("examples", []),
+            tags=tool_def.get("tags", []),
+            mutates=tool_def.get("mutates", False),
+        )
+
+    logger.info(f"Registered {len(tools)} skill tools")

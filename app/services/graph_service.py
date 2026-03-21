@@ -24,7 +24,7 @@ from app.exceptions import NotFoundError
 logger = logging.getLogger(__name__)
 
 # Regex pattern for parsing node IDs
-NODE_ID_PATTERN = re.compile(r'^(memory|entity|project|document|code_artifact|file)_(\d+)$')
+NODE_ID_PATTERN = re.compile(r'^(memory|entity|project|document|code_artifact|file|skill)_(\d+)$')
 
 
 # Protocol for project service (to avoid circular imports)
@@ -48,6 +48,11 @@ class FileServiceProtocol(Protocol):
     async def list_files(self, user_id: UUID, **kwargs) -> Any: ...
 
 
+# Protocol for skill service (to avoid circular imports)
+class SkillServiceProtocol(Protocol):
+    async def get_skill(self, user_id: UUID, skill_id: int) -> Any: ...
+
+
 class GraphService:
     """Service layer for graph traversal operations.
 
@@ -64,6 +69,7 @@ class GraphService:
         document_service: DocumentServiceProtocol | None = None,
         code_artifact_service: CodeArtifactServiceProtocol | None = None,
         file_service: FileServiceProtocol | None = None,
+        skill_service: SkillServiceProtocol | None = None,
     ):
         """Initialize with repository protocols and optional services.
 
@@ -74,6 +80,7 @@ class GraphService:
             document_service: Optional document service for fetching document data
             code_artifact_service: Optional code artifact service for fetching artifact data
             file_service: Optional file service for fetching file data
+            skill_service: Optional skill service for fetching skill data
         """
         self.memory_repo = memory_repo
         self.entity_repo = entity_repo
@@ -81,6 +88,7 @@ class GraphService:
         self.document_service = document_service
         self.code_artifact_service = code_artifact_service
         self.file_service = file_service
+        self.skill_service = skill_service
         logger.info("Graph service initialized")
 
     @staticmethod
@@ -89,7 +97,7 @@ class GraphService:
 
         Args:
             node_id: Format 'memory_123', 'entity_456', 'project_789',
-                     'document_123', or 'code_artifact_456'
+                     'document_123', 'code_artifact_456', or 'skill_789'
 
         Returns:
             Tuple of (node_type, numeric_id)
@@ -102,7 +110,7 @@ class GraphService:
             raise ValueError(
                 f"Invalid node_id format: '{node_id}'. "
                 "Expected 'memory_{{id}}', 'entity_{{id}}', 'project_{{id}}', "
-                "'document_{{id}}', 'code_artifact_{{id}}', or 'file_{{id}}'."
+                "'document_{{id}}', 'code_artifact_{{id}}', 'file_{{id}}', or 'skill_{{id}}'."
             )
         return match.group(1), int(match.group(2))
 
@@ -147,13 +155,14 @@ class GraphService:
 
         # Determine which node types to include (default: all types)
         if node_types is None:
-            node_types = ["memory", "entity", "project", "document", "code_artifact", "file"]
+            node_types = ["memory", "entity", "project", "document", "code_artifact", "file", "skill"]
         include_memories = "memory" in node_types
         include_entities = "entity" in node_types
         include_projects = "project" in node_types
         include_documents = "document" in node_types
         include_code_artifacts = "code_artifact" in node_types
         include_files = "file" in node_types
+        include_skills = "skill" in node_types
 
         logger.info(
             "Starting subgraph traversal",
@@ -178,6 +187,7 @@ class GraphService:
             include_documents=include_documents,
             include_code_artifacts=include_code_artifacts,
             include_files=include_files,
+            include_skills=include_skills,
             max_nodes=max_nodes,
         )
 
@@ -188,6 +198,7 @@ class GraphService:
         document_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "document"]
         code_artifact_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "code_artifact"]
         file_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "file"]
+        skill_ids = [n["node_id"] for n in raw_nodes if n["node_type"] == "skill"]
 
         # Build depth lookup
         depth_lookup = {
@@ -197,12 +208,12 @@ class GraphService:
 
         # Fetch full node data
         nodes = await self._fetch_node_data(
-            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, depth_lookup
+            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, skill_ids, depth_lookup
         )
 
         # Fetch edges between nodes in the subgraph
         edges = await self._fetch_edges(
-            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids
+            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, skill_ids
         )
 
         # Build metadata
@@ -212,6 +223,7 @@ class GraphService:
         document_count = len([n for n in nodes if n.type == "document"])
         code_artifact_count = len([n for n in nodes if n.type == "code_artifact"])
         file_count = len([n for n in nodes if n.type == "file"])
+        skill_count = len([n for n in nodes if n.type == "skill"])
         memory_link_count = len([e for e in edges if e.type == "memory_link"])
         entity_relationship_count = len([e for e in edges if e.type == "entity_relationship"])
         entity_memory_count = len([e for e in edges if e.type == "entity_memory"])
@@ -224,6 +236,11 @@ class GraphService:
         memory_file_count = len([e for e in edges if e.type == "memory_file"])
         file_project_count = len([e for e in edges if e.type == "file_project"])
         entity_file_count = len([e for e in edges if e.type == "entity_file"])
+        memory_skill_count = len([e for e in edges if e.type == "memory_skill"])
+        skill_project_count = len([e for e in edges if e.type == "skill_project"])
+        skill_file_count = len([e for e in edges if e.type == "skill_file"])
+        skill_code_artifact_count = len([e for e in edges if e.type == "skill_code_artifact"])
+        skill_document_count = len([e for e in edges if e.type == "skill_document"])
 
         meta = SubgraphMeta(
             center_node_id=center_node_id,
@@ -249,6 +266,12 @@ class GraphService:
             memory_file_count=memory_file_count,
             file_project_count=file_project_count,
             entity_file_count=entity_file_count,
+            skill_count=skill_count,
+            memory_skill_count=memory_skill_count,
+            skill_project_count=skill_project_count,
+            skill_file_count=skill_file_count,
+            skill_code_artifact_count=skill_code_artifact_count,
+            skill_document_count=skill_document_count,
             truncated=truncated,
         )
 
@@ -324,6 +347,15 @@ class GraphService:
             )
             if file is None:
                 raise NotFoundError(f"File {center_id} not found")
+        elif center_type == "skill":
+            if self.skill_service is None:
+                raise NotFoundError("Skill service not available")
+            skill = await self.skill_service.get_skill(
+                user_id=user_id,
+                skill_id=center_id
+            )
+            if skill is None:
+                raise NotFoundError(f"Skill {center_id} not found")
         else:
             raise ValueError(f"Unknown center_type: {center_type}")
 
@@ -336,6 +368,7 @@ class GraphService:
         document_ids: list[int],
         code_artifact_ids: list[int],
         file_ids: list[int],
+        skill_ids: list[int],
         depth_lookup: dict
     ) -> list[SubgraphNode]:
         """Fetch full data for all node types.
@@ -347,6 +380,8 @@ class GraphService:
             project_ids: List of project IDs to fetch
             document_ids: List of document IDs to fetch
             code_artifact_ids: List of code artifact IDs to fetch
+            file_ids: List of file IDs to fetch
+            skill_ids: List of skill IDs to fetch
             depth_lookup: Dict mapping (type, id) to depth
 
         Returns:
@@ -517,6 +552,33 @@ class GraphService:
             except Exception:
                 logger.warning("Failed to fetch file summaries for graph nodes")
 
+        # Fetch skills
+        if self.skill_service and skill_ids:
+            for skill_id in skill_ids:
+                try:
+                    skill = await self.skill_service.get_skill(
+                        user_id=user_id,
+                        skill_id=skill_id
+                    )
+                    if skill is None:
+                        logger.warning(f"Skill {skill_id} not found during fetch")
+                        continue
+                    nodes.append(SubgraphNode(
+                        id=f"skill_{skill.id}",
+                        type="skill",
+                        depth=depth_lookup.get(("skill", skill_id), 0),
+                        label=skill.name,
+                        data={
+                            "id": skill.id,
+                            "name": skill.name,
+                            "description": skill.description,
+                            "created_at": skill.created_at.isoformat() if skill.created_at else None,
+                        }
+                    ))
+                except NotFoundError:
+                    logger.warning(f"Skill {skill_id} not found during fetch")
+                    continue
+
         return nodes
 
     async def _fetch_edges(
@@ -527,7 +589,8 @@ class GraphService:
         project_ids: list[int],
         document_ids: list[int],
         code_artifact_ids: list[int],
-        file_ids: list[int] | None = None
+        file_ids: list[int] | None = None,
+        skill_ids: list[int] | None = None
     ) -> list[SubgraphEdge]:
         """Fetch all edges between nodes in the subgraph.
 
@@ -540,6 +603,11 @@ class GraphService:
         - CodeArtifact-to-project links
         - Memory-to-document links
         - Memory-to-code_artifact links
+        - Memory-to-skill links
+        - Skill-to-project links
+        - Skill-to-file links
+        - Skill-to-code_artifact links
+        - Skill-to-document links
 
         Args:
             user_id: User ID for ownership
@@ -548,6 +616,8 @@ class GraphService:
             project_ids: List of project IDs in subgraph
             document_ids: List of document IDs in subgraph
             code_artifact_ids: List of code artifact IDs in subgraph
+            file_ids: List of file IDs in subgraph
+            skill_ids: List of skill IDs in subgraph
 
         Returns:
             List of SubgraphEdge
@@ -561,6 +631,7 @@ class GraphService:
         document_id_set = set(document_ids)
         code_artifact_id_set = set(code_artifact_ids)
         file_id_set = set(file_ids or [])
+        skill_id_set = set(skill_ids or [])
 
         # Fetch memory-to-memory edges
         if memory_ids:
@@ -637,6 +708,19 @@ class GraphService:
                                     source=f"memory_{memory_id}",
                                     target=f"file_{fid}",
                                     type="memory_file",
+                                ))
+
+                    # Memory -> Skill links
+                    for sid in memory.skill_ids:
+                        if sid in skill_id_set:
+                            edge_id = f"memory_{memory_id}_skill_{sid}"
+                            if edge_id not in seen_edge_ids:
+                                seen_edge_ids.add(edge_id)
+                                edges.append(SubgraphEdge(
+                                    id=edge_id,
+                                    source=f"memory_{memory_id}",
+                                    target=f"skill_{sid}",
+                                    type="memory_skill",
                                 ))
 
                 except NotFoundError:
@@ -779,5 +863,26 @@ class GraphService:
                             target=f"file_{fid}",
                             type="entity_file",
                         ))
+
+        # Fetch skill-to-project edges
+        if self.skill_service and skill_ids and project_ids:
+            for sid in skill_ids:
+                try:
+                    skill = await self.skill_service.get_skill(
+                        user_id=user_id,
+                        skill_id=sid
+                    )
+                    if skill and skill.project_id and skill.project_id in project_id_set:
+                        edge_id = f"skill_{sid}_project_{skill.project_id}"
+                        if edge_id not in seen_edge_ids:
+                            seen_edge_ids.add(edge_id)
+                            edges.append(SubgraphEdge(
+                                id=edge_id,
+                                source=f"skill_{sid}",
+                                target=f"project_{skill.project_id}",
+                                type="skill_project",
+                            ))
+                except NotFoundError:
+                    continue
 
         return edges

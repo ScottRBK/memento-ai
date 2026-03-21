@@ -16,6 +16,8 @@ from app.version import get_version
 from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph, auth, activity
 from app.routes.api import plans as plans_routes, tasks as tasks_routes
 from app.routes.api import files as files_routes
+from app.routes.mcp import skill_tools as skill_routes
+from app.routes.api import skills as skills_api
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
@@ -100,6 +102,14 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             from app.repositories.postgres.file_repository import PostgresFileRepository
             repos["file"] = PostgresFileRepository(db_adapter=db_adapter)
 
+        if settings.SKILLS_ENABLED:
+            from app.repositories.postgres.skill_repository import PostgresSkillRepository
+            repos["skill"] = PostgresSkillRepository(
+                db_adapter=db_adapter,
+                embedding_adapter=embeddings_adapter,
+                rerank_adapter=reranker_adapter,
+            )
+
         if settings.PLANNING_ENABLED:
             from app.repositories.postgres.plan_repository import PostgresPlanRepository
             from app.repositories.postgres.task_repository import PostgresTaskRepository
@@ -133,6 +143,14 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
         if settings.FILES_ENABLED:
             from app.repositories.sqlite.file_repository import SqliteFileRepository
             repos["file"] = SqliteFileRepository(db_adapter=db_adapter)
+
+        if settings.SKILLS_ENABLED:
+            from app.repositories.sqlite.skill_repository import SqliteSkillRepository
+            repos["skill"] = SqliteSkillRepository(
+                db_adapter=db_adapter,
+                embedding_adapter=embeddings_adapter,
+                rerank_adapter=reranker_adapter,
+            )
 
         if settings.PLANNING_ENABLED:
             from app.repositories.sqlite.plan_repository import SqlitePlanRepository
@@ -228,6 +246,16 @@ async def lifespan(app):
     else:
         logger.info("Files feature disabled (FILES_ENABLED=false)")
 
+    # Conditionally create skill service behind SKILLS_ENABLED
+    skill_service = None
+
+    if settings.SKILLS_ENABLED:
+        from app.services.skill_service import SkillService
+        skill_service = SkillService(repos["skill"], event_bus=event_bus)
+        logger.info("Skills feature enabled")
+    else:
+        logger.info("Skills feature disabled (SKILLS_ENABLED=false)")
+
     graph_service = GraphService(
         repos["memory"],
         repos["entity"],
@@ -235,6 +263,7 @@ async def lifespan(app):
         document_service=document_service,
         code_artifact_service=code_artifact_service,
         file_service=file_service,
+        skill_service=skill_service,
     )
 
     mcp.user_service = user_service
@@ -249,6 +278,9 @@ async def lifespan(app):
 
     if file_service:
         mcp.file_service = file_service
+
+    if skill_service:
+        mcp.skill_service = skill_service
 
     # Conditionally create plan/task services behind PLANNING_ENABLED
     plan_service = None
@@ -295,6 +327,7 @@ async def lifespan(app):
         plan_service=plan_service,
         task_service=task_service,
         file_service=file_service,
+        skill_service=skill_service,
     )
 
     categories = registry.list_categories()
@@ -347,6 +380,10 @@ activity.register(mcp)
 
 if settings.FILES_ENABLED:
     files_routes.register(mcp)
+
+if settings.SKILLS_ENABLED:
+    skill_routes.register(mcp)
+    skills_api.register(mcp)
 
 if settings.PLANNING_ENABLED:
     plans_routes.register(mcp)

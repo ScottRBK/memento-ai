@@ -28,6 +28,7 @@ from app.repositories.sqlite.activity_repository import SqliteActivityRepository
 from app.repositories.sqlite.plan_repository import SqlitePlanRepository
 from app.repositories.sqlite.task_repository import SqliteTaskRepository
 from app.repositories.sqlite.file_repository import SqliteFileRepository
+from app.repositories.sqlite.skill_repository import SqliteSkillRepository
 
 # Shared imports
 from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter
@@ -43,12 +44,15 @@ from app.services.activity_service import ActivityService
 from app.services.plan_service import PlanService
 from app.services.task_service import TaskService
 from app.services.file_service import FileService
+from app.services.skill_service import SkillService
 from app.events import EventBus
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
+from app.routes.mcp import skill_tools as skills
 from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity, plans, tasks, files
+from app.routes.api import skills as skills_api
 
 
 # ============================================================================
@@ -84,12 +88,11 @@ FEATURE_FLAGS: dict[str, FeatureFlagDef] = {
         sample_tools=["create_file", "get_file", "list_files"],
         route_prefixes=["/api/v1/files"],
     ),
-    # Future feature flags go here, e.g.:
-    # "skills": FeatureFlagDef(
-    #     categories=["skill"],
-    #     sample_tools=["create_skill", "execute_skill"],
-    #     route_prefixes=["/api/v1/skills"],
-    # ),
+    "skills": FeatureFlagDef(
+        categories=["skill"],
+        sample_tools=["create_skill", "list_skills", "search_skills"],
+        route_prefixes=["/api/v1/skills"],
+    ),
 }
 
 
@@ -189,6 +192,11 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
         plan_repository = SqlitePlanRepository(db_adapter=db_adapter) if "planning" in enabled_features else None
         task_repository = SqliteTaskRepository(db_adapter=db_adapter) if "planning" in enabled_features else None
         file_repository = SqliteFileRepository(db_adapter=db_adapter) if "files" in enabled_features else None
+        skill_repository = SqliteSkillRepository(
+            db_adapter=db_adapter,
+            embedding_adapter=embedding_adapter,
+            rerank_adapter=reranker_adapter,
+        ) if "skills" in enabled_features else None
 
         @asynccontextmanager
         async def lifespan(app):
@@ -214,6 +222,9 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
                 task_service = TaskService(task_repository, plan_service=plan_service, event_bus=None)
             if "files" in enabled_features:
                 file_service = FileService(file_repository, event_bus=None)
+            skill_service = None
+            if "skills" in enabled_features:
+                skill_service = SkillService(skill_repository, event_bus=None)
 
             graph_service = GraphService(
                 memory_repository,
@@ -222,6 +233,7 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
                 document_service=document_service,
                 code_artifact_service=code_artifact_service,
                 file_service=file_service,
+                skill_service=skill_service,
             )
 
             # Store core services on FastMCP instance
@@ -242,6 +254,8 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
                 mcp.task_service = task_service
             if file_service:
                 mcp.file_service = file_service
+            if skill_service:
+                mcp.skill_service = skill_service
 
             # Create and attach registry
             registry = ToolRegistry()
@@ -259,6 +273,7 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
                 plan_service=plan_service,
                 task_service=task_service,
                 file_service=file_service,
+                skill_service=skill_service,
             )
 
             # Resolve instance-level scope ceiling
@@ -288,6 +303,9 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
         if "planning" in enabled_features:
             plans.register(mcp)
             tasks.register(mcp)
+        if "skills" in enabled_features:
+            skills.register(mcp)
+            skills_api.register(mcp)
 
         meta_tools.register(mcp)
 

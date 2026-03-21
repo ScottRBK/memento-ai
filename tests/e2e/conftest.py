@@ -35,9 +35,12 @@ from app.repositories.embeddings.embedding_adapter import (
 )
 from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter, HttpRerankAdapter
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.repositories.postgres.skill_repository import PostgresSkillRepository
 from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
 from app.routes.api import plans as plans_routes, tasks as tasks_routes
 from app.routes.api import files as files_routes
+from app.routes.api import skills as skills_api
+from app.routes.mcp import skill_tools as skill_routes
 from app.routes.mcp import meta_tools
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.routes.mcp.tool_registry import ToolRegistry
@@ -47,6 +50,7 @@ from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
 from app.services.file_service import FileService
 from app.services.graph_service import GraphService
+from app.services.skill_service import SkillService
 from app.services.memory_service import MemoryService
 from app.services.plan_service import PlanService
 from app.services.project_service import ProjectService
@@ -189,6 +193,10 @@ ALL_TABLES = [
     "memory_document_association",
     "memory_entity_association",
     "memory_file_association",
+    "memory_skill_association",
+    "skill_file_association",
+    "skill_code_artifact_association",
+    "skill_document_association",
     "entity_file_association",
     "entity_project_association",
     "entity_relationships",
@@ -196,6 +204,7 @@ ALL_TABLES = [
     "code_artifacts",
     "documents",
     "files",
+    "skills",
     "memories",
     "projects",
     "users",
@@ -369,6 +378,11 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     settings.FILES_ENABLED = True
 
     repos = _create_repositories(db_adapter, embedding_adapter, reranker_adapter)
+    skill_repository = PostgresSkillRepository(
+        db_adapter=db_adapter,
+        embedding_adapter=embedding_adapter,
+        rerank_adapter=reranker_adapter,
+    )
 
     @asynccontextmanager
     async def lifespan(app):
@@ -391,6 +405,8 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
         if settings.FILES_ENABLED and "file" in repos:
             file_service = FileService(repos["file"], event_bus=event_bus)
 
+        skill_service = SkillService(skill_repository, event_bus=event_bus)
+
         graph_service = GraphService(
             repos["memory"],
             repos["entity"],
@@ -398,6 +414,7 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
             document_service=document_service,
             code_artifact_service=code_artifact_service,
             file_service=file_service,
+            skill_service=skill_service,
         )
 
         mcp.user_service = user_service
@@ -412,6 +429,8 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
 
         if file_service:
             mcp.file_service = file_service
+        if skill_service:
+            mcp.skill_service = skill_service
 
         # Plan/Task services (always enabled in E2E tests)
         plan_service = None
@@ -436,6 +455,7 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
             plan_service=plan_service,
             task_service=task_service,
             file_service=file_service,
+            skill_service=skill_service,
         )
 
         yield
@@ -456,6 +476,8 @@ async def postgres_app(db_adapter, embedding_adapter, reranker_adapter, request)
     tasks_routes.register(mcp)
     if settings.FILES_ENABLED:
         files_routes.register(mcp)
+    skill_routes.register(mcp)
+    skills_api.register(mcp)
     meta_tools.register(mcp)
 
     yield mcp

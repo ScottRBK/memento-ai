@@ -248,7 +248,7 @@ class SqliteMemoryRepository:
         embeddings = await self._generate_embeddings(text=embeddings_text)
 
         async with self.db_adapter.session(user_id) as session:
-            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"})
+            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids", "skill_ids"})
             # Note: No embedding column in MemoryTable for SQLite
             new_memory = MemoryTable(**memory_data, user_id=str(user_id))
             session.add(new_memory)
@@ -1058,7 +1058,8 @@ class SqliteMemoryRepository:
         include_documents: bool,
         include_code_artifacts: bool,
         include_files: bool,
-        max_nodes: int
+        include_skills: bool = False,
+        max_nodes: int = 50,
     ) -> tuple[list[dict[str, Any]], bool]:
         """
         Traverse graph using recursive CTE from center node.

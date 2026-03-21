@@ -63,6 +63,15 @@ def build_memory_text(memory: Memory) -> str:
 
     return memory_text
 
+def build_skill_embedding_text(skill_data) -> str:
+    """Build text for skill embedding generation.
+
+    Per design decision, only the description field is embedded
+    as it serves as the semantic key for skill discovery.
+    """
+    return skill_data.description
+
+
 def build_contextual_query(query: str, context: str) -> str:
     return f"query: {query}, context: {context}"
 

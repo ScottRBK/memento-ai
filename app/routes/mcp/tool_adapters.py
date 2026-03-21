@@ -1541,3 +1541,229 @@ def create_file_adapters(file_service, user_service: UserService) -> dict[str, A
         "update_file": adapters.update_file,
         "delete_file": adapters.delete_file,
     }
+
+
+# ============================================================================
+# Skill Tool Adapters
+# ============================================================================
+
+
+class SkillToolAdapters:
+    """Wraps skill service methods as registry-compatible callables"""
+
+    def __init__(self, skill_service, user_service: UserService):
+        self.skill_service = skill_service
+        self.user_service = user_service
+
+    async def create_skill(
+        self,
+        name: str,
+        description: str,
+        content: str,
+        ctx: Context,
+        license: Optional[str] = None,
+        compatibility: Optional[str] = None,
+        allowed_tools: Optional[list[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        tags: Optional[list[str]] = None,
+        importance: int = 7,
+        project_id: Optional[int] = None,
+    ):
+        """Adapter for create_skill tool"""
+        from app.models.skill_models import SkillCreate
+
+        user = await get_user_from_auth(ctx)
+
+        skill_data = SkillCreate(
+            name=name,
+            description=description,
+            content=content,
+            license=license,
+            compatibility=compatibility,
+            allowed_tools=allowed_tools,
+            metadata=metadata,
+            tags=tags or [],
+            importance=importance,
+            project_id=project_id,
+        )
+
+        skill = await self.skill_service.create_skill(
+            user_id=user.id, skill_data=skill_data
+        )
+
+        return skill
+
+    async def get_skill(self, skill_id: int, ctx: Context):
+        """Adapter for get_skill tool"""
+        user = await get_user_from_auth(ctx)
+
+        skill = await self.skill_service.get_skill(
+            user_id=user.id, skill_id=skill_id
+        )
+
+        return skill
+
+    async def list_skills(
+        self,
+        ctx: Context,
+        project_id: Optional[int] = None,
+        tags: Optional[list[str]] = None,
+        importance_threshold: Optional[int] = None,
+    ) -> dict:
+        """Adapter for list_skills tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.list_skills(
+            user_id=user.id,
+            project_id=project_id,
+            tags=tags,
+            importance_threshold=importance_threshold,
+        )
+
+        return {"skills": result, "total_count": len(result)}
+
+    async def update_skill(
+        self,
+        skill_id: int,
+        ctx: Context,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        content: Optional[str] = None,
+        license: Optional[str] = None,
+        compatibility: Optional[str] = None,
+        allowed_tools: Optional[list[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        tags: Optional[list[str]] = None,
+        importance: Optional[int] = None,
+        project_id: Optional[int] = None,
+    ):
+        """Adapter for update_skill tool"""
+        from app.models.skill_models import SkillUpdate
+
+        user = await get_user_from_auth(ctx)
+
+        updated_dict = filter_none_values(
+            name=name,
+            description=description,
+            content=content,
+            license=license,
+            compatibility=compatibility,
+            allowed_tools=allowed_tools,
+            metadata=metadata,
+            tags=tags,
+            importance=importance,
+            project_id=project_id,
+        )
+
+        skill_data = SkillUpdate(**updated_dict)
+
+        skill = await self.skill_service.update_skill(
+            user_id=user.id,
+            skill_id=skill_id,
+            skill_data=skill_data,
+        )
+
+        return skill
+
+    async def delete_skill(self, skill_id: int, ctx: Context) -> dict:
+        """Adapter for delete_skill tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.delete_skill(
+            user_id=user.id, skill_id=skill_id
+        )
+
+        return {"success": result, "deleted_id": skill_id}
+
+    async def search_skills(
+        self,
+        query: str,
+        ctx: Context,
+        k: int = 5,
+        project_id: Optional[int] = None,
+    ) -> dict:
+        """Adapter for search_skills tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.search_skills(
+            user_id=user.id,
+            query=query,
+            k=k,
+            project_id=project_id,
+        )
+
+        return {
+            "skills": result,
+            "total_count": len(result),
+            "search_query": query,
+        }
+
+    async def import_skill(
+        self,
+        skill_md_content: str,
+        ctx: Context,
+        project_id: Optional[int] = None,
+        importance: int = 7,
+    ):
+        """Adapter for import_skill tool"""
+        user = await get_user_from_auth(ctx)
+
+        skill = await self.skill_service.import_skill(
+            user_id=user.id,
+            skill_md_content=skill_md_content,
+            project_id=project_id,
+            importance=importance,
+        )
+
+        return skill
+
+    async def export_skill(self, skill_id: int, ctx: Context) -> str:
+        """Adapter for export_skill tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.export_skill(
+            user_id=user.id, skill_id=skill_id
+        )
+
+        return result
+
+    async def link_skill_to_memory(
+        self, skill_id: int, memory_id: int, ctx: Context
+    ) -> dict:
+        """Adapter for link_skill_to_memory tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.link_skill_to_memory(
+            user_id=user.id, skill_id=skill_id, memory_id=memory_id
+        )
+
+        return result
+
+    async def unlink_skill_from_memory(
+        self, skill_id: int, memory_id: int, ctx: Context
+    ) -> dict:
+        """Adapter for unlink_skill_from_memory tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.unlink_skill_from_memory(
+            user_id=user.id, skill_id=skill_id, memory_id=memory_id
+        )
+
+        return result
+
+
+def create_skill_adapters(skill_service, user_service: UserService) -> dict[str, Any]:
+    """Create all skill tool adapters and return as dict"""
+    adapters = SkillToolAdapters(skill_service, user_service)
+    return {
+        "create_skill": adapters.create_skill,
+        "get_skill": adapters.get_skill,
+        "list_skills": adapters.list_skills,
+        "update_skill": adapters.update_skill,
+        "delete_skill": adapters.delete_skill,
+        "search_skills": adapters.search_skills,
+        "import_skill": adapters.import_skill,
+        "export_skill": adapters.export_skill,
+        "link_skill_to_memory": adapters.link_skill_to_memory,
+        "unlink_skill_from_memory": adapters.unlink_skill_from_memory,
+    }

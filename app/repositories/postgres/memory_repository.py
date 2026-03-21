@@ -195,7 +195,7 @@ class PostgresMemoryRepository:
         embeddings = await self._generate_embeddings(text=embeddings_text)
         
         async with self.db_adapter.session(user_id) as session:
-            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"})
+            memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids", "skill_ids"})
             new_memory = MemoryTable(**memory_data, user_id=user_id, embedding=embeddings)
             session.add(new_memory)
             await session.flush()
@@ -1031,7 +1031,8 @@ class PostgresMemoryRepository:
         include_documents: bool,
         include_code_artifacts: bool,
         include_files: bool,
-        max_nodes: int
+        include_skills: bool = False,
+        max_nodes: int = 50,
     ) -> tuple[list[dict[str, Any]], bool]:
         """
         Traverse graph using recursive CTE from center node.

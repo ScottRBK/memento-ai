@@ -68,7 +68,7 @@ class MemoryCreate(BaseModel):
     )
     skill_ids: list[int] | None = Field(
         default=None,
-        description="Skill IDs to link (create sklls first) to this memory"
+        description="Skill IDs to link (create skills first). Links procedural knowledge to this memory."
     )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
