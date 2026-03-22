@@ -2,13 +2,13 @@
 """
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class ToolCategory(str, Enum):
+class ToolCategory(StrEnum):
     """Tool categories for organisation and filtering"""
     USER = "user"
     MEMORY = "memory"

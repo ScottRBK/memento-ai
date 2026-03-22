@@ -42,8 +42,6 @@ async def test_create_skill(test_skill_service):
 
 @pytest.mark.asyncio
 async def test_create_skill_invalid_name(test_skill_service):
-    user_id = uuid4()
-
     # Uppercase letters should be rejected
     with pytest.raises(ValueError):
         SkillCreate(

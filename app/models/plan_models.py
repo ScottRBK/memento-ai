@@ -6,7 +6,7 @@ These are tightly coupled aggregates forming the hierarchy:
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -17,7 +17,7 @@ from app.config.settings import settings
 # ============================================================================
 
 
-class PlanStatus(str, Enum):
+class PlanStatus(StrEnum):
     """Plan lifecycle states."""
     DRAFT = "draft"
     ACTIVE = "active"
@@ -25,7 +25,7 @@ class PlanStatus(str, Enum):
     ARCHIVED = "archived"
 
 
-class TaskState(str, Enum):
+class TaskState(StrEnum):
     """Task state machine states."""
     TODO = "todo"
     DOING = "doing"
@@ -34,7 +34,7 @@ class TaskState(str, Enum):
     CANCELLED = "cancelled"
 
 
-class TaskPriority(str, Enum):
+class TaskPriority(StrEnum):
     """Task priority levels."""
     P0 = "P0"  # Critical
     P1 = "P1"  # High

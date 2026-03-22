@@ -4,7 +4,7 @@ Entities represent real-world entities (organizations, individuals, teams, devic
 that can be linked to memories and related to each other through a knowledge graph.
 """
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.config.settings import settings
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     """Predefined entity types"""
     ORGANIZATION = "Organization"
     INDIVIDUAL = "Individual"

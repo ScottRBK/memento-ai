@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
 
 
-class ProjectType(str, Enum):
+class ProjectType(StrEnum):
     """Project type categories for organization"""
     PERSONAL = "personal"
     WORK = "work"
@@ -23,7 +23,7 @@ class ProjectType(str, Enum):
     OPEN_SOURCE = "open-source"
 
 
-class ProjectStatus(str, Enum):
+class ProjectStatus(StrEnum):
     """Project lifecycle status"""
     ACTIVE = "active"
     ARCHIVED = "archived"

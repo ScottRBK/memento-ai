@@ -5,13 +5,13 @@ and optionally read/query operations when ACTIVITY_TRACK_READS is enabled.
 """
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     """Types of entities that can generate activity events."""
     MEMORY = "memory"
     PROJECT = "project"
@@ -30,7 +30,7 @@ class EntityType(str, Enum):
     SKILL = "skill"
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     """Types of actions that generate activity events."""
     CREATED = "created"
     UPDATED = "updated"
@@ -39,7 +39,7 @@ class ActionType(str, Enum):
     QUERIED = "queried"  # Search/query operation (opt-in via ACTIVITY_TRACK_READS)
 
 
-class ActorType(str, Enum):
+class ActorType(StrEnum):
     """Types of actors that can trigger activity events."""
     USER = "user"
     SYSTEM = "system"
