@@ -175,7 +175,7 @@ class SqliteMemoryRepository:
                         WHERE mpa.memory_id = m.id
                         AND mpa.project_id IN ({})
                     )
-                    """.format(",".join(f":project_{i}" for i in range(len(project_ids)))),
+                    """.format(",".join(f":project_{i}" for i in range(len(project_ids)))),  # noqa: S608 — safe: builds :named param placeholders, not user input
                 )
                 for i, proj_id in enumerate(project_ids):
                     params[f"project_{i}"] = proj_id

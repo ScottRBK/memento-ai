@@ -64,8 +64,8 @@ select = [
 "__init__.py" = ["F401", "F403", "F405"]
 "tests/**/*" = ["S101", "S105", "S106", "S110", "S311", "S324"]
 "app/config/settings.py" = ["S104", "S105"]  # Default values, not real secrets
-"app/repositories/*/memory_repository.py" = ["S608"]  # Parameterized SQL via text()
 "app/services/backup_service.py" = ["S603", "S607"]  # Trusted subprocess calls
+"app/repositories/postgres/memory_repository.py" = ["S608"]  # Graph CTE with internal lateral_subquery + :named params
 "app/routes/mcp/scope_resolver.py" = ["S105"]  # Test token constants
 "tests/e2e/conftest.py" = ["S603", "S607"]  # Trusted subprocess for test setup
 
