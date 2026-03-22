@@ -1,20 +1,20 @@
-"""
-E2E tests for Activity REST API endpoints (PostgreSQL).
+"""E2E tests for Activity REST API endpoints (PostgreSQL).
 
 Uses in-process FastMCP server with real PostgreSQL to test the activity tracking system.
 Tests the /api/v1/activity endpoints via ASGI transport (async http_client).
 """
-import pytest
 import asyncio
 import json
+
+import pytest
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 # Enable activity tracking + read/query event tracking for this test module
 SETTINGS_OVERRIDE = {
-    'ACTIVITY_ENABLED': True,
-    'ACTIVITY_TRACK_READS': True,
+    "ACTIVITY_ENABLED": True,
+    "ACTIVITY_TRACK_READS": True,
 }
 
 
@@ -40,7 +40,7 @@ class TestActivityAPIList:
             "context": "Testing activity API",
             "keywords": ["test", "activity"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         assert create_response.status_code == 201
@@ -65,7 +65,7 @@ class TestActivityAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
 
         await asyncio.sleep(0.5)
@@ -85,13 +85,13 @@ class TestActivityAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = create_response.json()["id"]
 
         await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json={"title": "Updated Title"}
+            json={"title": "Updated Title"},
         )
 
         await asyncio.sleep(0.5)
@@ -116,19 +116,19 @@ class TestActivityAPIUpdates:
             "context": "Update test",
             "keywords": ["update"],
             "tags": ["test"],
-            "importance": 5
+            "importance": 5,
         })
         memory_id = create_response.json()["id"]
 
         await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json={"title": "New Title", "importance": 9}
+            json={"title": "New Title", "importance": 9},
         )
 
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_id={memory_id}&action=updated"
+            f"/api/v1/activity?entity_id={memory_id}&action=updated",
         )
         assert response.status_code == 200
         data = response.json()
@@ -156,20 +156,20 @@ class TestActivityAPIDelete:
             "context": "Delete test",
             "keywords": ["delete"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = create_response.json()["id"]
 
         await http_client.request(
             "DELETE",
             f"/api/v1/memories/{memory_id}",
-            json={"reason": "Test deletion"}
+            json={"reason": "Test deletion"},
         )
 
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_id={memory_id}&action=deleted"
+            f"/api/v1/activity?entity_id={memory_id}&action=deleted",
         )
         assert response.status_code == 200
         data = response.json()
@@ -192,7 +192,7 @@ class TestActivityAPIReads:
             "context": "Read test",
             "keywords": ["read"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = create_response.json()["id"]
 
@@ -201,7 +201,7 @@ class TestActivityAPIReads:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_id={memory_id}&action=read"
+            f"/api/v1/activity?entity_id={memory_id}&action=read",
         )
         assert response.status_code == 200
         data = response.json()
@@ -224,13 +224,13 @@ class TestActivityAPIEntityHistory:
             "context": "History test",
             "keywords": ["history"],
             "tags": ["test"],
-            "importance": 5
+            "importance": 5,
         })
         memory_id = create_response.json()["id"]
 
         await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json={"title": "Updated Title", "importance": 8}
+            json={"title": "Updated Title", "importance": 8},
         )
 
         await asyncio.sleep(0.5)
@@ -315,7 +315,7 @@ class TestActivityAPIStreamSSE:
         async def stream_collector():
             try:
                 async with http_client.stream(
-                    "GET", "/api/v1/activity/stream", timeout=10.0
+                    "GET", "/api/v1/activity/stream", timeout=10.0,
                 ) as response:
                     async for line in response.aiter_lines():
                         if line.startswith("data:"):
@@ -339,15 +339,15 @@ class TestActivityAPIStreamSSE:
                 "context": "SSE test",
                 "keywords": ["sse", "stream"],
                 "tags": ["test"],
-                "importance": 7
-            }
+                "importance": 7,
+            },
         )
         assert create_response.status_code == 201
 
         # Wait for event
         try:
             await asyncio.wait_for(stream_task, timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             stream_task.cancel()
 
         assert len(received_events) >= 1
@@ -364,7 +364,7 @@ class TestActivityAPIStreamSSE:
             try:
                 async with http_client.stream(
                     "GET", "/api/v1/activity/stream?entity_type=project",
-                    timeout=10.0
+                    timeout=10.0,
                 ) as response:
                     async for line in response.aiter_lines():
                         if line.startswith("data:"):
@@ -386,8 +386,8 @@ class TestActivityAPIStreamSSE:
                 "context": "Filter test",
                 "keywords": ["filter"],
                 "tags": ["test"],
-                "importance": 7
-            }
+                "importance": 7,
+            },
         )
 
         # Give time for event to NOT arrive
@@ -419,7 +419,7 @@ class TestActivityAPIStreamSSE:
         async def stream_collector():
             try:
                 async with http_client.stream(
-                    "GET", "/api/v1/activity/stream", timeout=15.0
+                    "GET", "/api/v1/activity/stream", timeout=15.0,
                 ) as response:
                     async for line in response.aiter_lines():
                         if line.startswith("data:"):
@@ -443,14 +443,14 @@ class TestActivityAPIStreamSSE:
                     "context": "Sequence test",
                     "keywords": ["sequence"],
                     "tags": ["test"],
-                    "importance": 7
-                }
+                    "importance": 7,
+                },
             )
             await asyncio.sleep(0.1)
 
         try:
             await asyncio.wait_for(stream_task, timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             stream_task.cancel()
 
         assert len(received_events) >= 3
@@ -474,8 +474,8 @@ class TestActivityAPIProject:
             json={
                 "name": "Test Project for Activity",
                 "description": "Testing activity tracking for projects",
-                "project_type": "development"
-            }
+                "project_type": "development",
+            },
         )
         assert create_response.status_code == 201
         project_id = create_response.json()["id"]
@@ -483,7 +483,7 @@ class TestActivityAPIProject:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=project&entity_id={project_id}&action=created"
+            f"/api/v1/activity?entity_type=project&entity_id={project_id}&action=created",
         )
         assert response.status_code == 200
         data = response.json()
@@ -500,20 +500,20 @@ class TestActivityAPIProject:
             json={
                 "name": "Original Project Name",
                 "description": "Original description",
-                "project_type": "development"
-            }
+                "project_type": "development",
+            },
         )
         project_id = create_response.json()["id"]
 
         await http_client.put(
             f"/api/v1/projects/{project_id}",
-            json={"name": "Updated Project Name"}
+            json={"name": "Updated Project Name"},
         )
 
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=project&entity_id={project_id}&action=updated"
+            f"/api/v1/activity?entity_type=project&entity_id={project_id}&action=updated",
         )
         assert response.status_code == 200
         data = response.json()
@@ -531,8 +531,8 @@ class TestActivityAPIProject:
             json={
                 "name": "Project to Delete",
                 "description": "Will be deleted",
-                "project_type": "development"
-            }
+                "project_type": "development",
+            },
         )
         project_id = create_response.json()["id"]
 
@@ -541,7 +541,7 @@ class TestActivityAPIProject:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=project&entity_id={project_id}&action=deleted"
+            f"/api/v1/activity?entity_type=project&entity_id={project_id}&action=deleted",
         )
         assert response.status_code == 200
         data = response.json()
@@ -570,8 +570,8 @@ class TestActivityAPIDocument:
                 "description": "Testing activity tracking",
                 "content": "This is the document content for activity tracking test.",
                 "document_type": "text",
-                "tags": ["test", "activity"]
-            }
+                "tags": ["test", "activity"],
+            },
         )
         assert create_response.status_code == 201
         doc_id = create_response.json()["id"]
@@ -579,7 +579,7 @@ class TestActivityAPIDocument:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=document&entity_id={doc_id}&action=created"
+            f"/api/v1/activity?entity_type=document&entity_id={doc_id}&action=created",
         )
         assert response.status_code == 200
         data = response.json()
@@ -598,8 +598,8 @@ class TestActivityAPIDocument:
                 "description": "Will be deleted",
                 "content": "Content for deletion test",
                 "document_type": "text",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         doc_id = create_response.json()["id"]
 
@@ -608,7 +608,7 @@ class TestActivityAPIDocument:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=document&entity_id={doc_id}&action=deleted"
+            f"/api/v1/activity?entity_type=document&entity_id={doc_id}&action=deleted",
         )
         assert response.status_code == 200
         data = response.json()
@@ -637,8 +637,8 @@ class TestActivityAPICodeArtifact:
                 "description": "Testing activity tracking",
                 "code": "def test(): pass",
                 "language": "python",
-                "tags": ["test", "activity"]
-            }
+                "tags": ["test", "activity"],
+            },
         )
         assert create_response.status_code == 201
         artifact_id = create_response.json()["id"]
@@ -646,7 +646,7 @@ class TestActivityAPICodeArtifact:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=code_artifact&entity_id={artifact_id}&action=created"
+            f"/api/v1/activity?entity_type=code_artifact&entity_id={artifact_id}&action=created",
         )
         assert response.status_code == 200
         data = response.json()
@@ -665,8 +665,8 @@ class TestActivityAPICodeArtifact:
                 "description": "Will be deleted",
                 "code": "print('hello')",
                 "language": "python",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         artifact_id = create_response.json()["id"]
 
@@ -675,7 +675,7 @@ class TestActivityAPICodeArtifact:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=code_artifact&entity_id={artifact_id}&action=deleted"
+            f"/api/v1/activity?entity_type=code_artifact&entity_id={artifact_id}&action=deleted",
         )
         assert response.status_code == 200
         data = response.json()
@@ -703,8 +703,8 @@ class TestActivityAPIEntity:
                 "name": "Test Entity for Activity",
                 "entity_type": "Individual",
                 "notes": "Testing activity tracking",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         assert create_response.status_code == 201
         entity_id = create_response.json()["id"]
@@ -712,7 +712,7 @@ class TestActivityAPIEntity:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=entity&entity_id={entity_id}&action=created"
+            f"/api/v1/activity?entity_type=entity&entity_id={entity_id}&action=created",
         )
         assert response.status_code == 200
         data = response.json()
@@ -729,8 +729,8 @@ class TestActivityAPIEntity:
             json={
                 "name": "Entity to Delete",
                 "entity_type": "Individual",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         entity_id = create_response.json()["id"]
 
@@ -739,7 +739,7 @@ class TestActivityAPIEntity:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=entity&entity_id={entity_id}&action=deleted"
+            f"/api/v1/activity?entity_type=entity&entity_id={entity_id}&action=deleted",
         )
         assert response.status_code == 200
         data = response.json()
@@ -759,8 +759,8 @@ class TestActivityAPIEntity:
                 "context": "Link test",
                 "keywords": ["link"],
                 "tags": ["test"],
-                "importance": 7
-            }
+                "importance": 7,
+            },
         )
         memory_id = memory_response.json()["id"]
 
@@ -769,20 +769,20 @@ class TestActivityAPIEntity:
             json={
                 "name": "Entity for Link Test",
                 "entity_type": "Individual",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         entity_id = entity_response.json()["id"]
 
         await http_client.post(
             f"/api/v1/entities/{entity_id}/memories",
-            json={"memory_id": memory_id}
+            json={"memory_id": memory_id},
         )
 
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            "/api/v1/activity?entity_type=entity_memory_link&action=created"
+            "/api/v1/activity?entity_type=entity_memory_link&action=created",
         )
         assert response.status_code == 200
         data = response.json()
@@ -804,8 +804,8 @@ class TestActivityAPIEntity:
             json={
                 "name": "Person for Relationship",
                 "entity_type": "Individual",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         entity1_id = entity1_response.json()["id"]
 
@@ -814,8 +814,8 @@ class TestActivityAPIEntity:
             json={
                 "name": "Company for Relationship",
                 "entity_type": "Organization",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         entity2_id = entity2_response.json()["id"]
 
@@ -823,8 +823,8 @@ class TestActivityAPIEntity:
             f"/api/v1/entities/{entity1_id}/relationships",
             json={
                 "target_entity_id": entity2_id,
-                "relationship_type": "works_for"
-            }
+                "relationship_type": "works_for",
+            },
         )
         assert rel_response.status_code == 201
         relationship_id = rel_response.json()["id"]
@@ -832,7 +832,7 @@ class TestActivityAPIEntity:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=entity_relationship&entity_id={relationship_id}&action=created"
+            f"/api/v1/activity?entity_type=entity_relationship&entity_id={relationship_id}&action=created",
         )
         assert response.status_code == 200
         data = response.json()
@@ -849,8 +849,8 @@ class TestActivityAPIEntity:
             json={
                 "name": "Person to Delete Relationship",
                 "entity_type": "Individual",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         entity1_id = entity1_response.json()["id"]
 
@@ -859,8 +859,8 @@ class TestActivityAPIEntity:
             json={
                 "name": "Company to Delete Relationship",
                 "entity_type": "Organization",
-                "tags": ["test"]
-            }
+                "tags": ["test"],
+            },
         )
         entity2_id = entity2_response.json()["id"]
 
@@ -868,8 +868,8 @@ class TestActivityAPIEntity:
             f"/api/v1/entities/{entity1_id}/relationships",
             json={
                 "target_entity_id": entity2_id,
-                "relationship_type": "works_for"
-            }
+                "relationship_type": "works_for",
+            },
         )
         relationship_id = rel_response.json()["id"]
 
@@ -878,7 +878,7 @@ class TestActivityAPIEntity:
         await asyncio.sleep(0.5)
 
         response = await http_client.get(
-            f"/api/v1/activity?entity_type=entity_relationship&entity_id={relationship_id}&action=deleted"
+            f"/api/v1/activity?entity_type=entity_relationship&entity_id={relationship_id}&action=deleted",
         )
         assert response.status_code == 200
         data = response.json()

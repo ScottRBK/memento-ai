@@ -1,5 +1,4 @@
-"""
-Event-driven architecture for activity tracking.
+"""Event-driven architecture for activity tracking.
 
 This module provides an in-process pub/sub event bus with pattern matching
 for tracking entity lifecycle events across the Forgetful system.

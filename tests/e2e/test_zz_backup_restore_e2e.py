@@ -1,15 +1,14 @@
-"""
-E2E tests for PostgreSQL backup and restore via BackupService.
+"""E2E tests for PostgreSQL backup and restore via BackupService.
 
 Tests the full backup/restore cycle with real pg_dump/psql to verify
 that --clean flag produces restorable dumps when tables already exist.
 """
 import shutil
+from datetime import UTC
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from uuid import uuid4
-
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -66,13 +65,13 @@ async def _fresh_query(db_adapter, sql, params=None):
 
 async def _create_user(db_adapter, user_id):
     """Create a user row in the database (required for FK constraints)."""
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
+    from datetime import datetime
+    now = datetime.now(UTC)
     async with db_adapter.system_session() as session:
         await session.execute(
             text(
                 "INSERT INTO users (id, external_id, name, email, created_at, updated_at) "
-                "VALUES (:id, :external_id, :name, :email, :created_at, :updated_at)"
+                "VALUES (:id, :external_id, :name, :email, :created_at, :updated_at)",
             ),
             {
                 "id": str(user_id),
@@ -115,8 +114,7 @@ async def _truncate_memories(db_adapter):
 
 @pytest.mark.e2e
 async def test_backup_and_restore_after_schema_modification(memory_repo, db_adapter, embedding_adapter):
-    """
-    Verify backup restores correctly after schema has been modified.
+    """Verify backup restores correctly after schema has been modified.
 
     This is the exact scenario that occurs during a failed re-embed:
     1. Memories exist with embeddings
@@ -131,7 +129,7 @@ async def test_backup_and_restore_after_schema_modification(memory_repo, db_adap
     # Verify memories exist with embeddings before backup
     async with db_adapter.system_session() as session:
         result = await session.execute(
-            text("SELECT count(*) FROM memories WHERE embedding IS NOT NULL")
+            text("SELECT count(*) FROM memories WHERE embedding IS NOT NULL"),
         )
         assert result.scalar() == 3
 
@@ -144,16 +142,16 @@ async def test_backup_and_restore_after_schema_modification(memory_repo, db_adap
         # Simulate re-embed step 3: modify schema (clear embeddings, alter column)
         async with db_adapter.system_session() as session:
             await session.execute(text(
-                "ALTER TABLE memories ALTER COLUMN embedding DROP NOT NULL"
+                "ALTER TABLE memories ALTER COLUMN embedding DROP NOT NULL",
             ))
             await session.execute(text(
-                "UPDATE memories SET embedding = NULL"
+                "UPDATE memories SET embedding = NULL",
             ))
 
         # Verify schema was modified (embeddings are gone)
         async with db_adapter.system_session() as session:
             result = await session.execute(
-                text("SELECT count(*) FROM memories WHERE embedding IS NOT NULL")
+                text("SELECT count(*) FROM memories WHERE embedding IS NOT NULL"),
             )
             assert result.scalar() == 0
 
@@ -182,8 +180,7 @@ async def test_backup_and_restore_after_schema_modification(memory_repo, db_adap
 
 @pytest.mark.e2e
 async def test_backup_and_restore_with_data_changes(memory_repo, db_adapter, embedding_adapter):
-    """
-    Verify backup restores to the point-in-time state, discarding
+    """Verify backup restores to the point-in-time state, discarding
     data added after the backup was taken.
     """
     await _truncate_memories(db_adapter)

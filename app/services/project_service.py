@@ -1,12 +1,12 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
 from app.config.settings import settings
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
 from app.models.project_models import (
@@ -61,8 +61,7 @@ class ProjectService:
         changes: dict | None = None,
         metadata: dict | None = None,
     ) -> None:
-        """
-        Emit an activity event to the event bus.
+        """Emit an activity event to the event bus.
 
         This is a no-op if no event bus is configured.
 
@@ -124,7 +123,7 @@ class ProjectService:
         )
 
         projects = await self.project_repo.list_projects(
-            user_id=user_id, status=status, repo_name=repo_name, name=name
+            user_id=user_id, status=status, repo_name=repo_name, name=name,
         )
 
         logger.info(
@@ -166,11 +165,11 @@ class ProjectService:
             Project if found, None otherwise
         """
         logger.info(
-            "getting project", extra={"user_id": str(user_id), "project_id": project_id}
+            "getting project", extra={"user_id": str(user_id), "project_id": project_id},
         )
 
         project = await self.project_repo.get_project_by_id(
-            user_id=user_id, project_id=project_id
+            user_id=user_id, project_id=project_id,
         )
 
         if project:
@@ -197,7 +196,7 @@ class ProjectService:
         return project
 
     async def create_project(
-        self, user_id: UUID, project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate,
     ) -> Project:
         """Create new project
 
@@ -224,7 +223,7 @@ class ProjectService:
         )
 
         project = await self.project_repo.create_project(
-            user_id=user_id, project_data=project_data
+            user_id=user_id, project_data=project_data,
         )
 
         logger.info(
@@ -248,7 +247,7 @@ class ProjectService:
         return project
 
     async def update_project(
-        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate,
     ) -> Project | None:
         """Update existing project
 
@@ -274,7 +273,7 @@ class ProjectService:
 
         # Pre-flight validation: get existing project
         existing_project = await self.project_repo.get_project_by_id(
-            user_id=user_id, project_id=project_id
+            user_id=user_id, project_id=project_id,
         )
 
         if not existing_project:
@@ -286,7 +285,7 @@ class ProjectService:
 
         # Business logic: detect actual changes
         changed_fields = get_changed_fields(
-            input_model=project_data, existing_model=existing_project
+            input_model=project_data, existing_model=existing_project,
         )
 
         if not changed_fields:
@@ -306,7 +305,7 @@ class ProjectService:
 
         # Update project in repository
         updated_project = await self.project_repo.update_project(
-            user_id=user_id, project_id=project_id, project_data=project_data
+            user_id=user_id, project_id=project_id, project_data=project_data,
         )
 
         logger.info(
@@ -354,7 +353,7 @@ class ProjectService:
 
         # Pre-flight validation: verify project exists
         existing_project = await self.project_repo.get_project_by_id(
-            user_id=user_id, project_id=project_id
+            user_id=user_id, project_id=project_id,
         )
 
         if not existing_project:
@@ -366,7 +365,7 @@ class ProjectService:
 
         # Delete project
         success = await self.project_repo.delete_project(
-            user_id=user_id, project_id=project_id
+            user_id=user_id, project_id=project_id,
         )
 
         if success:

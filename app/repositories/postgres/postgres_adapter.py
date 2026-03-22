@@ -1,28 +1,34 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
-from sqlalchemy import text
+import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator 
 from uuid import UUID
 
-from app.config.settings import settings 
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-import logging
+from app.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 class PostgresDatabaseAdapter:
 
-    def __init__(self): 
+    def __init__(self):
         self._engine: AsyncEngine = create_async_engine(
          url=self.construct_postgres_connection_string(),
          echo=settings.DB_LOGGING,
          future=True,
-         pool_pre_ping=True
-        ) 
-      
+         pool_pre_ping=True,
+        )
+
         self._session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
          bind=self._engine,
          expire_on_commit=False,
-         autoflush=False
+         autoflush=False,
         )
 
     @asynccontextmanager
@@ -32,7 +38,7 @@ class PostgresDatabaseAdapter:
       try:
          await session.execute(
             text("SELECT set_config('app.current_user_id', :user_id, true)"),
-            {"user_id": str(user_id)}
+            {"user_id": str(user_id)},
          )
          yield session
          await session.commit()
@@ -60,7 +66,7 @@ class PostgresDatabaseAdapter:
            raise
        finally:
            await session.close()
-           
+
     async def init_db(self) -> None:
         """Initialize database via Alembic migrations.
 
@@ -79,9 +85,11 @@ class PostgresDatabaseAdapter:
 
     def _run_migrations(self, connection) -> None:
         """Run pending Alembic migrations synchronously (called via run_sync)."""
-        from alembic.config import Config
-        from alembic import command
         from pathlib import Path
+
+        from alembic.config import Config
+
+        from alembic import command
 
         # Find alembic.ini relative to package root
         package_root = Path(__file__).parent.parent.parent.parent
@@ -93,11 +101,11 @@ class PostgresDatabaseAdapter:
         # Override database URL in config
         alembic_cfg.set_main_option(
             "sqlalchemy.url",
-            self.construct_postgres_connection_string()
+            self.construct_postgres_connection_string(),
         )
 
         # Configure to use existing connection
-        alembic_cfg.attributes['connection'] = connection
+        alembic_cfg.attributes["connection"] = connection
 
         try:
             command.upgrade(alembic_cfg, "head")

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
@@ -10,12 +10,13 @@ from app.exceptions import (
     NotFoundError,
 )
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
 from app.models.plan_models import (
+    VALID_TASK_TRANSITIONS,
     Criterion,
     CriterionCreate,
     CriterionUpdate,
@@ -23,11 +24,10 @@ from app.models.plan_models import (
     PlanUpdate,
     Task,
     TaskCreate,
+    TaskPriority,
     TaskState,
     TaskSummary,
-    TaskPriority,
     TaskUpdate,
-    VALID_TASK_TRANSITIONS,
 )
 from app.protocols.task_protocol import TaskRepository
 from app.services.plan_service import PlanService
@@ -89,7 +89,7 @@ class TaskService:
         plan_status = PlanStatus(plan.status)
         if plan_status in (PlanStatus.COMPLETED, PlanStatus.ARCHIVED):
             raise InvalidStateTransitionError(
-                f"Cannot add tasks to plan in {plan_status.value} status"
+                f"Cannot add tasks to plan in {plan_status.value} status",
             )
 
         # Create the task (without criteria/deps - repo handles basic creation)
@@ -99,7 +99,7 @@ class TaskService:
         if task_data.criteria:
             for criterion_data in task_data.criteria:
                 await self.task_repo.create_criterion(
-                    user_id=user_id, task_id=task.id, criterion_data=criterion_data
+                    user_id=user_id, task_id=task.id, criterion_data=criterion_data,
                 )
 
         # Add dependencies with cycle detection
@@ -108,7 +108,7 @@ class TaskService:
                 await self._validate_same_plan(user_id, task.id, dep_id, task.plan_id)
                 await self._validate_no_cycle(user_id, task.id, dep_id)
                 await self.task_repo.add_dependency(
-                    user_id=user_id, task_id=task.id, depends_on_task_id=dep_id
+                    user_id=user_id, task_id=task.id, depends_on_task_id=dep_id,
                 )
 
         # Re-fetch to get full task with criteria and deps
@@ -150,7 +150,7 @@ class TaskService:
         return tasks
 
     async def update_task(
-        self, user_id: UUID, task_id: int, task_data: TaskUpdate
+        self, user_id: UUID, task_id: int, task_data: TaskUpdate,
     ) -> Task | None:
         """PATCH for metadata only (title, description, priority). NOT for state changes."""
         logger.info("updating task", extra={"user_id": str(user_id), "task_id": task_id})
@@ -224,7 +224,7 @@ class TaskService:
         if task.version != expected_version:
             raise ConflictError(
                 f"Version mismatch: expected {expected_version}, got {task.version}. "
-                f"Task was modified by another agent."
+                f"Task was modified by another agent.",
             )
 
         # Validate state transition
@@ -233,7 +233,7 @@ class TaskService:
         if new_state not in valid_targets:
             raise InvalidStateTransitionError(
                 f"Cannot transition task from {current_state.value} to {new_state.value}. "
-                f"Valid transitions: {[s.value for s in valid_targets]}"
+                f"Valid transitions: {[s.value for s in valid_targets]}",
             )
 
         # If → doing: validate all dependencies are done
@@ -292,13 +292,13 @@ class TaskService:
         if task.version != expected_version:
             raise ConflictError(
                 f"Version mismatch: expected {expected_version}, got {task.version}. "
-                f"Task was modified by another agent."
+                f"Task was modified by another agent.",
             )
 
         current_state = TaskState(task.state)
         if current_state not in (TaskState.TODO, TaskState.WAITING):
             raise InvalidStateTransitionError(
-                f"Cannot claim task in {current_state.value} state. Must be todo or waiting."
+                f"Cannot claim task in {current_state.value} state. Must be todo or waiting.",
             )
 
         # Validate dependencies met
@@ -331,7 +331,7 @@ class TaskService:
     # ---- Criteria ----
 
     async def add_criterion(
-        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate
+        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate,
     ) -> Criterion:
         task = await self.task_repo.get_task_by_id(user_id=user_id, task_id=task_id)
         if not task:
@@ -340,16 +340,16 @@ class TaskService:
             raise InvalidStateTransitionError("Cannot add criteria to a completed task")
 
         criterion = await self.task_repo.create_criterion(
-            user_id=user_id, task_id=task_id, criterion_data=criterion_data
+            user_id=user_id, task_id=task_id, criterion_data=criterion_data,
         )
         logger.info("criterion added", extra={"criterion_id": criterion.id, "task_id": task_id})
         return criterion
 
     async def update_criterion(
-        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate
+        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate,
     ) -> Criterion:
         criterion = await self.task_repo.update_criterion(
-            user_id=user_id, criterion_id=criterion_id, criterion_data=criterion_data
+            user_id=user_id, criterion_id=criterion_id, criterion_data=criterion_data,
         )
         logger.info("criterion updated", extra={"criterion_id": criterion_id})
         return criterion
@@ -363,7 +363,7 @@ class TaskService:
     # ---- Dependencies ----
 
     async def add_dependency(
-        self, user_id: UUID, task_id: int, depends_on_task_id: int
+        self, user_id: UUID, task_id: int, depends_on_task_id: int,
     ):
         # Validate both tasks exist
         task = await self.task_repo.get_task_by_id(user_id=user_id, task_id=task_id)
@@ -381,16 +381,16 @@ class TaskService:
         await self._validate_no_cycle(user_id, task_id, depends_on_task_id)
 
         dep = await self.task_repo.add_dependency(
-            user_id=user_id, task_id=task_id, depends_on_task_id=depends_on_task_id
+            user_id=user_id, task_id=task_id, depends_on_task_id=depends_on_task_id,
         )
         logger.info("dependency added", extra={"task_id": task_id, "depends_on": depends_on_task_id})
         return dep
 
     async def remove_dependency(
-        self, user_id: UUID, task_id: int, depends_on_task_id: int
+        self, user_id: UUID, task_id: int, depends_on_task_id: int,
     ) -> bool:
         success = await self.task_repo.remove_dependency(
-            user_id=user_id, task_id=task_id, depends_on_task_id=depends_on_task_id
+            user_id=user_id, task_id=task_id, depends_on_task_id=depends_on_task_id,
         )
         if success:
             logger.info("dependency removed", extra={"task_id": task_id, "depends_on": depends_on_task_id})
@@ -409,7 +409,7 @@ class TaskService:
             if not dep_task or TaskState(dep_task.state) != TaskState.DONE:
                 raise DependencyNotMetError(
                     f"Dependency task {dep_id} is not done "
-                    f"(state: {dep_task.state if dep_task else 'not found'})"
+                    f"(state: {dep_task.state if dep_task else 'not found'})",
                 )
 
     async def _validate_all_criteria_met(self, user_id: UUID, task: Task) -> None:
@@ -422,12 +422,13 @@ class TaskService:
         if unmet:
             raise InvalidStateTransitionError(
                 f"Cannot mark task as done: {len(unmet)} acceptance criteria not met. "
-                f"Unmet: {[c.description[:50] for c in unmet]}"
+                f"Unmet: {[c.description[:50] for c in unmet]}",
             )
 
     async def _validate_no_cycle(self, user_id: UUID, task_id: int, new_dep_id: int) -> None:
         """BFS from new_dep_id following existing 'depends_on' edges.
-        If we reach task_id, adding this edge would create a cycle."""
+        If we reach task_id, adding this edge would create a cycle.
+        """
         if task_id == new_dep_id:
             raise CyclicDependencyError("A task cannot depend on itself")
 
@@ -445,12 +446,12 @@ class TaskService:
                 if dep_id == task_id:
                     raise CyclicDependencyError(
                         f"Adding dependency {task_id} -> {new_dep_id} would create a cycle "
-                        f"(path exists from {new_dep_id} back to {task_id})"
+                        f"(path exists from {new_dep_id} back to {task_id})",
                     )
                 queue.append(dep_id)
 
     async def _validate_same_plan(
-        self, user_id: UUID, task_id: int, dep_task_id: int, expected_plan_id: int
+        self, user_id: UUID, task_id: int, dep_task_id: int, expected_plan_id: int,
     ) -> None:
         """Validate that the dependency task belongs to the same plan."""
         dep_task = await self.task_repo.get_task_by_id(user_id=user_id, task_id=dep_task_id)
@@ -459,12 +460,13 @@ class TaskService:
         if dep_task.plan_id != expected_plan_id:
             raise ValueError(
                 f"Task {dep_task_id} belongs to plan {dep_task.plan_id}, "
-                f"not plan {expected_plan_id}. Dependencies must be within the same plan."
+                f"not plan {expected_plan_id}. Dependencies must be within the same plan.",
             )
 
     async def _check_plan_auto_completion(self, user_id: UUID, plan_id: int) -> None:
         """If all tasks in the plan are done/cancelled (with at least one done),
-        auto-transition plan to COMPLETED."""
+        auto-transition plan to COMPLETED.
+        """
         tasks = await self.task_repo.list_tasks(user_id=user_id, plan_id=plan_id)
         if not tasks:
             return

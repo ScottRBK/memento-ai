@@ -1,10 +1,10 @@
-"""
-Integration tests for OpenAIEmbeddingsAdapter with mocked OpenAI client.
+"""Integration tests for OpenAIEmbeddingsAdapter with mocked OpenAI client.
 
 Tests the adapter class in isolation - no real API key required.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 @pytest.fixture
@@ -127,7 +127,7 @@ async def test_generate_embedding_with_dimensions(mock_settings, mock_openai_cli
 
 @pytest.mark.asyncio
 async def test_generate_embedding_without_dimensions(mock_settings, mock_openai_client):
-    """dimensions kwarg is absent when supports_dimensions=False (e.g. llama.cpp)."""
+    """Dimensions kwarg is absent when supports_dimensions=False (e.g. llama.cpp)."""
     from app.repositories.embeddings.embedding_adapter import OpenAIEmbeddingsAdapter
 
     _, mock_client = mock_openai_client

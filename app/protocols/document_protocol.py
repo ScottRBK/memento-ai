@@ -1,17 +1,16 @@
-"""
-Protocol (interface) for Document Repository
+"""Protocol (interface) for Document Repository
 
 Defines the contract for document data access operations.
 Concrete implementations must provide all methods defined here.
 """
-from typing import Protocol, List
+from typing import Protocol
 from uuid import UUID
 
 from app.models.document_models import (
     Document,
     DocumentCreate,
+    DocumentSummary,
     DocumentUpdate,
-    DocumentSummary
 )
 
 
@@ -25,7 +24,7 @@ class DocumentRepository(Protocol):
     async def create_document(
         self,
         user_id: UUID,
-        document_data: DocumentCreate
+        document_data: DocumentCreate,
     ) -> Document:
         """Create a new document
 
@@ -44,7 +43,7 @@ class DocumentRepository(Protocol):
     async def get_document_by_id(
         self,
         user_id: UUID,
-        document_id: int
+        document_id: int,
     ) -> Document | None:
         """Get a single document by ID
 
@@ -62,7 +61,7 @@ class DocumentRepository(Protocol):
         user_id: UUID,
         project_id: int | None = None,
         document_type: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[DocumentSummary]:
         """List documents with optional filtering
 
@@ -82,7 +81,7 @@ class DocumentRepository(Protocol):
         self,
         user_id: UUID,
         document_id: int,
-        document_data: DocumentUpdate
+        document_data: DocumentUpdate,
     ) -> Document:
         """Update an existing document (PATCH semantics)
 
@@ -105,7 +104,7 @@ class DocumentRepository(Protocol):
     async def delete_document(
         self,
         user_id: UUID,
-        document_id: int
+        document_id: int,
     ) -> bool:
         """Delete a document
 

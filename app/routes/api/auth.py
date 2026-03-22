@@ -1,10 +1,11 @@
 """Authentication info endpoint for frontend configuration detection."""
 
-from starlette.requests import Request
-from starlette.responses import JSONResponse
+import logging
+
 from fastmcp import FastMCP
 from fastmcp.server.auth.auth import OAuthProvider
-import logging
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/auth/info", methods=["GET"])
     async def get_auth_info(request: Request) -> JSONResponse:
-        """
-        Get authentication configuration info (public endpoint).
+        """Get authentication configuration info (public endpoint).
 
         No authentication required - used by frontend to detect auth mode
         before user is authenticated.
@@ -49,7 +49,7 @@ def register(mcp: FastMCP):
                 "authEnabled": False,
                 "authMode": "disabled",
                 "oauthProviders": [],
-                "loginUrl": None
+                "loginUrl": None,
             })
 
         # Auth is enabled - determine mode
@@ -63,7 +63,7 @@ def register(mcp: FastMCP):
                 "authEnabled": True,
                 "authMode": "oauth",
                 "oauthProviders": [oauth_id],
-                "loginUrl": "/authorize"
+                "loginUrl": "/authorize",
             })
 
         # Check for introspection provider
@@ -72,7 +72,7 @@ def register(mcp: FastMCP):
                 "authEnabled": True,
                 "authMode": "introspection",
                 "oauthProviders": [],
-                "loginUrl": None
+                "loginUrl": None,
             })
 
         # Default to JWT for TokenVerifier subclasses
@@ -80,5 +80,5 @@ def register(mcp: FastMCP):
             "authEnabled": True,
             "authMode": "jwt",
             "oauthProviders": [],
-            "loginUrl": None
+            "loginUrl": None,
         })

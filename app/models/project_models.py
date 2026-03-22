@@ -1,6 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
 
@@ -45,31 +46,31 @@ class ProjectCreate(BaseModel):
         ...,
         min_length=1,
         max_length=500,  # DB limit: String(500)
-        description="Project name - short identifier (e.g., 'forgetful', 'veridian_memory', 'speech')"
+        description="Project name - short identifier (e.g., 'forgetful', 'veridian_memory', 'speech')",
     )
     description: str = Field(
         ...,
         min_length=1,
         max_length=settings.PROJECT_DESCRIPTION_MAX_LENGTH,
-        description="Purpose and scope overview. What is this project about? (e.g., 'MIT-licensed memory service implementing atomic memory principles')"
+        description="Purpose and scope overview. What is this project about? (e.g., 'MIT-licensed memory service implementing atomic memory principles')",
     )
     project_type: ProjectType = Field(
         ...,
-        description="Project category for organization (e.g., 'development', 'mcp-server', 'infrastructure'). See ProjectType enum for all options."
+        description="Project category for organization (e.g., 'development', 'mcp-server', 'infrastructure'). See ProjectType enum for all options.",
     )
     status: ProjectStatus = Field(
         default=ProjectStatus.ACTIVE,
-        description="Project lifecycle status. Default: 'active'. Options: active (in progress), archived (paused), completed (finished)."
+        description="Project lifecycle status. Default: 'active'. Options: active (in progress), archived (paused), completed (finished).",
     )
     repo_name: str | None = Field(
         default=None,
         max_length=255,  # DB limit: String(255)
-        description="GitHub repository in 'owner/repo' format (e.g., 'scottrbk/forgetful'). Optional."
+        description="GitHub repository in 'owner/repo' format (e.g., 'scottrbk/forgetful'). Optional.",
     )
     notes: str | None = Field(
         default=None,
         max_length=settings.PROJECT_NOTES_MAX_LENGTH,
-        description="Workflow notes, setup instructions, or additional context. Optional. Max ~4000 chars."
+        description="Workflow notes, setup instructions, or additional context. Optional. Max ~4000 chars.",
     )
 
     @field_validator("name", "description", "repo_name", "notes")
@@ -85,7 +86,7 @@ class ProjectCreate(BaseModel):
         if info.field_name in ["name", "description"] and not stripped:
             raise ValueError(f"{info.field_name} cannot be empty or whitespace only")
 
-        return stripped if stripped else None
+        return stripped or None
 
     @field_validator("repo_name")
     @classmethod
@@ -119,31 +120,31 @@ class ProjectUpdate(BaseModel):
         default=None,
         min_length=1,
         max_length=500,  # DB limit: String(500)
-        description="New project name. Unchanged if null."
+        description="New project name. Unchanged if null.",
     )
     description: str | None = Field(
         default=None,
         min_length=1,
         max_length=settings.PROJECT_DESCRIPTION_MAX_LENGTH,
-        description="New description. Unchanged if null."
+        description="New description. Unchanged if null.",
     )
     project_type: ProjectType | None = Field(
         default=None,
-        description="New project type. Unchanged if null. See ProjectType enum for options."
+        description="New project type. Unchanged if null. See ProjectType enum for options.",
     )
     status: ProjectStatus | None = Field(
         default=None,
-        description="New lifecycle status. Unchanged if null. Options: active, archived, completed."
+        description="New lifecycle status. Unchanged if null. Options: active, archived, completed.",
     )
     repo_name: str | None = Field(
         default=None,
         max_length=255,  # DB limit: String(255)
-        description="New repository name in 'owner/repo' format. Unchanged if null. Set to empty string to clear."
+        description="New repository name in 'owner/repo' format. Unchanged if null. Set to empty string to clear.",
     )
     notes: str | None = Field(
         default=None,
         max_length=settings.PROJECT_NOTES_MAX_LENGTH,
-        description="New notes. Unchanged if null. Set to empty string to clear."
+        description="New notes. Unchanged if null. Set to empty string to clear.",
     )
 
     @field_validator("name", "description", "repo_name", "notes")
@@ -160,7 +161,7 @@ class ProjectUpdate(BaseModel):
             raise ValueError(f"{info.field_name} cannot be empty or whitespace only")
 
         # For optional fields (repo_name, notes), empty string means "clear field"
-        return stripped if stripped else None
+        return stripped or None
 
     @field_validator("repo_name")
     @classmethod
@@ -192,19 +193,19 @@ class Project(ProjectCreate):
     """
     id: int = Field(
         ...,
-        description="Unique project identifier (auto-generated)"
+        description="Unique project identifier (auto-generated)",
     )
     memory_count: int = Field(
         default=0,
-        description="Number of memories linked to this project. Useful for seeing project activity level."
+        description="Number of memories linked to this project. Useful for seeing project activity level.",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the project was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the project was created (UTC)",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the project was last updated (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the project was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -223,35 +224,35 @@ class ProjectSummary(BaseModel):
     """
     id: int = Field(
         ...,
-        description="Unique project identifier"
+        description="Unique project identifier",
     )
     name: str = Field(
         ...,
-        description="Project name"
+        description="Project name",
     )
     project_type: ProjectType = Field(
         ...,
-        description="Project category"
+        description="Project category",
     )
     status: ProjectStatus = Field(
         ...,
-        description="Project lifecycle status"
+        description="Project lifecycle status",
     )
     repo_name: str | None = Field(
         default=None,
-        description="GitHub repository ('owner/repo' format)"
+        description="GitHub repository ('owner/repo' format)",
     )
     memory_count: int = Field(
         default=0,
-        description="Number of memories linked to this project"
+        description="Number of memories linked to this project",
     )
     created_at: datetime = Field(
         ...,
-        description="When the project was created (UTC)"
+        description="When the project was created (UTC)",
     )
     updated_at: datetime = Field(
         ...,
-        description="When the project was last updated (UTC)"
+        description="When the project was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)

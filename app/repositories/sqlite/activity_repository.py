@@ -1,22 +1,21 @@
-"""
-Activity repository for SQLite data access operations.
+"""Activity repository for SQLite data access operations.
 
 Handles persistence and querying of activity events for the
 event-driven architecture (Issue #7).
 """
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
 
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActivityLogEntry,
-    EntityType,
-    ActionType,
     ActorType,
+    EntityType,
 )
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.repositories.sqlite.sqlite_tables import ActivityLogTable
@@ -25,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class SqliteActivityRepository:
-    """
-    Repository for Activity Log operations in SQLite.
+    """Repository for Activity Log operations in SQLite.
 
     Provides persistence and querying of activity events with
     support for filtering, pagination, and retention cleanup.
@@ -40,8 +38,7 @@ class SqliteActivityRepository:
         user_id: UUID,
         event: ActivityEvent,
     ) -> ActivityLogEntry:
-        """
-        Persist an activity event to the database.
+        """Persist an activity event to the database.
 
         Args:
             user_id: User ID for ownership
@@ -69,7 +66,7 @@ class SqliteActivityRepository:
 
             logger.debug(
                 f"Saved activity event: {event.entity_type}.{event.action} "
-                f"(id={activity_orm.id})"
+                f"(id={activity_orm.id})",
             )
 
             return ActivityLogEntry(
@@ -98,8 +95,7 @@ class SqliteActivityRepository:
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[ActivityLogEntry], int]:
-        """
-        Query activity events with filtering and pagination.
+        """Query activity events with filtering and pagination.
 
         Args:
             user_id: User ID for ownership filtering
@@ -119,12 +115,12 @@ class SqliteActivityRepository:
         async with self.db_adapter.session(str(user_id)) as session:
             # Build base query with filters
             base_query = select(ActivityLogTable).where(
-                ActivityLogTable.user_id == str(user_id)
+                ActivityLogTable.user_id == str(user_id),
             )
 
             if entity_type is not None:
                 base_query = base_query.where(
-                    ActivityLogTable.entity_type == entity_type
+                    ActivityLogTable.entity_type == entity_type,
                 )
 
             if action is not None:
@@ -132,7 +128,7 @@ class SqliteActivityRepository:
 
             if entity_id is not None:
                 base_query = base_query.where(
-                    ActivityLogTable.entity_id == entity_id
+                    ActivityLogTable.entity_id == entity_id,
                 )
 
             if actor is not None:
@@ -140,17 +136,17 @@ class SqliteActivityRepository:
 
             if since is not None:
                 base_query = base_query.where(
-                    ActivityLogTable.created_at >= since
+                    ActivityLogTable.created_at >= since,
                 )
 
             if until is not None:
                 base_query = base_query.where(
-                    ActivityLogTable.created_at <= until
+                    ActivityLogTable.created_at <= until,
                 )
 
             # Get total count (before pagination)
             count_query = select(func.count()).select_from(
-                base_query.subquery()
+                base_query.subquery(),
             )
             count_result = await session.execute(count_query)
             total_count = count_result.scalar() or 0
@@ -189,8 +185,7 @@ class SqliteActivityRepository:
         user_id: UUID,
         retention_days: int,
     ) -> int:
-        """
-        Delete activity events older than the retention period.
+        """Delete activity events older than the retention period.
 
         Args:
             user_id: User ID for ownership filtering
@@ -199,7 +194,7 @@ class SqliteActivityRepository:
         Returns:
             Number of events deleted
         """
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
 
         async with self.db_adapter.session(str(user_id)) as session:
             # Count events to be deleted
@@ -219,7 +214,7 @@ class SqliteActivityRepository:
                 await session.execute(delete_stmt)
                 logger.info(
                     f"Cleaned up {count} expired activity events "
-                    f"(older than {retention_days} days)"
+                    f"(older than {retention_days} days)",
                 )
 
             return count
@@ -230,8 +225,7 @@ class SqliteActivityRepository:
         entity_type: EntityType | None = None,
         action: ActionType | None = None,
     ) -> int:
-        """
-        Count activity events matching filters.
+        """Count activity events matching filters.
 
         Args:
             user_id: User ID for ownership filtering
@@ -243,7 +237,7 @@ class SqliteActivityRepository:
         """
         async with self.db_adapter.session(str(user_id)) as session:
             query = select(func.count()).select_from(ActivityLogTable).where(
-                ActivityLogTable.user_id == str(user_id)
+                ActivityLogTable.user_id == str(user_id),
             )
 
             if entity_type is not None:

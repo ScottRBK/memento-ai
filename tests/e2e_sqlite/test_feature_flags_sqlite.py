@@ -1,16 +1,14 @@
-"""
-E2E tests verifying feature flags correctly hide tools and routes when disabled.
+"""E2E tests verifying feature flags correctly hide tools and routes when disabled.
 
 Uses the FEATURE_FLAGS registry from conftest — adding a new feature flag there
 automatically generates tests here.
 """
 
 import pytest
-from fastmcp.exceptions import ToolError
 
 # conftest.py symbols are importable via the conftest module that pytest injects
 from conftest import FEATURE_FLAGS, build_sqlite_app
-
+from fastmcp.exceptions import ToolError
 
 # ============================================================================
 # Fixtures: one app per feature flag, with that feature disabled
@@ -18,8 +16,7 @@ from conftest import FEATURE_FLAGS, build_sqlite_app
 
 @pytest.fixture(params=list(FEATURE_FLAGS.keys()), ids=[f"{k}-disabled" for k in FEATURE_FLAGS])
 async def disabled_feature_client(request, embedding_adapter, reranker_adapter):
-    """
-    Parameterized fixture that yields (mcp_client, app, feature_name) tuples.
+    """Parameterized fixture that yields (mcp_client, app, feature_name) tuples.
 
     For each feature flag in FEATURE_FLAGS, creates an app with that feature
     disabled (all OTHER features remain enabled).
@@ -116,7 +113,7 @@ async def test_disabled_feature_routes_404(disabled_feature_client):
     if not flag_def.route_prefixes:
         pytest.skip(f"No route prefixes defined for '{feature_name}'")
 
-    from httpx import AsyncClient, ASGITransport
+    from httpx import ASGITransport, AsyncClient
 
     asgi_app = app.http_app()
     transport = ASGITransport(app=asgi_app)

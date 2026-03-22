@@ -1,13 +1,13 @@
-"""
-Integration tests for REST API authentication (get_user_from_request)
+"""Integration tests for REST API authentication (get_user_from_request)
 
 Tests the HTTP auth path using FastMCP's StaticTokenVerifier for realistic testing.
 """
-import pytest
 from unittest.mock import AsyncMock
 
-from app.middleware.auth import get_user_from_request
+import pytest
+
 from app.config.settings import settings
+from app.middleware.auth import get_user_from_request
 
 
 class MockRequest:
@@ -107,7 +107,7 @@ async def test_missing_sub_claim_raises(test_user_service):
     mock_auth = AsyncMock()
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
         "name": "Test User",
-        "email": "test@example.com"
+        "email": "test@example.com",
         # Missing 'sub'
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
@@ -124,7 +124,7 @@ async def test_valid_token_extracts_all_claims(test_user_service):
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
         "sub": "auth0|user-123",
         "name": "Test User",
-        "email": "test@example.com"
+        "email": "test@example.com",
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
     request = MockRequest(headers={"Authorization": "Bearer valid-token"})
@@ -143,7 +143,7 @@ async def test_minimal_claims_uses_fallbacks(test_user_service):
     """Token with only 'sub' uses fallback name and email."""
     mock_auth = AsyncMock()
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
-        "sub": "minimal-user-456"
+        "sub": "minimal-user-456",
         # No name, email
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
@@ -164,7 +164,7 @@ async def test_preferred_username_fallback(test_user_service):
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
         "sub": "oidc-user-789",
         "preferred_username": "jdoe",
-        "email": "jdoe@example.com"
+        "email": "jdoe@example.com",
         # No 'name'
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
@@ -182,7 +182,7 @@ async def test_login_fallback_github_pattern(test_user_service):
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
         "sub": "12345678",
         "login": "scottrbk",
-        "email": "scott@example.com"
+        "email": "scott@example.com",
         # No 'name' or 'preferred_username'
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
@@ -200,7 +200,7 @@ async def test_auth_idempotent(test_user_service):
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
         "sub": "repeat-user-999",
         "name": "Repeat User",
-        "email": "repeat@example.com"
+        "email": "repeat@example.com",
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
     request = MockRequest(headers={"Authorization": "Bearer same-token"})
@@ -219,7 +219,7 @@ async def test_lowercase_bearer_accepted(test_user_service):
     mock_auth.verify_token = AsyncMock(return_value=MockAccessToken(claims={
         "sub": "case-user-111",
         "name": "Case User",
-        "email": "case@example.com"
+        "email": "case@example.com",
     }))
     mcp = MockFastMCP(user_service=test_user_service, auth_provider=mock_auth)
     request = MockRequest(headers={"Authorization": "bearer lowercase-token"})

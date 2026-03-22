@@ -1,5 +1,4 @@
-"""
-Skill Service - Business logic for skill operations
+"""Skill Service - Business logic for skill operations
 
 This service implements functionality for managing skills:
     - CRUD operations (create, read, update, delete)
@@ -14,20 +13,20 @@ import yaml
 
 from app.config.logging_config import logging
 from app.config.settings import settings
+from app.exceptions import NotFoundError
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
-from app.protocols.skill_protocol import SkillRepository
 from app.models.skill_models import (
     Skill,
     SkillCreate,
-    SkillUpdate,
     SkillSummary,
+    SkillUpdate,
 )
-from app.exceptions import NotFoundError
+from app.protocols.skill_protocol import SkillRepository
 from app.utils.pydantic_helper import get_changed_fields
 
 if TYPE_CHECKING:
@@ -68,8 +67,7 @@ class SkillService:
         changes: dict | None = None,
         metadata: dict | None = None,
     ) -> None:
-        """
-        Emit an activity event to the event bus.
+        """Emit an activity event to the event bus.
 
         This is a no-op if no event bus is configured.
 
@@ -101,7 +99,7 @@ class SkillService:
     async def create_skill(
         self,
         user_id: UUID,
-        skill_data: SkillCreate
+        skill_data: SkillCreate,
     ) -> Skill:
         """Create new skill
 
@@ -116,21 +114,21 @@ class SkillService:
             "creating skill",
             extra={
                 "name": skill_data.name,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         skill = await self.skill_repo.create_skill(
             user_id=user_id,
-            skill_data=skill_data
+            skill_data=skill_data,
         )
 
         logger.info(
             "skill created",
             extra={
                 "skill_id": skill.id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit created event
@@ -147,7 +145,7 @@ class SkillService:
     async def get_skill(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> Skill:
         """Get skill by ID with ownership verification
 
@@ -165,13 +163,13 @@ class SkillService:
             "getting skill",
             extra={
                 "skill_id": skill_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         skill = await self.skill_repo.get_skill_by_id(
             user_id=user_id,
-            skill_id=skill_id
+            skill_id=skill_id,
         )
 
         if not skill:
@@ -181,8 +179,8 @@ class SkillService:
             "skill retrieved",
             extra={
                 "skill_id": skill_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit read event (opt-in via ACTIVITY_TRACK_READS)
@@ -202,7 +200,7 @@ class SkillService:
         user_id: UUID,
         project_id: int | None = None,
         tags: list[str] | None = None,
-        importance_threshold: int | None = None
+        importance_threshold: int | None = None,
     ) -> list[SkillSummary]:
         """List skills with optional filtering
 
@@ -221,23 +219,23 @@ class SkillService:
                 "user_id": str(user_id),
                 "project_id": project_id,
                 "tags": tags,
-                "importance_threshold": importance_threshold
-            }
+                "importance_threshold": importance_threshold,
+            },
         )
 
         skills = await self.skill_repo.list_skills(
             user_id=user_id,
             project_id=project_id,
             tags=tags,
-            importance_threshold=importance_threshold
+            importance_threshold=importance_threshold,
         )
 
         logger.info(
             "skills retrieved",
             extra={
                 "count": len(skills),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
@@ -264,7 +262,7 @@ class SkillService:
         self,
         user_id: UUID,
         skill_id: int,
-        skill_data: SkillUpdate
+        skill_data: SkillUpdate,
     ) -> Skill:
         """Update existing skill (PATCH semantics)
 
@@ -285,14 +283,14 @@ class SkillService:
             "updating skill",
             extra={
                 "skill_id": skill_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Get existing skill for change detection
         existing_skill = await self.skill_repo.get_skill_by_id(
             user_id=user_id,
-            skill_id=skill_id
+            skill_id=skill_id,
         )
 
         if not existing_skill:
@@ -300,21 +298,21 @@ class SkillService:
 
         # Detect changes
         changed_fields = get_changed_fields(
-            input_model=skill_data, existing_model=existing_skill
+            input_model=skill_data, existing_model=existing_skill,
         )
 
         skill = await self.skill_repo.update_skill(
             user_id=user_id,
             skill_id=skill_id,
-            skill_data=skill_data
+            skill_data=skill_data,
         )
 
         logger.info(
             "skill updated",
             extra={
                 "skill_id": skill_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit updated event with changes
@@ -337,7 +335,7 @@ class SkillService:
     async def delete_skill(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> bool:
         """Delete skill
 
@@ -352,19 +350,19 @@ class SkillService:
             "deleting skill",
             extra={
                 "skill_id": skill_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Fetch skill before deletion for snapshot
         existing_skill = await self.skill_repo.get_skill_by_id(
             user_id=user_id,
-            skill_id=skill_id
+            skill_id=skill_id,
         )
 
         success = await self.skill_repo.delete_skill(
             user_id=user_id,
-            skill_id=skill_id
+            skill_id=skill_id,
         )
 
         if success:
@@ -372,8 +370,8 @@ class SkillService:
                 "skill deleted",
                 extra={
                     "skill_id": skill_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit deleted event with pre-deletion snapshot
@@ -390,8 +388,8 @@ class SkillService:
                 "skill not found for deletion",
                 extra={
                     "skill_id": skill_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success
@@ -401,7 +399,7 @@ class SkillService:
         user_id: UUID,
         query: str,
         k: int = 5,
-        project_id: int | None = None
+        project_id: int | None = None,
     ) -> list[SkillSummary]:
         """Search skills by semantic similarity
 
@@ -420,23 +418,23 @@ class SkillService:
                 "user_id": str(user_id),
                 "query": query[:50],
                 "k": k,
-                "project_id": project_id
-            }
+                "project_id": project_id,
+            },
         )
 
         results = await self.skill_repo.search_skills(
             user_id=user_id,
             query=query,
             k=k,
-            project_id=project_id
+            project_id=project_id,
         )
 
         logger.info(
             "skill search completed",
             extra={
                 "count": len(results),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         return results
@@ -446,7 +444,7 @@ class SkillService:
         user_id: UUID,
         skill_md_content: str,
         project_id: int | None = None,
-        importance: int = 7
+        importance: int = 7,
     ) -> Skill:
         """Import a skill from Agent Skills markdown format
 
@@ -467,14 +465,14 @@ class SkillService:
         """
         logger.info(
             "importing skill from markdown",
-            extra={"user_id": str(user_id)}
+            extra={"user_id": str(user_id)},
         )
 
         # Parse YAML frontmatter between --- delimiters
         parts = skill_md_content.split("---", 2)
         if len(parts) < 3:
             raise ValueError(
-                "Invalid skill markdown: expected YAML frontmatter between --- delimiters"
+                "Invalid skill markdown: expected YAML frontmatter between --- delimiters",
             )
 
         frontmatter_raw = parts[1].strip()
@@ -516,7 +514,7 @@ class SkillService:
     async def export_skill(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> str:
         """Export a skill to Agent Skills markdown format
 
@@ -537,8 +535,8 @@ class SkillService:
             "exporting skill to markdown",
             extra={
                 "skill_id": skill_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         skill = await self.get_skill(user_id=user_id, skill_id=skill_id)

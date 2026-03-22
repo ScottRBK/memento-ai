@@ -1,5 +1,4 @@
-"""
-E2E tests for Skill REST API endpoints.
+"""E2E tests for Skill REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/skills endpoints.

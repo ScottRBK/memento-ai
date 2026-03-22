@@ -1,12 +1,13 @@
-"""
-Integration tests for auth module
+"""Integration tests for auth module
 
 Tests authentication helpers with stubbed database and context pattern
 """
-import pytest
 from unittest.mock import patch
-from app.middleware import auth
+
+import pytest
+
 from app.config.settings import settings
+from app.middleware import auth
 
 
 class MockFastMCP:
@@ -63,14 +64,14 @@ async def test_get_user_from_auth_idempotent(test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_with_valid_token(mock_get_token, test_user_service):
     """Test auth-enabled mode with valid bearer token"""
     # Mock valid access token with all required claims
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-123",
         "name": "Test User",
-        "email": "test@example.com"
+        "email": "test@example.com",
     })
     mock_get_token.return_value = mock_token
 
@@ -85,7 +86,7 @@ async def test_auth_enabled_with_valid_token(mock_get_token, test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_missing_token(mock_get_token, test_user_service):
     """Test auth-enabled mode fails when no bearer token provided"""
     # Mock no token provided
@@ -99,13 +100,13 @@ async def test_auth_enabled_missing_token(mock_get_token, test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_missing_sub_claim(mock_get_token, test_user_service):
     """Test auth-enabled mode fails when token missing 'sub' claim"""
     # Mock token missing 'sub' claim
     mock_token = MockAccessToken(claims={
         "name": "Test User",
-        "email": "test@example.com"
+        "email": "test@example.com",
     })
     mock_get_token.return_value = mock_token
 
@@ -117,13 +118,13 @@ async def test_auth_enabled_missing_sub_claim(mock_get_token, test_user_service)
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_missing_name_generates_fallback(mock_get_token, test_user_service):
     """Test auth-enabled mode generates fallback name when all name claims missing"""
     # Mock token missing all name claims (name, preferred_username, login)
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-123",
-        "email": "test@example.com"
+        "email": "test@example.com",
     })
     mock_get_token.return_value = mock_token
 
@@ -138,14 +139,14 @@ async def test_auth_enabled_missing_name_generates_fallback(mock_get_token, test
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_preferred_username_fallback(mock_get_token, test_user_service):
     """Test auth-enabled mode uses 'preferred_username' when 'name' missing"""
     # Mock token with preferred_username but no name
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-456",
         "preferred_username": "testuser456",
-        "email": "testuser456@example.com"
+        "email": "testuser456@example.com",
     })
     mock_get_token.return_value = mock_token
 
@@ -160,14 +161,14 @@ async def test_auth_enabled_preferred_username_fallback(mock_get_token, test_use
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_idempotency(mock_get_token, test_user_service):
     """Test auth-enabled mode returns same user for repeated calls with same token"""
     # Mock same token for both calls
     mock_token = MockAccessToken(claims={
         "sub": "auth0|test-user-789",
         "name": "Repeat User",
-        "email": "repeat@example.com"
+        "email": "repeat@example.com",
     })
     mock_get_token.return_value = mock_token
 
@@ -189,14 +190,14 @@ async def test_auth_enabled_idempotency(mock_get_token, test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_login_fallback(mock_get_token, test_user_service):
     """Test auth uses 'login' claim when name/preferred_username missing (GitHub pattern)"""
     # Mock token with login but no name/preferred_username (GitHub OAuth pattern)
     mock_token = MockAccessToken(claims={
         "sub": "12345678",
         "login": "scottrbk",
-        "email": "scott@example.com"
+        "email": "scott@example.com",
     })
     mock_get_token.return_value = mock_token
 
@@ -211,13 +212,13 @@ async def test_auth_enabled_login_fallback(mock_get_token, test_user_service):
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_missing_email_generates_placeholder(mock_get_token, test_user_service):
     """Test auth generates placeholder email when email claim missing"""
     # Mock token missing email claim
     mock_token = MockAccessToken(claims={
         "sub": "oauth2|user-without-email",
-        "name": "User Without Email"
+        "name": "User Without Email",
     })
     mock_get_token.return_value = mock_token
 
@@ -232,7 +233,7 @@ async def test_auth_enabled_missing_email_generates_placeholder(mock_get_token, 
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, test_user_service):
     """Test auth handles null email value (OAuth provider returns null instead of omitting)"""
     # Mock token with null email (actual bug: GitHub returns {"email": null} when not public)
@@ -240,7 +241,7 @@ async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, tes
         "sub": "87654321",
         "login": "ScottRBK",
         "name": None,  # Also null when not set
-        "email": None
+        "email": None,
     })
     mock_get_token.return_value = mock_token
 
@@ -255,7 +256,7 @@ async def test_auth_enabled_null_email_generates_placeholder(mock_get_token, tes
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_all_nulls_uses_sub_fallback(mock_get_token, test_user_service):
     """Test auth handles all name claims null (uses sub-based fallback)"""
     # Mock token with all possible name claims as null
@@ -264,7 +265,7 @@ async def test_auth_enabled_all_nulls_uses_sub_fallback(mock_get_token, test_use
         "name": None,
         "preferred_username": None,
         "login": None,
-        "email": None
+        "email": None,
     })
     mock_get_token.return_value = mock_token
 

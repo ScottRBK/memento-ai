@@ -1,27 +1,26 @@
-"""
-REST API endpoints for Entity operations.
+"""REST API endpoints for Entity operations.
 
 Phase 2 of the Web UI foundation (Issue #3).
 Provides CRUD operations for entities with relationships and memory links.
 """
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
-
 from typing import Any
 
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 from app.models.entity_models import (
     EntityCreate,
-    EntityUpdate,
+    EntityListResponse,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
     EntityType,
-    EntityListResponse,
+    EntityUpdate,
 )
-from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +53,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/entities", methods=["GET"])
     async def list_entities(request: Request) -> JSONResponse:
-        """
-        List entities with optional filtering and pagination.
+        """List entities with optional filtering and pagination.
 
         Query params:
             entity_type: Filter by type (individual, organization, team, device, other)
@@ -80,14 +78,14 @@ def register(mcp: FastMCP):
         if limit < 1 or limit > 100:
             return JSONResponse(
                 {"error": "limit must be between 1 and 100"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate offset is non-negative
         if offset < 0:
             return JSONResponse(
                 {"error": "offset must be non-negative"},
-                status_code=400
+                status_code=400,
             )
 
         entity_type_str = params.get("entity_type")
@@ -100,21 +98,21 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid entity_type: {entity_type_str}. Valid values: Individual, Organization, Team, Device, Other"},
-                    status_code=400
+                    status_code=400,
                 )
 
         entities, total = await mcp.entity_service.list_entities(
             user_id=user.id,
             entity_type=entity_type,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         response = EntityListResponse(
             entities=entities,
             total=total,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         return JSONResponse(response.model_dump(mode="json"))
@@ -132,7 +130,7 @@ def register(mcp: FastMCP):
         try:
             entity = await mcp.entity_service.get_entity(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Entity not found"}, status_code=404)
@@ -155,7 +153,7 @@ def register(mcp: FastMCP):
 
         entity = await mcp.entity_service.create_entity(
             user_id=user.id,
-            entity_data=entity_data
+            entity_data=entity_data,
         )
 
         return JSONResponse(entity.model_dump(mode="json"), status_code=201)
@@ -180,7 +178,7 @@ def register(mcp: FastMCP):
             entity = await mcp.entity_service.update_entity(
                 user_id=user.id,
                 entity_id=entity_id,
-                entity_data=update_data
+                entity_data=update_data,
             )
         except NotFoundError:
             return JSONResponse({"error": "Entity not found"}, status_code=404)
@@ -199,7 +197,7 @@ def register(mcp: FastMCP):
 
         success = await mcp.entity_service.delete_entity(
             user_id=user.id,
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         if not success:
@@ -234,19 +232,19 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid entity_type: {entity_type_str}. Valid values: Individual, Organization, Team, Device, Other"},
-                    status_code=400
+                    status_code=400,
                 )
 
         entities = await mcp.entity_service.search_entities(
             user_id=user.id,
             search_query=query,
             entity_type=entity_type,
-            limit=limit
+            limit=limit,
         )
 
         return JSONResponse({
             "entities": [e.model_dump(mode="json") for e in entities],
-            "total": len(entities)
+            "total": len(entities),
         })
 
     # Entity-Memory Links
@@ -273,7 +271,7 @@ def register(mcp: FastMCP):
             success = await mcp.entity_service.link_entity_to_memory(
                 user_id=user.id,
                 entity_id=entity_id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
@@ -295,7 +293,7 @@ def register(mcp: FastMCP):
             success = await mcp.entity_service.unlink_entity_from_memory(
                 user_id=user.id,
                 entity_id=entity_id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
@@ -318,14 +316,14 @@ def register(mcp: FastMCP):
         try:
             memory_ids, count = await mcp.entity_service.get_entity_memories(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Entity not found"}, status_code=404)
 
         return JSONResponse({
             "memory_ids": memory_ids,
-            "count": count
+            "count": count,
         })
 
     # Entity Relationships
@@ -342,14 +340,14 @@ def register(mcp: FastMCP):
         try:
             relationships = await mcp.entity_service.get_entity_relationships(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Entity not found"}, status_code=404)
 
         return JSONResponse({
             "relationships": [r.model_dump(mode="json") for r in relationships],
-            "total": len(relationships)
+            "total": len(relationships),
         })
 
     @mcp.custom_route("/api/v1/entities/{entity_id}/relationships", methods=["POST"])
@@ -373,7 +371,7 @@ def register(mcp: FastMCP):
         try:
             relationship = await mcp.entity_service.create_entity_relationship(
                 user_id=user.id,
-                relationship_data=relationship_data
+                relationship_data=relationship_data,
             )
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
@@ -400,7 +398,7 @@ def register(mcp: FastMCP):
             relationship = await mcp.entity_service.update_entity_relationship(
                 user_id=user.id,
                 relationship_id=relationship_id,
-                relationship_data=update_data
+                relationship_data=update_data,
             )
         except NotFoundError:
             return JSONResponse({"error": "Relationship not found"}, status_code=404)
@@ -419,7 +417,7 @@ def register(mcp: FastMCP):
 
         success = await mcp.entity_service.delete_entity_relationship(
             user_id=user.id,
-            relationship_id=relationship_id
+            relationship_id=relationship_id,
         )
 
         if not success:

@@ -1,5 +1,4 @@
-"""
-SQLAlchemy ORM Models for SQLite database
+"""SQLAlchemy ORM Models for SQLite database
 
 Key differences from Postgres:
 - UUID stored as String (TEXT in SQLite)
@@ -9,30 +8,29 @@ Key differences from Postgres:
 - No GIN/HNSW indexes (Postgres-specific)
 - Relationships and structure identical to Postgres
 """
-from typing import List
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy.ext.hybrid import hybrid_property
+from datetime import UTC, datetime
+from uuid import uuid4
+
 from sqlalchemy import (
+    JSON,
+    Boolean,
     Column,
-    Integer,
-    String,
-    Text,
     DateTime,
     ForeignKey,
-    Table,
-    Boolean,
     Index,
-    JSON,
+    Integer,
     LargeBinary,
+    String,
+    Table,
+    Text,
 )
-from uuid import uuid4
-from datetime import datetime, timezone
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     """Base Class for all ORM models"""
 
-    pass
 
 
 memory_project_association = Table(
@@ -124,8 +122,7 @@ entity_project_association = Table(
 
 
 class UsersTable(Base):
-    """
-    User Table Model
+    """User Table Model
     """
 
     __tablename__ = "users"
@@ -142,44 +139,43 @@ class UsersTable(Base):
     # Timestamps
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False,
     )
 
     # Relationships
     memories: Mapped[list["MemoryTable"]] = relationship(
-        "MemoryTable", back_populates="user", cascade="all, delete-orphan"
+        "MemoryTable", back_populates="user", cascade="all, delete-orphan",
     )
     projects: Mapped[list["ProjectsTable"]] = relationship(
-        "ProjectsTable", back_populates="user", cascade="all, delete-orphan"
+        "ProjectsTable", back_populates="user", cascade="all, delete-orphan",
     )
     code_artifacts: Mapped[list["CodeArtifactsTable"]] = relationship(
-        "CodeArtifactsTable", back_populates="user", cascade="all, delete-orphan"
+        "CodeArtifactsTable", back_populates="user", cascade="all, delete-orphan",
     )
     documents: Mapped[list["DocumentsTable"]] = relationship(
-        "DocumentsTable", back_populates="user", cascade="all, delete-orphan"
+        "DocumentsTable", back_populates="user", cascade="all, delete-orphan",
     )
     entities: Mapped[list["EntitiesTable"]] = relationship(
-        "EntitiesTable", back_populates="user", cascade="all, delete-orphan"
+        "EntitiesTable", back_populates="user", cascade="all, delete-orphan",
     )
     files: Mapped[list["FilesTable"]] = relationship(
-        "FilesTable", back_populates="user", cascade="all, delete-orphan"
+        "FilesTable", back_populates="user", cascade="all, delete-orphan",
     )
     skills: Mapped[list["SkillsTable"]] = relationship(
-        "SkillsTable", back_populates="user", cascade="all, delete-orphan"
+        "SkillsTable", back_populates="user", cascade="all, delete-orphan",
     )
     plans: Mapped[list["PlansTable"]] = relationship(
-        "PlansTable", back_populates="user", cascade="all, delete-orphan"
+        "PlansTable", back_populates="user", cascade="all, delete-orphan",
     )
 
 
 class MemoryTable(Base):
-    """
-    Memory Table Model
+    """Memory Table Model
 
     Note: Embeddings stored in separate vec_memories virtual table (not in this table).
     This table references the memory_id which links to vec_memories.
@@ -219,12 +215,12 @@ class MemoryTable(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -280,8 +276,7 @@ class MemoryTable(Base):
 
     @property
     def linked_memory_ids(self) -> list[int]:
-        """
-        Compute linked memory IDs from bidirectional relationships.
+        """Compute linked memory IDs from bidirectional relationships.
 
         Combines IDs from both directions since links are bidirectional:
         - linked_memories: where this memory is the source
@@ -308,8 +303,7 @@ class MemoryTable(Base):
 
     @property
     def project_ids(self) -> list[int]:
-        """
-        Compute project IDs from projects relationship.
+        """Compute project IDs from projects relationship.
 
         Returns:
             List of project IDs, or empty list if relationship not loaded
@@ -324,8 +318,7 @@ class MemoryTable(Base):
 
     @property
     def code_artifact_ids(self) -> list[int]:
-        """
-        Compute code artifact IDs from code_artifacts relationship.
+        """Compute code artifact IDs from code_artifacts relationship.
 
         Returns:
             List of code artifact IDs, or empty list if relationship not loaded
@@ -340,8 +333,7 @@ class MemoryTable(Base):
 
     @property
     def document_ids(self) -> list[int]:
-        """
-        Compute document IDs from documents relationship.
+        """Compute document IDs from documents relationship.
 
         Returns:
             List of document IDs, or empty list if relationship not loaded
@@ -356,8 +348,7 @@ class MemoryTable(Base):
 
     @property
     def file_ids(self) -> list[int]:
-        """
-        Compute file IDs from files relationship.
+        """Compute file IDs from files relationship.
 
         Returns:
             List of file IDs, or empty list if relationship not loaded
@@ -372,8 +363,7 @@ class MemoryTable(Base):
 
     @property
     def skill_ids(self) -> list[int]:
-        """
-        Compute skill IDs from skills relationship.
+        """Compute skill IDs from skills relationship.
 
         Returns:
             List of skill IDs, or empty list if relationship not loaded
@@ -388,8 +378,7 @@ class MemoryTable(Base):
 
     @property
     def entity_ids(self) -> list[int]:
-        """
-        Compute entity IDs from entities relationship.
+        """Compute entity IDs from entities relationship.
 
         Returns:
             List of entity IDs, or empty list if relationship not loaded
@@ -414,8 +403,7 @@ class MemoryTable(Base):
 
 
 class MemoryLinkTable(Base):
-    """
-    Bidirectional links table for memories
+    """Bidirectional links table for memories
     """
 
     __tablename__ = "memory_links"
@@ -426,7 +414,7 @@ class MemoryLinkTable(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -438,8 +426,7 @@ class MemoryLinkTable(Base):
 
 
 class ProjectsTable(Base):
-    """
-    Project meta data for organizing memories
+    """Project meta data for organizing memories
     """
 
     __tablename__ = "projects"
@@ -458,13 +445,13 @@ class ProjectsTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -514,8 +501,7 @@ class ProjectsTable(Base):
 
 
 class CodeArtifactsTable(Base):
-    """
-    Table for maintaining artifacts
+    """Table for maintaining artifacts
 
     Supports dual relationships:
     - Direct project link (project_id) for project-specific code
@@ -538,13 +524,13 @@ class CodeArtifactsTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -571,8 +557,7 @@ class CodeArtifactsTable(Base):
 
 
 class DocumentsTable(Base):
-    """
-    Table for storing text documents and long-form content referenced by memories
+    """Table for storing text documents and long-form content referenced by memories
 
     Supports dual relationships:
     - Direct project link (project_id) for project-specific documents
@@ -597,13 +582,13 @@ class DocumentsTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
     # Relationships
@@ -629,8 +614,7 @@ class DocumentsTable(Base):
 
 
 class FilesTable(Base):
-    """
-    Table for storing binary files (images, PDFs, fonts, etc.)
+    """Table for storing binary files (images, PDFs, fonts, etc.)
 
     Supports dual relationships:
     - Direct project link (project_id) for project-specific files
@@ -655,13 +639,13 @@ class FilesTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -693,8 +677,7 @@ class FilesTable(Base):
 
 
 class SkillsTable(Base):
-    """
-    Table for storing reusable skills/capabilities that can be linked to memories,
+    """Table for storing reusable skills/capabilities that can be linked to memories,
     files, code artifacts, and documents.
 
     Supports dual relationships:
@@ -728,13 +711,13 @@ class SkillsTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -772,8 +755,7 @@ class SkillsTable(Base):
 
 
 class EntitiesTable(Base):
-    """
-    Table for storing entities (organizations, individuals, teams, devices, etc.)
+    """Table for storing entities (organizations, individuals, teams, devices, etc.)
     that can be referenced by memories and related to each other through relationships
 
     Supports many-to-many relationships:
@@ -797,13 +779,13 @@ class EntitiesTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -843,8 +825,7 @@ class EntitiesTable(Base):
 
     @property
     def project_ids(self) -> list[int]:
-        """
-        Compute project IDs from projects relationship.
+        """Compute project IDs from projects relationship.
 
         Returns:
             List of project IDs, or empty list if relationship not loaded
@@ -866,8 +847,7 @@ class EntitiesTable(Base):
 
 
 class EntityRelationshipsTable(Base):
-    """
-    Table for storing relationships between entities (knowledge graph edges)
+    """Table for storing relationships between entities (knowledge graph edges)
 
     Supports weighted, typed relationships with confidence scores and metadata
     for building a rich knowledge graph of entity connections.
@@ -891,22 +871,22 @@ class EntityRelationshipsTable(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
     # Relationships
     source_entity: Mapped["EntitiesTable"] = relationship(
-        "EntitiesTable", foreign_keys=[source_entity_id], back_populates="outgoing_relationships"
+        "EntitiesTable", foreign_keys=[source_entity_id], back_populates="outgoing_relationships",
     )
     target_entity: Mapped["EntitiesTable"] = relationship(
-        "EntitiesTable", foreign_keys=[target_entity_id], back_populates="incoming_relationships"
+        "EntitiesTable", foreign_keys=[target_entity_id], back_populates="incoming_relationships",
     )
 
     __table_args__ = (
@@ -940,13 +920,13 @@ class PlansTable(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -987,13 +967,13 @@ class TasksTable(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -1045,13 +1025,13 @@ class CriteriaTable(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -1075,7 +1055,7 @@ class TaskDependenciesTable(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 
@@ -1092,8 +1072,7 @@ class TaskDependenciesTable(Base):
 
 
 class ActivityLogTable(Base):
-    """
-    Table for storing activity events (Issue #7: Event-driven Architecture).
+    """Table for storing activity events (Issue #7: Event-driven Architecture).
 
     Tracks all entity lifecycle events (created, updated, deleted) and optionally
     read/query operations when ACTIVITY_TRACK_READS is enabled.
@@ -1108,7 +1087,7 @@ class ActivityLogTable(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
     )
 
     # Event identification
@@ -1130,7 +1109,7 @@ class ActivityLogTable(Base):
     # Timestamp
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
         nullable=False,
     )
 

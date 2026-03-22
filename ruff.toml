@@ -10,11 +10,12 @@ ignore = [
     "ANN102",
     "PLR0913",
     "FIX002",
+    "INP001",
 ]
 
 [lint.per-file-ignores]
 "__init__.py" = ["F401", "F403", "F405"]
-"tests/**/*" = ["PLR0915", "ANN001", "ANN201", "ANN202"]
+"tests/**/*" = ["PLR0915", "ANN001", "ANN201", "ANN202", "S101", "PLR2004"]
 
 [lint.pydocstyle]
 convention = "google"

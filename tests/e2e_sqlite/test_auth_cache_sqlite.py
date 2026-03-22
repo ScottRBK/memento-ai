@@ -1,5 +1,4 @@
-"""
-End-to-end tests for token caching with SQLite backend
+"""End-to-end tests for token caching with SQLite backend
 
 Tests complete token cache flow with real SQLite database to validate
 cache integration doesn't interfere with user provisioning.
@@ -8,11 +7,12 @@ Note: The token cache itself is in-memory and doesn't persist to SQLite.
 These tests validate that the cache works correctly alongside the real
 database for user management.
 """
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
+from starlette.requests import Request
 
 from app.middleware.auth import TokenCache, get_user_from_request
-from starlette.requests import Request
 
 
 class MockAccessToken:
@@ -34,8 +34,7 @@ def create_mock_request(token: str) -> Request:
 
 @pytest.mark.asyncio
 async def test_token_cache_with_real_database(http_client, sqlite_app):
-    """
-    Test that token caching works correctly with real SQLite database
+    """Test that token caching works correctly with real SQLite database
 
     Validates:
     - Cache reduces verify_token calls
@@ -53,7 +52,7 @@ async def test_token_cache_with_real_database(http_client, sqlite_app):
         return MockAccessToken(claims={
             "sub": "sqlite-cache-e2e-user",
             "name": "SQLite Cache E2E",
-            "email": "cache-e2e@sqlite.test"
+            "email": "cache-e2e@sqlite.test",
         })
 
     mock_auth = AsyncMock()
@@ -64,7 +63,7 @@ async def test_token_cache_with_real_database(http_client, sqlite_app):
     sqlite_app.auth = mock_auth
     sqlite_app.token_cache = cache
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         request = create_mock_request("e2e-cache-test-token")
 
         # First call - should verify token and provision user to SQLite
@@ -90,8 +89,7 @@ async def test_token_cache_with_real_database(http_client, sqlite_app):
 
 @pytest.mark.asyncio
 async def test_sequential_requests_use_cache(http_client, sqlite_app):
-    """
-    Test that sequential requests with same token use cache
+    """Test that sequential requests with same token use cache
 
     Validates:
     - First request provisions user and populates cache
@@ -108,7 +106,7 @@ async def test_sequential_requests_use_cache(http_client, sqlite_app):
         return MockAccessToken(claims={
             "sub": "sequential-user",
             "name": "Sequential Test",
-            "email": "sequential@test.com"
+            "email": "sequential@test.com",
         })
 
     mock_auth = AsyncMock()
@@ -118,7 +116,7 @@ async def test_sequential_requests_use_cache(http_client, sqlite_app):
     sqlite_app.auth = mock_auth
     sqlite_app.token_cache = cache
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         # First request - provisions user and populates cache
         request1 = create_mock_request("sequential-token")
         user1 = await get_user_from_request(request1, sqlite_app)
@@ -139,16 +137,16 @@ async def test_sequential_requests_use_cache(http_client, sqlite_app):
 
 @pytest.mark.asyncio
 async def test_cache_expiration_re_provisions_user(http_client, sqlite_app):
-    """
-    Test that expired cache entries trigger re-validation
+    """Test that expired cache entries trigger re-validation
 
     Validates:
     - Expired entries are evicted
     - Re-validation creates new cache entry
     - User still retrieved correctly from database
     """
-    from app.config.settings import settings
     import time
+
+    from app.config.settings import settings
 
     call_count = 0
 
@@ -158,7 +156,7 @@ async def test_cache_expiration_re_provisions_user(http_client, sqlite_app):
         return MockAccessToken(claims={
             "sub": "expiry-test-user",
             "name": "Expiry Test",
-            "email": "expiry@test.com"
+            "email": "expiry@test.com",
         })
 
     mock_auth = AsyncMock()
@@ -169,7 +167,7 @@ async def test_cache_expiration_re_provisions_user(http_client, sqlite_app):
     sqlite_app.auth = mock_auth
     sqlite_app.token_cache = cache
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         request = create_mock_request("expiry-test-token")
 
         # First call

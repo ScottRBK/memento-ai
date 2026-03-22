@@ -1,5 +1,4 @@
-"""
-In-process async pub/sub event bus with pattern matching and SSE streaming.
+"""In-process async pub/sub event bus with pattern matching and SSE streaming.
 
 The event bus provides:
 - Pattern matching for subscriptions (e.g., "memory.*", "*.deleted", "*.*")
@@ -27,8 +26,7 @@ EventHandler = Callable[[ActivityEvent], Awaitable[None]]
 
 
 class EventBus:
-    """
-    In-process async pub/sub event bus with pattern matching and SSE streaming.
+    """In-process async pub/sub event bus with pattern matching and SSE streaming.
 
     Supports two subscription patterns:
     1. Handler-based (fire-and-forget): subscribe(pattern, handler)
@@ -55,8 +53,7 @@ class EventBus:
     """
 
     def __init__(self, max_queue_size: int = 1000) -> None:
-        """
-        Initialize an empty event bus.
+        """Initialize an empty event bus.
 
         Args:
             max_queue_size: Maximum events per SSE subscriber queue (backpressure).
@@ -74,12 +71,11 @@ class EventBus:
 
         logger.debug(
             "EventBus initialized",
-            extra={"max_queue_size": max_queue_size}
+            extra={"max_queue_size": max_queue_size},
         )
 
     def subscribe(self, pattern: str, handler: EventHandler) -> None:
-        """
-        Subscribe a handler to events matching the given pattern.
+        """Subscribe a handler to events matching the given pattern.
 
         Args:
             pattern: fnmatch-style pattern (e.g., "memory.*", "*.deleted", "*.*")
@@ -95,8 +91,7 @@ class EventBus:
         logger.debug(f"Subscribed handler to pattern: {pattern}")
 
     def unsubscribe(self, pattern: str, handler: EventHandler) -> bool:
-        """
-        Unsubscribe a handler from a pattern.
+        """Unsubscribe a handler from a pattern.
 
         Args:
             pattern: The pattern to unsubscribe from
@@ -115,8 +110,7 @@ class EventBus:
         return False
 
     async def emit(self, event: ActivityEvent) -> None:
-        """
-        Emit an event to all matching subscribers.
+        """Emit an event to all matching subscribers.
 
         Events are dispatched asynchronously using asyncio.create_task(),
         so this method returns immediately without waiting for handlers.
@@ -139,7 +133,7 @@ class EventBus:
 
         if matching_handlers:
             logger.debug(
-                f"Dispatching {event_name} to {len(matching_handlers)} handler(s)"
+                f"Dispatching {event_name} to {len(matching_handlers)} handler(s)",
             )
 
             # Fire-and-forget dispatch to each handler
@@ -156,10 +150,9 @@ class EventBus:
             await self._emit_to_streams(event)
 
     async def _safe_dispatch(
-        self, handler: EventHandler, event: ActivityEvent
+        self, handler: EventHandler, event: ActivityEvent,
     ) -> None:
-        """
-        Dispatch event to handler with error isolation.
+        """Dispatch event to handler with error isolation.
 
         Any exception from the handler is logged but not propagated,
         ensuring one failing handler doesn't affect others.
@@ -182,8 +175,7 @@ class EventBus:
             )
 
     async def wait_for_pending(self, timeout: float | None = None) -> None:
-        """
-        Wait for all pending event handlers to complete.
+        """Wait for all pending event handlers to complete.
 
         This is primarily useful for testing to ensure all async
         handlers have finished before making assertions.
@@ -201,8 +193,7 @@ class EventBus:
             )
 
     def subscriber_count(self, pattern: str | None = None) -> int:
-        """
-        Get the number of subscribers.
+        """Get the number of subscribers.
 
         Args:
             pattern: If provided, count only subscribers for this pattern.
@@ -227,10 +218,9 @@ class EventBus:
     # =========================================================================
 
     async def subscribe_stream(
-        self, user_id: UUID
+        self, user_id: UUID,
     ) -> AsyncGenerator[dict[str, Any], None]:
-        """
-        Subscribe to events for a user via async generator (for SSE streaming).
+        """Subscribe to events for a user via async generator (for SSE streaming).
 
         Events are filtered to only those belonging to the specified user.
         Each event includes a sequence number for gap detection.
@@ -247,7 +237,7 @@ class EventBus:
         """
         user_id_str = str(user_id)
         queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(
-            maxsize=self._max_queue_size
+            maxsize=self._max_queue_size,
         )
 
         async with self._stream_lock:
@@ -257,7 +247,7 @@ class EventBus:
 
         logger.info(
             "SSE subscriber connected",
-            extra={"user_id": user_id_str, "subscriber_count": len(self._stream_subscribers[user_id_str])}
+            extra={"user_id": user_id_str, "subscriber_count": len(self._stream_subscribers[user_id_str])},
         )
 
         try:
@@ -275,12 +265,11 @@ class EventBus:
                         del self._stream_subscribers[user_id_str]
             logger.info(
                 "SSE subscriber disconnected",
-                extra={"user_id": user_id_str}
+                extra={"user_id": user_id_str},
             )
 
     async def _emit_to_streams(self, event: ActivityEvent) -> None:
-        """
-        Push event to all stream subscribers for this user.
+        """Push event to all stream subscribers for this user.
 
         Adds a sequence number for client gap detection.
         Drops events if queue is full (backpressure).
@@ -318,12 +307,11 @@ class EventBus:
                     "seq": seq,
                     "event_type": f"{event.entity_type}.{event.action}",
                     "dropped_count": dropped_count,
-                }
+                },
             )
 
     def _next_seq(self, user_id: str) -> int:
-        """
-        Get the next sequence number for a user.
+        """Get the next sequence number for a user.
 
         Sequence numbers are monotonically increasing per user.
         They reset when the server restarts.
@@ -340,8 +328,7 @@ class EventBus:
         return self._sequences[user_id]
 
     def stream_subscriber_count(self, user_id: str | None = None) -> int:
-        """
-        Get the number of SSE stream subscribers.
+        """Get the number of SSE stream subscribers.
 
         Args:
             user_id: If provided, count only subscribers for this user.
@@ -355,8 +342,7 @@ class EventBus:
         return sum(len(queues) for queues in self._stream_subscribers.values())
 
     def get_current_seq(self, user_id: str) -> int:
-        """
-        Get the current sequence number for a user (for debugging/monitoring).
+        """Get the current sequence number for a user (for debugging/monitoring).
 
         Args:
             user_id: User ID string

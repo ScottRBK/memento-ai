@@ -1,22 +1,21 @@
-"""
-MCP Skill tools - FastMCP tool definitions for skill operations
+"""MCP Skill tools - FastMCP tool definitions for skill operations
 
 Skills are procedural memory: step-by-step instructions, examples, and
 context that allow an agent to perform a particular task.  Implements a
 superset of the Agent Skills open standard (agentskills.io).
 """
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
 from app.models.skill_models import (
     Skill,
     SkillCreate,
     SkillUpdate,
 )
-from app.middleware.auth import get_user_from_auth
-from app.config.logging_config import logging
-from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 
 logger = logging.getLogger(__name__)
@@ -39,8 +38,7 @@ def register(mcp: FastMCP):
         importance: int = 7,
         project_id: int = None,
     ) -> Skill:
-        """
-        Create a skill for storing procedural knowledge and agent capabilities.
+        """Create a skill for storing procedural knowledge and agent capabilities.
 
         WHAT: Stores step-by-step instructions, examples, and context that enable
         an agent to perform a specific task. Skills follow the Agent Skills open
@@ -63,7 +61,7 @@ def register(mcp: FastMCP):
         documentation (use create_document), or code snippets (use create_code_artifact).
         Skills are specifically for procedural "how-to" knowledge.
 
-        EXAMPLES:
+        Examples:
         create_skill(
             name="code-review",
             description="Systematic code review process for pull requests",
@@ -97,10 +95,9 @@ def register(mcp: FastMCP):
         Returns:
             Complete Skill with ID, timestamps, and metadata
         """
-
         logger.info("MCP Tool Called -> create_skill", extra={
             "name": name[:50],
-            "importance": importance
+            "importance": importance,
         })
 
         user = await get_user_from_auth(ctx)
@@ -132,15 +129,14 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to create skill", exc_info=True)
-            raise ToolError(f"Failed to create skill: {str(e)}")
+            raise ToolError(f"Failed to create skill: {e!s}")
 
     @mcp.tool()
     async def get_skill(
         skill_id: int,
         ctx: Context,
     ) -> Skill:
-        """
-        Retrieve skill by ID with complete content.
+        """Retrieve skill by ID with complete content.
 
         WHAT: Returns the full skill including markdown content, allowed tools,
         compatibility requirements, metadata, and all other fields.
@@ -164,9 +160,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if skill not found or access denied
         """
-
         logger.info("MCP Tool Called -> get_skill", extra={
-            "skill_id": skill_id
+            "skill_id": skill_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -184,7 +179,7 @@ def register(mcp: FastMCP):
             raise ToolError(f"Skill {skill_id} not found")
         except Exception as e:
             logger.error("Failed to get skill", exc_info=True)
-            raise ToolError(f"Failed to retrieve skill: {str(e)}")
+            raise ToolError(f"Failed to retrieve skill: {e!s}")
 
     @mcp.tool()
     async def list_skills(
@@ -193,8 +188,7 @@ def register(mcp: FastMCP):
         tags: list[str] = None,
         importance_threshold: int = None,
     ) -> dict:
-        """
-        List skills with optional filtering.
+        """List skills with optional filtering.
 
         WHAT: Returns lightweight skill summaries (excludes full content) sorted
         by creation date (newest first).
@@ -210,7 +204,7 @@ def register(mcp: FastMCP):
         NOT-USE: When you already have a skill ID and need full content (use get_skill).
         For semantic search by description (use search_skills).
 
-        EXAMPLES:
+        Examples:
         - All deployment skills: list_skills(tags=["deployment"])
         - High-importance skills: list_skills(importance_threshold=8)
         - Project skills: list_skills(project_id=5, tags=["testing"])
@@ -232,11 +226,10 @@ def register(mcp: FastMCP):
                 }
             }
         """
-
         logger.info("MCP Tool Called -> list_skills", extra={
             "project_id": project_id,
             "tags": tags,
-            "importance_threshold": importance_threshold
+            "importance_threshold": importance_threshold,
         })
 
         user = await get_user_from_auth(ctx)
@@ -257,12 +250,12 @@ def register(mcp: FastMCP):
                     "project_id": project_id,
                     "tags": tags,
                     "importance_threshold": importance_threshold,
-                }
+                },
             }
 
         except Exception as e:
             logger.error("Failed to list skills", exc_info=True)
-            raise ToolError(f"Failed to list skills: {str(e)}")
+            raise ToolError(f"Failed to list skills: {e!s}")
 
     @mcp.tool()
     async def update_skill(
@@ -279,8 +272,7 @@ def register(mcp: FastMCP):
         importance: int = None,
         project_id: int = None,
     ) -> Skill:
-        """
-        Update skill (PATCH semantics - only provided fields changed).
+        """Update skill (PATCH semantics - only provided fields changed).
 
         WHAT: Modifies an existing skill's content, metadata, or associations.
 
@@ -295,7 +287,7 @@ def register(mcp: FastMCP):
 
         NOT-USE: Creating new skills (use create_skill).
 
-        EXAMPLES:
+        Examples:
         - Fix instructions: update_skill(skill_id=5, content="corrected steps...")
         - Update metadata: update_skill(skill_id=5, description="New description")
         - Change importance: update_skill(skill_id=5, importance=9)
@@ -321,9 +313,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if skill not found or update fails
         """
-
         logger.info("MCP Tool Called -> update_skill", extra={
-            "skill_id": skill_id
+            "skill_id": skill_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -360,15 +351,14 @@ def register(mcp: FastMCP):
             raise ToolError(f"Skill {skill_id} not found")
         except Exception as e:
             logger.error("Failed to update skill", exc_info=True)
-            raise ToolError(f"Failed to update skill: {str(e)}")
+            raise ToolError(f"Failed to update skill: {e!s}")
 
     @mcp.tool()
     async def delete_skill(
         skill_id: int,
         ctx: Context,
     ) -> dict:
-        """
-        Delete skill (cascades memory and artifact associations).
+        """Delete skill (cascades memory and artifact associations).
 
         WHAT: Permanently removes a skill and its associations with memories,
         files, code artifacts, and documents.
@@ -391,9 +381,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if skill not found
         """
-
         logger.info("MCP Tool Called -> delete_skill", extra={
-            "skill_id": skill_id
+            "skill_id": skill_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -414,7 +403,7 @@ def register(mcp: FastMCP):
             raise
         except Exception as e:
             logger.error("Failed to delete skill", exc_info=True)
-            raise ToolError(f"Failed to delete skill: {str(e)}")
+            raise ToolError(f"Failed to delete skill: {e!s}")
 
     @mcp.tool()
     async def search_skills(
@@ -423,8 +412,7 @@ def register(mcp: FastMCP):
         k: int = 5,
         project_id: int = None,
     ) -> dict:
-        """
-        Search skills by semantic similarity.
+        """Search skills by semantic similarity.
 
         WHAT: Finds skills whose descriptions are semantically similar to the
         query string, ranked by relevance.
@@ -439,7 +427,7 @@ def register(mcp: FastMCP):
         NOT-USE: For browsing all skills (use list_skills). For exact ID lookup
         (use get_skill).
 
-        EXAMPLES:
+        Examples:
         - search_skills(query="how to deploy to production")
         - search_skills(query="code review best practices", k=3)
         - search_skills(query="data pipeline", project_id=5)
@@ -457,11 +445,10 @@ def register(mcp: FastMCP):
                 "total_count": int
             }
         """
-
         logger.info("MCP Tool Called -> search_skills", extra={
             "query": query[:50],
             "k": k,
-            "project_id": project_id
+            "project_id": project_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -483,7 +470,7 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to search skills", exc_info=True)
-            raise ToolError(f"Failed to search skills: {str(e)}")
+            raise ToolError(f"Failed to search skills: {e!s}")
 
     @mcp.tool()
     async def import_skill(
@@ -492,8 +479,7 @@ def register(mcp: FastMCP):
         project_id: int = None,
         importance: int = 7,
     ) -> Skill:
-        """
-        Import a skill from Agent Skills markdown format (SKILL.md).
+        """Import a skill from Agent Skills markdown format (SKILL.md).
 
         WHAT: Parses YAML frontmatter between --- delimiters and extracts
         standard fields per the Agent Skills specification, then creates the
@@ -510,7 +496,7 @@ def register(mcp: FastMCP):
 
         NOT-USE: For creating skills from scratch (use create_skill directly).
 
-        EXAMPLES:
+        Examples:
         import_skill(
             skill_md=\"\"\"---
         name: code-review
@@ -540,10 +526,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if frontmatter is missing, malformed, or required fields absent
         """
-
         logger.info("MCP Tool Called -> import_skill", extra={
             "content_length": len(skill_md),
-            "importance": importance
+            "importance": importance,
         })
 
         user = await get_user_from_auth(ctx)
@@ -560,20 +545,19 @@ def register(mcp: FastMCP):
             return skill
 
         except ValueError as e:
-            raise ToolError(f"Invalid skill markdown: {str(e)}")
+            raise ToolError(f"Invalid skill markdown: {e!s}")
         except ValidationError as e:
             raise ToolError(f"Invalid skill data: {e}")
         except Exception as e:
             logger.error("Failed to import skill", exc_info=True)
-            raise ToolError(f"Failed to import skill: {str(e)}")
+            raise ToolError(f"Failed to import skill: {e!s}")
 
     @mcp.tool()
     async def export_skill(
         skill_id: int,
         ctx: Context,
     ) -> str:
-        """
-        Export a skill to Agent Skills markdown format (SKILL.md).
+        """Export a skill to Agent Skills markdown format (SKILL.md).
 
         WHAT: Generates a standards-compliant SKILL.md string with YAML
         frontmatter and markdown body that can be shared or imported elsewhere.
@@ -597,9 +581,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if skill not found
         """
-
         logger.info("MCP Tool Called -> export_skill", extra={
-            "skill_id": skill_id
+            "skill_id": skill_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -617,7 +600,7 @@ def register(mcp: FastMCP):
             raise ToolError(f"Skill {skill_id} not found")
         except Exception as e:
             logger.error("Failed to export skill", exc_info=True)
-            raise ToolError(f"Failed to export skill: {str(e)}")
+            raise ToolError(f"Failed to export skill: {e!s}")
 
     @mcp.tool()
     async def link_skill_to_memory(
@@ -625,8 +608,7 @@ def register(mcp: FastMCP):
         memory_id: int,
         ctx: Context,
     ) -> dict:
-        """
-        Link skill to memory (establishes reference relationship).
+        """Link skill to memory (establishes reference relationship).
 
         WHAT: Creates a bidirectional association between a skill and a memory
         via the memory_skill_association table.
@@ -639,7 +621,7 @@ def register(mcp: FastMCP):
         safe to call multiple times (won't create duplicates). Both skill and
         memory must exist and be owned by the user.
 
-        EXAMPLES:
+        Examples:
         # After creating a skill about deployment:
         link_skill_to_memory(skill_id=5, memory_id=123)
 
@@ -657,10 +639,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If skill or memory not found or not owned by user
         """
-
         logger.info("MCP Tool Called -> link_skill_to_memory", extra={
             "skill_id": skill_id,
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -679,7 +660,7 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to link skill to memory", exc_info=True)
-            raise ToolError(f"Failed to link skill to memory: {str(e)}")
+            raise ToolError(f"Failed to link skill to memory: {e!s}")
 
     @mcp.tool()
     async def unlink_skill_from_memory(
@@ -687,8 +668,7 @@ def register(mcp: FastMCP):
         memory_id: int,
         ctx: Context,
     ) -> dict:
-        """
-        Unlink skill from memory (removes reference relationship).
+        """Unlink skill from memory (removes reference relationship).
 
         WHAT: Removes the association between a skill and a memory.
 
@@ -710,10 +690,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If unlinking fails
         """
-
         logger.info("MCP Tool Called -> unlink_skill_from_memory", extra={
             "skill_id": skill_id,
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -730,4 +709,4 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to unlink skill from memory", exc_info=True)
-            raise ToolError(f"Failed to unlink skill from memory: {str(e)}")
+            raise ToolError(f"Failed to unlink skill from memory: {e!s}")

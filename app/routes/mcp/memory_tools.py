@@ -1,31 +1,29 @@
+"""MCP Memory tools - FastMCP tool definitions for memory operations
 """
-MCP Memory tools - FastMCP tool definitions for memory operations
-"""
-from typing import List
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
+from app.config.logging_config import logging
+from app.config.settings import settings
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
 from app.models.memory_models import (
     Memory,
     MemoryCreate,
     MemoryCreateResponse,
-    MemoryUpdate,
     MemoryQueryRequest,
     MemoryQueryResult,
+    MemoryUpdate,
 )
-from app.middleware.auth import get_user_from_auth
-from app.config.logging_config import logging
-from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
-from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 def register(mcp: FastMCP):
     """Register the memory tools - services accessed via context at call time"""
-    
+
     @mcp.tool()
     async def create_memory(
         title: str,
@@ -46,8 +44,7 @@ def register(mcp: FastMCP):
         encoding_agent: str = None,
         encoding_version: str = None,
     ) -> MemoryCreateResponse:
-        """
-        Create atomic memory with auto-linking and lifecycle management
+        """Create atomic memory with auto-linking and lifecycle management
 
         WHAT: Stores single concepts (<400 words), auto-links to similar memories.
 
@@ -96,9 +93,8 @@ def register(mcp: FastMCP):
             {ID, title, linked_memory_ids, project_ids, code_artifact_ids, document_ids}
 
         """
-
         logger.info("MCP Tool Called -> create memory", extra={
-            "title": title
+            "title": title,
         })
 
         user = await get_user_from_auth(ctx)
@@ -126,7 +122,7 @@ def register(mcp: FastMCP):
             memory_service = ctx.fastmcp.memory_service
             memory, similar_memories = await memory_service.create_memory(
                 user_id=user.id,
-                memory_data=memory_data
+                memory_data=memory_data,
             )
 
             logger.info("MCP Tool Call -> create memory completed", extra={
@@ -134,7 +130,7 @@ def register(mcp: FastMCP):
                 "memory_id": memory.id,
                 "title": memory.title,
                 "linked_memory_ids": memory.linked_memory_ids,
-                "similar_memories_count": len(similar_memories)
+                "similar_memories_count": len(similar_memories),
             })
 
             return MemoryCreateResponse(
@@ -144,7 +140,7 @@ def register(mcp: FastMCP):
                 project_ids=memory.project_ids,
                 code_artifact_ids=memory.code_artifact_ids,
                 document_ids=memory.document_ids,
-                similar_memories=similar_memories
+                similar_memories=similar_memories,
             )
 
         except NotFoundError as e:
@@ -152,16 +148,16 @@ def register(mcp: FastMCP):
                 "user_id": user.id,
                 "title": title[:50],
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - create_memory validation error", extra={
                 "user_id": user.id,
                 "title": title[:50],
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
@@ -169,10 +165,10 @@ def register(mcp: FastMCP):
                 "user_id": user.id,
                 "title": title[:50],
                 "error_type": type(e).__name__,
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}: {str(e)}")
-        
+            raise ToolError(f"INTERNAL_ERROR: Memory creation failed - {type(e).__name__}: {e!s}")
+
     @mcp.tool()
     async def query_memory(
         query: str,
@@ -183,10 +179,9 @@ def register(mcp: FastMCP):
         max_links_per_primary: int = 5,
         importance_threshold: int = None,
         project_ids: list[int] = None,
-        strict_project_filter: bool = False
+        strict_project_filter: bool = False,
     ) -> MemoryQueryResult:
-        """
-        Search across memories 
+        """Search across memories
 
         WHEN: User asks about past information, wants to recall discussions, needs context from memory system, you are performing a task that you may
         have performed previously and previous knowledge would be useful (for example implementing planning a new solution and requiring architectual
@@ -220,22 +215,21 @@ def register(mcp: FastMCP):
             total_count: int total count of memories
             token_count: token count of retrieved memories
             truncated: boolean to indicate if the memories have been truncated as a result of the token budget
-        """  
-        
+        """
         try:
             logger.info("MCP Tool -> query_memory", extra={
                 "query": query[:50],
                 "k": k,
-                "include_links": include_links
+                "include_links": include_links,
             })
 
             user = await get_user_from_auth(ctx)
-            
+
             k = max(1, min(k, 20))
-            
+
             if importance_threshold is not None:
                 importance_threshold = max(1, min(importance_threshold, 10))
-                
+
            # Access memory service via FastMCP context
             memory_service = ctx.fastmcp.memory_service
             result = await memory_service.query_memory(
@@ -249,39 +243,39 @@ def register(mcp: FastMCP):
                     max_links_per_primary=max_links_per_primary,
                     importance_threshold=importance_threshold,
                     project_ids=project_ids,
-                    strict_project_filter=strict_project_filter
-                )
+                    strict_project_filter=strict_project_filter,
+                ),
             )
-            
+
             logger.info("MCP Tool -> query memory completed", extra={
                 "total_memories_returned": result.total_count,
-                "token_count": result.token_count
+                "token_count": result.token_count,
             })
-            
+
             return result
         except NotFoundError as e:
             logger.debug("MCP Tool - query_memory validation error", extra={
                 "query": query[:50],
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - query_memory validation error", extra={
                 "query": query[:50],
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
             logger.error("MCP Tool -> query memory failed", exc_info=True, extra={
                 "query": query[:50],
                 "error_type": type(e).__name__,
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {str(e)}")
-        
+            raise ToolError(f"INTERNAL_ERROR: Memory query failed - {type(e).__name__}: {e!s}")
+
     @mcp.tool()
     async def update_memory(
         memory_id: int,
@@ -303,8 +297,7 @@ def register(mcp: FastMCP):
         encoding_agent: str | None = None,
         encoding_version: str | None = None,
     ) -> Memory:
-        """
-        Update existing memory fields (PATCH semantics)
+        """Update existing memory fields (PATCH semantics)
 
         WHEN: You or the User wants to:
         1. modify memory details, correct information, update importance or refresh context.
@@ -366,32 +359,32 @@ def register(mcp: FastMCP):
                 confidence=confidence,
                 encoding_agent=encoding_agent,
                 encoding_version=encoding_version,
-            ) 
-            
+            )
+
             updated_memory = MemoryUpdate(**updated_dict)
-            
+
             memory_service = ctx.fastmcp.memory_service
             refreshed_memory = await memory_service.update_memory(
                 user_id=user.id,
                 memory_id=memory_id,
                 updated_memory=updated_memory,
             )
-            
+
             return refreshed_memory
 
         except NotFoundError as e:
             logger.debug("MCP Tool - update_memory validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - update_memory validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
@@ -400,16 +393,15 @@ def register(mcp: FastMCP):
                 "error_type": type(e).__name__,
                 "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {str(e)}")
-        
+            raise ToolError(f"INTERNAL_ERROR: Memory update failed - {type(e).__name__}: {e!s}")
+
     @mcp.tool()
     async def link_memories(
         memory_id: int,
         related_ids: list[int],
         ctx: Context,
     ) -> list[int]:
-        """
-        Manually create bidirectional links between memories
+        """Manually create bidirectional links between memories
 
         WHEN: You or the user decide that a memory wants to connect a related concept not caught by auto-linking,
         establish a relationship between memories, or build a knowledge graph structure.
@@ -427,36 +419,35 @@ def register(mcp: FastMCP):
         Returns:
             List of target memory IDs that were successfully linked
         """
-        
         try:
             logger.info("MCP Tool -> link_memories", extra={
                 "memory_id": memory_id,
-                "related_ids": related_ids
+                "related_ids": related_ids,
             })
 
             user = await get_user_from_auth(ctx)
-            
+
             if not related_ids:
                 raise ToolError("related_ids cannot be empty")
-            
+
             related_ids = [rid for rid in related_ids if rid !=memory_id]
 
             if not related_ids:
                 raise ToolError("Cannot link memory to itself")
-            
+
             memory_service = ctx.fastmcp.memory_service
-            
+
             links_created = await memory_service.link_memories(
                 user_id=user.id,
                 memory_id=memory_id,
                 related_ids=related_ids,
             )
-            
+
             logger.info("MCP Tool - memories linked", extra={
                 "memory_id": memory_id,
-                "memories_linked": links_created
+                "memories_linked": links_created,
             })
-            
+
             return links_created
 
         except NotFoundError as e:
@@ -464,16 +455,16 @@ def register(mcp: FastMCP):
                 "memory_id": memory_id,
                 "related_ids": related_ids,
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - link_memories validation error", extra={
                 "memory_id": memory_id,
                 "related_ids": related_ids,
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
@@ -482,15 +473,14 @@ def register(mcp: FastMCP):
                 "error_type": type(e).__name__,
                 "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {str(e)}")
-        
+            raise ToolError(f"INTERNAL_ERROR: Memory linking failed - {type(e).__name__}: {e!s}")
+
     @mcp.tool()
     async def get_memory(
         memory_id: int,
         ctx: Context,
     ) -> Memory:
-        """
-        Retreive complete memory details by ID
+        """Retreive complete memory details by ID
 
         WHEN: You require the full details of a specific memory and you already have an ID, for example from receiving a list of linked memories
         from a project, document or code artifact.
@@ -508,18 +498,18 @@ def register(mcp: FastMCP):
         """
         try:
             logger.info("MCP Tool -> get_memory", extra={
-                "memory_id": memory_id
-            })   
-            
+                "memory_id": memory_id,
+            })
+
             user = await get_user_from_auth(ctx)
-            
+
             memory_service = ctx.fastmcp.memory_service
 
             memory = await memory_service.get_memory(user_id=user.id, memory_id=memory_id)
-            
+
             logger.info("MCP Tool - succesfully retrieved memory", extra={
-                "memory_id": memory.id, 
-                "user_id": user.id
+                "memory_id": memory.id,
+                "user_id": user.id,
             })
 
             return memory
@@ -528,15 +518,15 @@ def register(mcp: FastMCP):
             logger.debug("MCP Tool - get_memory validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - get_memory validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
@@ -545,16 +535,15 @@ def register(mcp: FastMCP):
                 "error_type": type(e).__name__,
                 "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {str(e)}")
+            raise ToolError(f"INTERNAL_ERROR: Retreiving memory failed - {type(e).__name__}: {e!s}")
 
     @mcp.tool()
     async def get_recent_memories(
         ctx: Context,
         limit: int = 10,
-        project_ids: list[int] = None
+        project_ids: list[int] = None,
     ) -> list[Memory]:
-        """
-        Retrieve most recent memories by creation timestamp
+        """Retrieve most recent memories by creation timestamp
 
         WHEN: You want to see what was recently learned, created, or discussed. Useful for getting context on recent
         work, reviewing recent decisions, or understanding what was added to memory recently.
@@ -575,7 +564,7 @@ def register(mcp: FastMCP):
         try:
             logger.info("MCP Tool -> get_recent_memories", extra={
                 "limit": limit,
-                "project_ids": project_ids
+                "project_ids": project_ids,
             })
 
             user = await get_user_from_auth(ctx)
@@ -588,12 +577,12 @@ def register(mcp: FastMCP):
             memories, _ = await memory_service.get_recent_memories(
                 user_id=user.id,
                 limit=limit,
-                project_ids=project_ids
+                project_ids=project_ids,
             )
 
             logger.info("MCP Tool - get_recent_memories completed", extra={
                 "count": len(memories),
-                "user_id": str(user.id)
+                "user_id": str(user.id),
             })
 
             return memories
@@ -601,22 +590,22 @@ def register(mcp: FastMCP):
         except NotFoundError as e:
             logger.debug("MCP Tool - get_recent_memories validation error", extra={
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - get_recent_memories validation error", extra={
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
             logger.error("MCP Tool -> get_recent_memories failed", exc_info=True, extra={
                 "error_type": type(e).__name__,
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Retrieving recent memories failed - {type(e).__name__}: {str(e)}")
+            raise ToolError(f"INTERNAL_ERROR: Retrieving recent memories failed - {type(e).__name__}: {e!s}")
 
     @mcp.tool()
     async def mark_memory_obsolete(
@@ -625,8 +614,7 @@ def register(mcp: FastMCP):
         ctx: Context,
         superseded_by: int | None = None,
     ) -> bool:
-        """
-        Mark a memory as obsolete (soft delete for audit trail)
+        """Mark a memory as obsolete (soft delete for audit trail)
 
         WHEN: Memory is outdated, contradicted by newer information, or replaced by better memory. This is a key
         tool for memory management, outdated memories polluting the memory system will hamper your ability to complete your goals.
@@ -649,33 +637,33 @@ def register(mcp: FastMCP):
             logger.info("MCP Tool -> mark_memory_obsolete", extra={
                 "memory_id": memory_id,
             })
-            
+
             user = await get_user_from_auth(ctx)
 
             memory_service = ctx.fastmcp.memory_service
-            
+
             success = await memory_service.mark_memory_obsolete(
                 user_id=user.id,
                 memory_id=memory_id,
                 reason=reason,
-                superseded_by=superseded_by
+                superseded_by=superseded_by,
             )
-            
+
             return success
 
         except NotFoundError as e:
             logger.debug("MCP Tool - mark_memory_obsolete validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "NotFoundError",
-                "error_message": str(e)
+                "error_message": str(e),
             })
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug("MCP Tool - mark_memory_obsolete validation error", extra={
                 "memory_id": memory_id,
                 "error_type": "ValidationError",
-                "error_message": error_details
+                "error_message": error_details,
             })
             raise ToolError(f"VALIDATION_ERROR: {error_details}")
         except Exception as e:
@@ -684,4 +672,4 @@ def register(mcp: FastMCP):
                 "error_type": type(e).__name__,
                 "error_message": str(e),
             })
-            raise ToolError(f"INTERNAL_ERROR: Marking memory obsolete failed - {type(e).__name__}: {str(e)}")
+            raise ToolError(f"INTERNAL_ERROR: Marking memory obsolete failed - {type(e).__name__}: {e!s}")

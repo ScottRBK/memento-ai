@@ -1,14 +1,13 @@
-"""
-Integration tests for FileService with in-memory stubs
+"""Integration tests for FileService with in-memory stubs
 """
 import base64
 
 import pytest
 
-from app.models.file_models import FileCreate, FileUpdate
-from app.models.activity_models import EntityType, ActionType
-from app.models.user_models import User
 from app.exceptions import NotFoundError
+from app.models.activity_models import ActionType, EntityType
+from app.models.file_models import FileCreate, FileUpdate
+from app.models.user_models import User
 
 
 @pytest.fixture
@@ -195,7 +194,7 @@ async def test_update_file_data(test_file_service, test_user):
 async def test_update_file_not_found(test_file_service, test_user):
     with pytest.raises(NotFoundError):
         await test_file_service.update_file(
-            test_user.id, 999, FileUpdate(filename="nope.txt")
+            test_user.id, 999, FileUpdate(filename="nope.txt"),
         )
 
 

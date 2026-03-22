@@ -1,5 +1,4 @@
-"""
-File Service - Business logic for file operations
+"""File Service - Business logic for file operations
 
 This service implements functionality for managing binary files:
     - CRUD operations (create, read, update, delete)
@@ -7,25 +6,25 @@ This service implements functionality for managing binary files:
     - Project association
     - Memory/entity linking (via association tables)
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
 from app.config.settings import settings
+from app.exceptions import NotFoundError
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
-from app.protocols.file_protocol import FileRepository
 from app.models.file_models import (
     File,
     FileCreate,
+    FileSummary,
     FileUpdate,
-    FileSummary
 )
-from app.exceptions import NotFoundError
+from app.protocols.file_protocol import FileRepository
 from app.utils.pydantic_helper import get_changed_fields
 
 if TYPE_CHECKING:
@@ -95,7 +94,7 @@ class FileService:
     async def create_file(
         self,
         user_id: UUID,
-        file_data: FileCreate
+        file_data: FileCreate,
     ) -> File:
         """Create new file
 
@@ -111,21 +110,21 @@ class FileService:
             extra={
                 "filename": file_data.filename[:50],
                 "mime_type": file_data.mime_type,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         file = await self.file_repo.create_file(
             user_id=user_id,
-            file_data=file_data
+            file_data=file_data,
         )
 
         logger.info(
             "file created",
             extra={
                 "file_id": file.id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         await self._emit_event(
@@ -141,7 +140,7 @@ class FileService:
     async def get_file(
         self,
         user_id: UUID,
-        file_id: int
+        file_id: int,
     ) -> File:
         """Get file by ID with ownership verification
 
@@ -159,13 +158,13 @@ class FileService:
             "getting file",
             extra={
                 "file_id": file_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         file = await self.file_repo.get_file_by_id(
             user_id=user_id,
-            file_id=file_id
+            file_id=file_id,
         )
 
         if not file:
@@ -175,8 +174,8 @@ class FileService:
             "file retrieved",
             extra={
                 "file_id": file_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         if settings.ACTIVITY_TRACK_READS and self._event_bus:
@@ -195,7 +194,7 @@ class FileService:
         user_id: UUID,
         project_id: int | None = None,
         mime_type: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[FileSummary]:
         """List files with optional filtering
 
@@ -214,23 +213,23 @@ class FileService:
                 "user_id": str(user_id),
                 "project_id": project_id,
                 "mime_type": mime_type,
-                "tags": tags
-            }
+                "tags": tags,
+            },
         )
 
         files = await self.file_repo.list_files(
             user_id=user_id,
             project_id=project_id,
             mime_type=mime_type,
-            tags=tags
+            tags=tags,
         )
 
         logger.info(
             "files retrieved",
             extra={
                 "count": len(files),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         if settings.ACTIVITY_TRACK_READS and self._event_bus:
@@ -256,7 +255,7 @@ class FileService:
         self,
         user_id: UUID,
         file_id: int,
-        file_data: FileUpdate
+        file_data: FileUpdate,
     ) -> File:
         """Update existing file (PATCH semantics)
 
@@ -277,34 +276,34 @@ class FileService:
             "updating file",
             extra={
                 "file_id": file_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         existing_file = await self.file_repo.get_file_by_id(
             user_id=user_id,
-            file_id=file_id
+            file_id=file_id,
         )
 
         if not existing_file:
             raise NotFoundError(f"File {file_id} not found")
 
         changed_fields = get_changed_fields(
-            input_model=file_data, existing_model=existing_file
+            input_model=file_data, existing_model=existing_file,
         )
 
         file = await self.file_repo.update_file(
             user_id=user_id,
             file_id=file_id,
-            file_data=file_data
+            file_data=file_data,
         )
 
         logger.info(
             "file updated",
             extra={
                 "file_id": file_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         if changed_fields:
@@ -329,7 +328,7 @@ class FileService:
     async def delete_file(
         self,
         user_id: UUID,
-        file_id: int
+        file_id: int,
     ) -> bool:
         """Delete file (cascade removes memory/entity associations)
 
@@ -344,18 +343,18 @@ class FileService:
             "deleting file",
             extra={
                 "file_id": file_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         existing_file = await self.file_repo.get_file_by_id(
             user_id=user_id,
-            file_id=file_id
+            file_id=file_id,
         )
 
         success = await self.file_repo.delete_file(
             user_id=user_id,
-            file_id=file_id
+            file_id=file_id,
         )
 
         if success:
@@ -363,8 +362,8 @@ class FileService:
                 "file deleted",
                 extra={
                     "file_id": file_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             if existing_file:
@@ -380,8 +379,8 @@ class FileService:
                 "file not found for deletion",
                 extra={
                     "file_id": file_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success

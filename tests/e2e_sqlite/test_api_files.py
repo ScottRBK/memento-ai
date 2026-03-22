@@ -1,12 +1,11 @@
-"""
-E2E tests for Files REST API endpoints.
+"""E2E tests for Files REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/files endpoints.
 """
 import base64
-import pytest
 
+import pytest
 
 # Test data
 SMALL_FILE_DATA = base64.b64encode(b"Hello, World!").decode("utf-8")  # 13 bytes

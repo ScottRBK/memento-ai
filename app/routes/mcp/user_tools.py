@@ -1,5 +1,4 @@
-"""
-MCP User Tools - FastMCP tool definitions for user operations
+"""MCP User Tools - FastMCP tool definitions for user operations
 
 This module provides MCP tools for interacting with the Forgetful Memory System
 for user operations.
@@ -8,13 +7,13 @@ for user operations.
 -   Update User Information
 """
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
-from app.models.user_models import UserUpdate, UserResponse
-from app.middleware.auth import get_user_from_auth
 from app.config.logging_config import logging
 from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
+from app.models.user_models import UserResponse, UserUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +23,7 @@ def register(mcp: FastMCP):
 
     @mcp.tool()
     async def get_current_user(ctx: Context) -> UserResponse:
-        """
-        Returns information about the current user
+        """Returns information about the current user
 
         **WHAT**: Returns information about the current authenticated user.
 
@@ -51,15 +49,14 @@ def register(mcp: FastMCP):
         except Exception as e:
             logger.exception(
                 msg="Retrieving user information failed",
-                extra={"error": str(e)}
+                extra={"error": str(e)},
             )
-            raise ToolError(f"Failed to retrieve user {str(e)}")
-            
+            raise ToolError(f"Failed to retrieve user {e!s}")
+
 
     @mcp.tool()
     async def update_user_notes(user_notes: str, ctx: Context) -> UserResponse:
-        """
-        Update the notes field for the current user
+        """Update the notes field for the current user
 
         **WHAT**: Updates the notes/metadata field for the authenticated user.
 
@@ -91,26 +88,26 @@ def register(mcp: FastMCP):
             # Create update with only the notes field
             user_update = UserUpdate(
                 external_id=user.external_id,  # Needed for lookup
-                notes=user_notes
+                notes=user_notes,
             )
 
             updated_user = await service.update_user(user_update=user_update)
 
             if not updated_user:
-               raise NotFoundError() 
+               raise NotFoundError()
 
             return UserResponse(**updated_user.model_dump())
-        
+
         except NotFoundError as e:
             logger.error(
                 msg="User not found during update",
-                extra={"error": str(e)}
+                extra={"error": str(e)},
             )
-            raise ToolError(f"Unable to update employee notes, user not found {str(e)}") 
+            raise ToolError(f"Unable to update employee notes, user not found {e!s}")
 
         except Exception as e:
             logger.exception(
                 msg="User update failed",
-                extra={"error": str(e)}
+                extra={"error": str(e)},
             )
-            raise ToolError(f"User note update failed, {str(e)}") 
+            raise ToolError(f"User note update failed, {e!s}")

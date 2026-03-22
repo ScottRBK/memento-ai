@@ -1,11 +1,11 @@
-"""
-Integration tests for HttpRerankAdapter with mocked httpx client.
+"""Integration tests for HttpRerankAdapter with mocked httpx client.
 
 Tests the adapter class in isolation - no real reranking API required.
 """
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import httpx
-from unittest.mock import patch, AsyncMock, MagicMock
+import pytest
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ async def test_rerank_posts_correct_payload(mock_settings):
         "results": [
             {"index": 0, "relevance_score": 0.9},
             {"index": 1, "relevance_score": 0.5},
-        ]
+        ],
     }
     mock_response.raise_for_status = MagicMock()
 
@@ -109,7 +109,7 @@ async def test_rerank_returns_sorted_tuples(mock_settings):
             {"index": 1, "relevance_score": 0.95},
             {"index": 0, "relevance_score": 0.42},
             {"index": 2, "relevance_score": 0.10},
-        ]
+        ],
     }
     mock_response.raise_for_status = MagicMock()
 
@@ -176,7 +176,7 @@ async def test_rerank_http_error_propagates(mock_settings):
 
     mock_response = MagicMock()
     mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-        "Server Error", request=MagicMock(), response=MagicMock(status_code=500)
+        "Server Error", request=MagicMock(), response=MagicMock(status_code=500),
     )
 
     mock_client = AsyncMock()

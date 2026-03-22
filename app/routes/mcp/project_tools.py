@@ -1,5 +1,4 @@
-"""
-MCP Project Tools - FastMCP tool definitions for project operations
+"""MCP Project Tools - FastMCP tool definitions for project operations
 """
 
 from fastmcp import Context, FastMCP
@@ -34,8 +33,7 @@ def register(mcp: FastMCP):
         repo_name: str = None,
         notes: str = None,
     ) -> Project:
-        """
-        Create new project for organizing memories and knowledge
+        """Create new project for organizing memories and knowledge
 
         WHAT: Creates project with name + metadata (description, type, status, repo, notes).
         Projects organize memories, code artifacts, and documents by context.
@@ -50,7 +48,7 @@ def register(mcp: FastMCP):
         NOT-USE: Updating projects (use update_project), listing (use list_projects), or linking
         memories (happens automatically via memory tools).
 
-        EXAMPLES:
+        Examples:
         create_project(
             name="forgetful",
             description="MIT-licensed memory service implementing atomic memory principles",
@@ -73,7 +71,6 @@ def register(mcp: FastMCP):
         Returns:
             Complete Project with id, timestamps, and memory_count
         """
-
         logger.info(
             "MCP Tool Called -> create_project",
             extra={"project_name": name[:50], "project_type": project_type.value},
@@ -95,7 +92,7 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             project = await project_service.create_project(
-                user_id=user.id, project_data=project_data
+                user_id=user.id, project_data=project_data,
             )
 
             logger.info(
@@ -119,7 +116,7 @@ def register(mcp: FastMCP):
                     "error_message": str(e),
                 },
             )
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug(
@@ -144,7 +141,7 @@ def register(mcp: FastMCP):
                 },
             )
             raise ToolError(
-                f"INTERNAL_ERROR: Project creation failed - {type(e).__name__}: {str(e)}"
+                f"INTERNAL_ERROR: Project creation failed - {type(e).__name__}: {e!s}",
             )
 
     @mcp.tool()
@@ -158,8 +155,7 @@ def register(mcp: FastMCP):
         repo_name: str = None,
         notes: str = None,
     ) -> Project:
-        """
-        Update project metadata (PATCH semantics)
+        """Update project metadata (PATCH semantics)
 
         WHAT: Updates project fields using PATCH semantics (only provided fields updated).
         None values mean "don't change this field".
@@ -174,7 +170,7 @@ def register(mcp: FastMCP):
         NOT-USE: Creating (use create_project), deleting (use delete_project), or linking
         memories (use link_memory_to_project in memory tools).
 
-        EXAMPLES:
+        Examples:
         # Archive project
         update_project(project_id=5, status="archived")
 
@@ -197,9 +193,8 @@ def register(mcp: FastMCP):
         Returns:
             Updated Project with all fields
         """
-
         logger.info(
-            "MCP Tool Called -> update_project", extra={"project_id": project_id}
+            "MCP Tool Called -> update_project", extra={"project_id": project_id},
         )
 
         user = await get_user_from_auth(ctx)
@@ -217,7 +212,7 @@ def register(mcp: FastMCP):
 
             if not update_dict:
                 raise ToolError(
-                    "VALIDATION_ERROR: At least one field must be provided for update"
+                    "VALIDATION_ERROR: At least one field must be provided for update",
                 )
 
             # Build project update data
@@ -226,7 +221,7 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             project = await project_service.update_project(
-                user_id=user.id, project_id=project_id, project_data=project_data
+                user_id=user.id, project_id=project_id, project_data=project_data,
             )
 
             if not project:
@@ -253,7 +248,7 @@ def register(mcp: FastMCP):
                     "error_message": str(e),
                 },
             )
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except ValidationError as e:
             error_details = str(e)
             logger.debug(
@@ -278,13 +273,12 @@ def register(mcp: FastMCP):
                 },
             )
             raise ToolError(
-                f"INTERNAL_ERROR: Project update failed - {type(e).__name__}: {str(e)}"
+                f"INTERNAL_ERROR: Project update failed - {type(e).__name__}: {e!s}",
             )
 
     @mcp.tool()
     async def delete_project(project_id: int, ctx: Context) -> dict:
-        """
-        Delete project while preserving linked memories
+        """Delete project while preserving linked memories
 
         WHAT: Permanently deletes project metadata (name, description, notes) and project-memory
         associations. IMPORTANT: Memories are preserved and accessible via general queries - only
@@ -299,7 +293,7 @@ def register(mcp: FastMCP):
         NOT-USE: Temporary pause (use update_project status='archived'), deleting memories
         (use mark_memory_obsolete - this only deletes project container, not knowledge).
 
-        EXAMPLES:
+        Examples:
         delete_project(project_id=5)
 
         Args:
@@ -309,9 +303,8 @@ def register(mcp: FastMCP):
         Returns:
             {"success": bool, "message": str, "project_id": int}
         """
-
         logger.info(
-            "MCP Tool Called -> delete_project", extra={"project_id": project_id}
+            "MCP Tool Called -> delete_project", extra={"project_id": project_id},
         )
 
         user = await get_user_from_auth(ctx)
@@ -320,7 +313,7 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             success = await project_service.delete_project(
-                user_id=user.id, project_id=project_id
+                user_id=user.id, project_id=project_id,
             )
 
             if not success:
@@ -347,7 +340,7 @@ def register(mcp: FastMCP):
                     "error_message": str(e),
                 },
             )
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except Exception as e:
             logger.error(
                 "MCP Tool - delete_project failed",
@@ -360,7 +353,7 @@ def register(mcp: FastMCP):
                 },
             )
             raise ToolError(
-                f"INTERNAL_ERROR: Project deletion failed - {type(e).__name__}: {str(e)}"
+                f"INTERNAL_ERROR: Project deletion failed - {type(e).__name__}: {e!s}",
             )
 
     @mcp.tool()
@@ -370,8 +363,7 @@ def register(mcp: FastMCP):
         repo_name: str = None,
         name: str = None,
     ) -> dict:
-        """
-        List projects with optional status/repository/name filtering
+        """List projects with optional status/repository/name filtering
 
         WHAT: Returns project summaries (excludes heavy text fields like description/notes to
         save tokens). Filters by status/repo_name/name if provided; returns all projects if not.
@@ -388,7 +380,7 @@ def register(mcp: FastMCP):
         NOT-USE: Single project details (use get_project), creating (use create_project),
         or searching memories (use query_memory with project_ids).
 
-        EXAMPLES:
+        Examples:
         # List all projects
         list_projects()
 
@@ -419,7 +411,6 @@ def register(mcp: FastMCP):
                 "name_filter": str | None
             }
         """
-
         logger.info(
             "MCP Tool Called -> list_projects",
             extra={
@@ -435,7 +426,7 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             projects = await project_service.list_projects(
-                user_id=user.id, status=status, repo_name=repo_name, name=name
+                user_id=user.id, status=status, repo_name=repo_name, name=name,
             )
 
             logger.info(
@@ -473,13 +464,12 @@ def register(mcp: FastMCP):
                 },
             )
             raise ToolError(
-                f"INTERNAL_ERROR: Project listing failed - {type(e).__name__}: {str(e)}"
+                f"INTERNAL_ERROR: Project listing failed - {type(e).__name__}: {e!s}",
             )
 
     @mcp.tool()
     async def get_project(project_id: int, ctx: Context) -> Project:
-        """
-        Retrieve complete project details by ID
+        """Retrieve complete project details by ID
 
         WHAT: Returns full project information including description, notes, relationships,
         and memory count.
@@ -494,7 +484,7 @@ def register(mcp: FastMCP):
         NOT-USE: Listing projects (use list_projects), searching memories (use query_memory
         with project_ids), or creating/updating (use create_project/update_project).
 
-        EXAMPLES:
+        Examples:
         get_project(project_id=5)
 
         Args:
@@ -504,7 +494,6 @@ def register(mcp: FastMCP):
         Returns:
             Complete Project with all fields including description and notes
         """
-
         logger.info("MCP Tool Called -> get_project", extra={"project_id": project_id})
 
         user = await get_user_from_auth(ctx)
@@ -513,7 +502,7 @@ def register(mcp: FastMCP):
             # Access project service via FastMCP context
             project_service = ctx.fastmcp.project_service
             project = await project_service.get_project(
-                user_id=user.id, project_id=project_id
+                user_id=user.id, project_id=project_id,
             )
 
             if not project:
@@ -540,7 +529,7 @@ def register(mcp: FastMCP):
                     "error_message": str(e),
                 },
             )
-            raise ToolError(f"VALIDATION_ERROR: {str(e)}")
+            raise ToolError(f"VALIDATION_ERROR: {e!s}")
         except Exception as e:
             logger.error(
                 "MCP Tool - get_project failed",
@@ -553,5 +542,5 @@ def register(mcp: FastMCP):
                 },
             )
             raise ToolError(
-                f"INTERNAL_ERROR: Project retrieval failed - {type(e).__name__}: {str(e)}"
+                f"INTERNAL_ERROR: Project retrieval failed - {type(e).__name__}: {e!s}",
             )

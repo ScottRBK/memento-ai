@@ -1,5 +1,4 @@
-"""
-Protocol definition for the Activity Repository.
+"""Protocol definition for the Activity Repository.
 
 Defines the contract for persisting and querying activity events
 across different database backends (SQLite, PostgreSQL).
@@ -10,11 +9,11 @@ from typing import Protocol
 from uuid import UUID
 
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActivityLogEntry,
-    EntityType,
-    ActionType,
     ActorType,
+    EntityType,
 )
 
 
@@ -26,8 +25,7 @@ class ActivityRepository(Protocol):
         user_id: UUID,
         event: ActivityEvent,
     ) -> ActivityLogEntry:
-        """
-        Persist an activity event to the database.
+        """Persist an activity event to the database.
 
         Args:
             user_id: User ID for ownership
@@ -50,8 +48,7 @@ class ActivityRepository(Protocol):
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[list[ActivityLogEntry], int]:
-        """
-        Query activity events with filtering and pagination.
+        """Query activity events with filtering and pagination.
 
         Args:
             user_id: User ID for ownership filtering
@@ -75,8 +72,7 @@ class ActivityRepository(Protocol):
         user_id: UUID,
         retention_days: int,
     ) -> int:
-        """
-        Delete activity events older than the retention period.
+        """Delete activity events older than the retention period.
 
         Args:
             user_id: User ID for ownership filtering
@@ -93,8 +89,7 @@ class ActivityRepository(Protocol):
         entity_type: EntityType | None = None,
         action: ActionType | None = None,
     ) -> int:
-        """
-        Count activity events matching filters.
+        """Count activity events matching filters.
 
         Args:
             user_id: User ID for ownership filtering

@@ -1,24 +1,23 @@
+"""MCP Entity tools - FastMCP tool definitions for entity and entity relationship operations
 """
-MCP Entity tools - FastMCP tool definitions for entity and entity relationship operations
-"""
-from typing import List, Dict, Any
+from typing import Any
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
 from app.models.entity_models import (
     Entity,
     EntityCreate,
-    EntityUpdate,
     EntityRelationship,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
-    EntityType
+    EntityType,
+    EntityUpdate,
 )
-from app.middleware.auth import get_user_from_auth
-from app.config.logging_config import logging
-from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 
 logger = logging.getLogger(__name__)
@@ -26,7 +25,6 @@ logger = logging.getLogger(__name__)
 
 def register(mcp: FastMCP):
     """Register entity tools - services accessed via context at call time"""
-
     # Entity CRUD tools
 
     @mcp.tool()
@@ -40,8 +38,7 @@ def register(mcp: FastMCP):
         aka: list[str] = None,
         project_ids: list[int] = None,
     ) -> Entity:
-        """
-        Create entity representing a real-world entity (organization, individual, team, device).
+        """Create entity representing a real-world entity (organization, individual, team, device).
 
         WHAT: Stores information about real-world entities that can be referenced by memories
         and connected through relationships to form a knowledge graph. Entities represent
@@ -61,7 +58,7 @@ def register(mcp: FastMCP):
         NOT-USE: For abstract concepts (use memories), code snippets (use code artifacts),
         or documentation (use documents). Entities are for concrete, identifiable entities.
 
-        EXAMPLES:
+        Examples:
         create_entity(
             name="Sarah Chen",
             entity_type="Individual",
@@ -106,10 +103,9 @@ def register(mcp: FastMCP):
         Returns:
             Complete Entity with ID, timestamps, and metadata
         """
-
         logger.info("MCP Tool Called -> create_entity", extra={
             "entity_name": name[:50],
-            "entity_type": entity_type
+            "entity_type": entity_type,
         })
 
         user = await get_user_from_auth(ctx)
@@ -122,7 +118,7 @@ def register(mcp: FastMCP):
                 notes=notes,
                 tags=tags or [],
                 aka=aka or [],
-                project_ids=project_ids
+                project_ids=project_ids,
             )
         except (ValidationError, ValueError) as e:
             raise ToolError(f"Invalid entity data: {e}")
@@ -131,22 +127,21 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             entity = await entity_service.create_entity(
                 user_id=user.id,
-                entity_data=entity_data
+                entity_data=entity_data,
             )
 
             return entity
 
         except Exception as e:
             logger.error("Failed to create entity", exc_info=True)
-            raise ToolError(f"Failed to create entity: {str(e)}")
+            raise ToolError(f"Failed to create entity: {e!s}")
 
     @mcp.tool()
     async def get_entity(
         entity_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> Entity:
-        """
-        Retrieve entity by ID with complete details.
+        """Retrieve entity by ID with complete details.
 
         WHEN: You need the full entity information for a specific entity.
         Common after listing entities or when a memory references an entity ID.
@@ -166,9 +161,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entity not found or not owned by user
         """
-
         logger.info("MCP Tool Called -> get_entity", extra={
-            "entity_id": entity_id
+            "entity_id": entity_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -177,7 +171,7 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             entity = await entity_service.get_entity(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
 
             return entity
@@ -186,17 +180,16 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to get entity", exc_info=True)
-            raise ToolError(f"Failed to get entity: {str(e)}")
+            raise ToolError(f"Failed to get entity: {e!s}")
 
     @mcp.tool()
     async def list_entities(
         ctx: Context,
         project_ids: list[int] = None,
         entity_type: str = None,
-        tags: list[str] = None
+        tags: list[str] = None,
     ) -> dict:
-        """
-        List entities with optional filtering.
+        """List entities with optional filtering.
 
         WHEN: Browsing entities, filtering by project/type/tags, or discovering
         available entities before linking to memories or creating relationships.
@@ -218,11 +211,10 @@ def register(mcp: FastMCP):
         Returns:
             List of EntitySummary (lightweight, excludes notes)
         """
-
         logger.info("MCP Tool Called -> list_entities", extra={
             "project_ids": project_ids,
             "entity_type": entity_type,
-            "tags": tags
+            "tags": tags,
         })
 
         user = await get_user_from_auth(ctx)
@@ -238,7 +230,7 @@ def register(mcp: FastMCP):
                 project_ids=project_ids,
                 entity_type=entity_type_enum,
                 tags=tags,
-                limit=10000  # High limit to return all entities for MCP
+                limit=10000,  # High limit to return all entities for MCP
             )
 
             return {
@@ -247,15 +239,15 @@ def register(mcp: FastMCP):
                 "filters": {
                     "project_ids": project_ids,
                     "entity_type": entity_type,
-                    "tags": tags
-                }
+                    "tags": tags,
+                },
             }
 
         except ValueError as e:
             raise ToolError(f"Invalid entity_type: {e}")
         except Exception as e:
             logger.error("Failed to list entities", exc_info=True)
-            raise ToolError(f"Failed to list entities: {str(e)}")
+            raise ToolError(f"Failed to list entities: {e!s}")
 
     @mcp.tool()
     async def search_entities(
@@ -263,10 +255,9 @@ def register(mcp: FastMCP):
         ctx: Context,
         entity_type: str = None,
         tags: list[str] = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> dict:
-        """
-        Search entities by name or alternative names (aka) using text matching.
+        """Search entities by name or alternative names (aka) using text matching.
 
         WHEN: Looking for specific entities by name or alias. Examples:
         - "Find entities named Sarah" (matches name or aka)
@@ -296,12 +287,11 @@ def register(mcp: FastMCP):
         Returns:
             Dict with entities list, total_count, and search_query
         """
-
         logger.info("MCP Tool Called -> search_entities", extra={
             "query": query,
             "entity_type": entity_type,
             "tags": tags,
-            "limit": limit
+            "limit": limit,
         })
 
         user = await get_user_from_auth(ctx)
@@ -319,7 +309,7 @@ def register(mcp: FastMCP):
                 search_query=query,
                 entity_type=entity_type_enum,
                 tags=tags,
-                limit=limit
+                limit=limit,
             )
 
             return {
@@ -329,15 +319,15 @@ def register(mcp: FastMCP):
                 "filters": {
                     "entity_type": entity_type,
                     "tags": tags,
-                    "limit": limit
-                }
+                    "limit": limit,
+                },
             }
 
         except ValueError as e:
             raise ToolError(f"Invalid entity_type: {e}")
         except Exception as e:
             logger.error("Failed to search entities", exc_info=True)
-            raise ToolError(f"Failed to search entities: {str(e)}")
+            raise ToolError(f"Failed to search entities: {e!s}")
 
     @mcp.tool()
     async def update_entity(
@@ -349,10 +339,9 @@ def register(mcp: FastMCP):
         notes: str = None,
         tags: list[str] = None,
         aka: list[str] = None,
-        project_ids: list[int] = None
+        project_ids: list[int] = None,
     ) -> Entity:
-        """
-        Update existing entity (PATCH semantics - only provided fields changed).
+        """Update existing entity (PATCH semantics - only provided fields changed).
 
         WHEN: Modifying entity information after creation. Common scenarios:
         - Adding/updating notes
@@ -383,9 +372,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entity not found or validation fails
         """
-
         logger.info("MCP Tool Called -> update_entity", extra={
-            "entity_id": entity_id
+            "entity_id": entity_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -398,7 +386,7 @@ def register(mcp: FastMCP):
             notes=notes,
             tags=tags,
             aka=aka,
-            project_ids=project_ids
+            project_ids=project_ids,
         )
 
         if not update_dict:
@@ -414,7 +402,7 @@ def register(mcp: FastMCP):
             entity = await entity_service.update_entity(
                 user_id=user.id,
                 entity_id=entity_id,
-                entity_data=entity_data
+                entity_data=entity_data,
             )
 
             return entity
@@ -423,15 +411,14 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to update entity", exc_info=True)
-            raise ToolError(f"Failed to update entity: {str(e)}")
+            raise ToolError(f"Failed to update entity: {e!s}")
 
     @mcp.tool()
     async def delete_entity(
         entity_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Delete entity (cascade removes memory links and relationships).
+        """Delete entity (cascade removes memory links and relationships).
 
         WHEN: Removing obsolete or incorrect entities. Use carefully - this is permanent.
 
@@ -448,9 +435,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If deletion fails
         """
-
         logger.info("MCP Tool Called -> delete_entity", extra={
-            "entity_id": entity_id
+            "entity_id": entity_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -459,7 +445,7 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             success = await entity_service.delete_entity(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
 
             if not success:
@@ -469,7 +455,7 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to delete entity", exc_info=True)
-            raise ToolError(f"Failed to delete entity: {str(e)}")
+            raise ToolError(f"Failed to delete entity: {e!s}")
 
     # Entity-Memory linking tools
 
@@ -477,10 +463,9 @@ def register(mcp: FastMCP):
     async def link_entity_to_memory(
         entity_id: int,
         memory_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Link entity to memory (establishes reference relationship).
+        """Link entity to memory (establishes reference relationship).
 
         WHEN: When a memory mentions or relates to an entity. Creates bidirectional
         link so the entity can be discovered from the memory and vice versa.
@@ -489,7 +474,7 @@ def register(mcp: FastMCP):
         to call multiple times (won't create duplicates). Both entity and memory
         must exist and be owned by the user.
 
-        EXAMPLES:
+        Examples:
         # After creating memory about a technical decision:
         link_entity_to_memory(entity_id=5, memory_id=123)  # Link to decision maker
 
@@ -507,10 +492,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entity or memory not found or not owned by user
         """
-
         logger.info("MCP Tool Called -> link_entity_to_memory", extra={
             "entity_id": entity_id,
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -520,7 +504,7 @@ def register(mcp: FastMCP):
             success = await entity_service.link_entity_to_memory(
                 user_id=user.id,
                 entity_id=entity_id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
 
             return {"success": success}
@@ -529,16 +513,15 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to link entity to memory", exc_info=True)
-            raise ToolError(f"Failed to link entity to memory: {str(e)}")
+            raise ToolError(f"Failed to link entity to memory: {e!s}")
 
     @mcp.tool()
     async def unlink_entity_from_memory(
         entity_id: int,
         memory_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Unlink entity from memory (removes reference relationship).
+        """Unlink entity from memory (removes reference relationship).
 
         WHEN: When an entity-memory link is no longer relevant or was created in error.
 
@@ -556,10 +539,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If unlinking fails
         """
-
         logger.info("MCP Tool Called -> unlink_entity_from_memory", extra={
             "entity_id": entity_id,
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -569,14 +551,14 @@ def register(mcp: FastMCP):
             success = await entity_service.unlink_entity_from_memory(
                 user_id=user.id,
                 entity_id=entity_id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
 
             return {"success": success}
 
         except Exception as e:
             logger.error("Failed to unlink entity from memory", exc_info=True)
-            raise ToolError(f"Failed to unlink entity from memory: {str(e)}")
+            raise ToolError(f"Failed to unlink entity from memory: {e!s}")
 
     # Entity-Project linking tools
 
@@ -584,10 +566,9 @@ def register(mcp: FastMCP):
     async def link_entity_to_project(
         entity_id: int,
         project_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Link entity to project (organizational grouping).
+        """Link entity to project (organizational grouping).
 
         WHEN: When an entity belongs to or is relevant to a specific project.
         Creates association so the entity can be filtered by project.
@@ -596,7 +577,7 @@ def register(mcp: FastMCP):
         to call multiple times (won't create duplicates). Both entity and project
         must exist and be owned by the user.
 
-        EXAMPLES:
+        Examples:
         # Associate a team member with a project:
         link_entity_to_project(entity_id=5, project_id=1)
 
@@ -614,10 +595,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entity or project not found or not owned by user
         """
-
         logger.info("MCP Tool Called -> link_entity_to_project", extra={
             "entity_id": entity_id,
-            "project_id": project_id
+            "project_id": project_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -627,7 +607,7 @@ def register(mcp: FastMCP):
             success = await entity_service.link_entity_to_project(
                 user_id=user.id,
                 entity_id=entity_id,
-                project_id=project_id
+                project_id=project_id,
             )
 
             return {"success": success}
@@ -636,16 +616,15 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to link entity to project", exc_info=True)
-            raise ToolError(f"Failed to link entity to project: {str(e)}")
+            raise ToolError(f"Failed to link entity to project: {e!s}")
 
     @mcp.tool()
     async def unlink_entity_from_project(
         entity_id: int,
         project_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Unlink entity from project (removes organizational grouping).
+        """Unlink entity from project (removes organizational grouping).
 
         WHEN: When an entity-project association is no longer relevant or was created in error.
 
@@ -663,10 +642,9 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If unlinking fails
         """
-
         logger.info("MCP Tool Called -> unlink_entity_from_project", extra={
             "entity_id": entity_id,
-            "project_id": project_id
+            "project_id": project_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -676,14 +654,14 @@ def register(mcp: FastMCP):
             success = await entity_service.unlink_entity_from_project(
                 user_id=user.id,
                 entity_id=entity_id,
-                project_id=project_id
+                project_id=project_id,
             )
 
             return {"success": success}
 
         except Exception as e:
             logger.error("Failed to unlink entity from project", exc_info=True)
-            raise ToolError(f"Failed to unlink entity from project: {str(e)}")
+            raise ToolError(f"Failed to unlink entity from project: {e!s}")
 
     # Entity Relationship tools
 
@@ -695,10 +673,9 @@ def register(mcp: FastMCP):
         ctx: Context,
         strength: float = None,
         confidence: float = None,
-        metadata: dict[str, Any] = None
+        metadata: dict[str, Any] = None,
     ) -> EntityRelationship:
-        """
-        Create typed relationship between two entities (knowledge graph edge).
+        """Create typed relationship between two entities (knowledge graph edge).
 
         WHAT: Establishes directed, typed relationship with optional strength, confidence,
         and metadata. Forms knowledge graph showing how entities relate to each other.
@@ -715,7 +692,7 @@ def register(mcp: FastMCP):
         indicates certainty. Metadata can store additional context like source,
         dates, roles, etc.
 
-        EXAMPLES:
+        Examples:
         create_entity_relationship(
             source_entity_id=5,  # Sarah Chen
             target_entity_id=12, # TechFlow Systems
@@ -749,11 +726,10 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entities not found, validation fails, or relationship exists
         """
-
         logger.info("MCP Tool Called -> create_entity_relationship", extra={
             "source_entity_id": source_entity_id,
             "target_entity_id": target_entity_id,
-            "relationship_type": relationship_type
+            "relationship_type": relationship_type,
         })
 
         user = await get_user_from_auth(ctx)
@@ -765,7 +741,7 @@ def register(mcp: FastMCP):
                 relationship_type=relationship_type,
                 strength=strength,
                 confidence=confidence,
-                metadata=metadata
+                metadata=metadata,
             )
         except ValidationError as e:
             raise ToolError(f"Invalid relationship data: {e}")
@@ -774,7 +750,7 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             relationship = await entity_service.create_entity_relationship(
                 user_id=user.id,
-                relationship_data=relationship_data
+                relationship_data=relationship_data,
             )
 
             return relationship
@@ -783,17 +759,16 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to create entity relationship", exc_info=True)
-            raise ToolError(f"Failed to create entity relationship: {str(e)}")
+            raise ToolError(f"Failed to create entity relationship: {e!s}")
 
     @mcp.tool()
     async def get_entity_relationships(
         entity_id: int,
         ctx: Context,
         direction: str = None,
-        relationship_type: str = None
+        relationship_type: str = None,
     ) -> dict:
-        """
-        Get relationships for an entity (knowledge graph edges).
+        """Get relationships for an entity (knowledge graph edges).
 
         WHEN: Exploring entity connections, analyzing network structure, or
         understanding how entities relate to each other.
@@ -807,7 +782,7 @@ def register(mcp: FastMCP):
           is target), or null (both directions)
         - relationship_type: Filter by specific type (e.g., "works_at")
 
-        EXAMPLES:
+        Examples:
         # Get all relationships for a person
         get_entity_relationships(entity_id=5)
 
@@ -829,11 +804,10 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entity not found or query fails
         """
-
         logger.info("MCP Tool Called -> get_entity_relationships", extra={
             "entity_id": entity_id,
             "direction": direction,
-            "relationship_type": relationship_type
+            "relationship_type": relationship_type,
         })
 
         user = await get_user_from_auth(ctx)
@@ -844,7 +818,7 @@ def register(mcp: FastMCP):
                 user_id=user.id,
                 entity_id=entity_id,
                 direction=direction,
-                relationship_type=relationship_type
+                relationship_type=relationship_type,
             )
 
             return {
@@ -853,15 +827,15 @@ def register(mcp: FastMCP):
                 "filters": {
                     "entity_id": entity_id,
                     "direction": direction,
-                    "relationship_type": relationship_type
-                }
+                    "relationship_type": relationship_type,
+                },
             }
 
         except NotFoundError as e:
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to get entity relationships", exc_info=True)
-            raise ToolError(f"Failed to get entity relationships: {str(e)}")
+            raise ToolError(f"Failed to get entity relationships: {e!s}")
 
     @mcp.tool()
     async def update_entity_relationship(
@@ -870,10 +844,9 @@ def register(mcp: FastMCP):
         relationship_type: str = None,
         strength: float = None,
         confidence: float = None,
-        metadata: dict[str, Any] = None
+        metadata: dict[str, Any] = None,
     ) -> EntityRelationship:
-        """
-        Update entity relationship (PATCH semantics - only provided fields changed).
+        """Update entity relationship (PATCH semantics - only provided fields changed).
 
         WHEN: Refining relationship details after creation:
         - Updating strength/confidence based on new information
@@ -897,9 +870,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If relationship not found or validation fails
         """
-
         logger.info("MCP Tool Called -> update_entity_relationship", extra={
-            "relationship_id": relationship_id
+            "relationship_id": relationship_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -909,7 +881,7 @@ def register(mcp: FastMCP):
             relationship_type=relationship_type,
             strength=strength,
             confidence=confidence,
-            metadata=metadata
+            metadata=metadata,
         )
 
         if not update_dict:
@@ -925,7 +897,7 @@ def register(mcp: FastMCP):
             relationship = await entity_service.update_entity_relationship(
                 user_id=user.id,
                 relationship_id=relationship_id,
-                relationship_data=relationship_data
+                relationship_data=relationship_data,
             )
 
             return relationship
@@ -934,15 +906,14 @@ def register(mcp: FastMCP):
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to update entity relationship", exc_info=True)
-            raise ToolError(f"Failed to update entity relationship: {str(e)}")
+            raise ToolError(f"Failed to update entity relationship: {e!s}")
 
     @mcp.tool()
     async def delete_entity_relationship(
         relationship_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Delete entity relationship (removes knowledge graph edge).
+        """Delete entity relationship (removes knowledge graph edge).
 
         WHEN: Removing obsolete or incorrect relationships. Use carefully - this is permanent.
 
@@ -959,9 +930,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If deletion fails
         """
-
         logger.info("MCP Tool Called -> delete_entity_relationship", extra={
-            "relationship_id": relationship_id
+            "relationship_id": relationship_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -970,7 +940,7 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             success = await entity_service.delete_entity_relationship(
                 user_id=user.id,
-                relationship_id=relationship_id
+                relationship_id=relationship_id,
             )
 
             if not success:
@@ -980,15 +950,14 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to delete entity relationship", exc_info=True)
-            raise ToolError(f"Failed to delete entity relationship: {str(e)}")
+            raise ToolError(f"Failed to delete entity relationship: {e!s}")
 
     @mcp.tool()
     async def get_entity_memories(
         entity_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Get all memories linked to a specific entity.
+        """Get all memories linked to a specific entity.
 
         WHAT: Returns the list of memory IDs associated with a specific entity,
         useful for understanding what knowledge is attached to entities.
@@ -1003,7 +972,7 @@ def register(mcp: FastMCP):
         and be owned by the requesting user. Returns empty list (not error) if entity
         has no linked memories.
 
-        EXAMPLES:
+        Examples:
         get_entity_memories(entity_id=42)
         # Returns: {"memory_ids": [1, 5, 17, 23], "count": 4}
 
@@ -1020,9 +989,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError: If entity not found or user not authorized
         """
-
         logger.info("MCP Tool Called -> get_entity_memories", extra={
-            "entity_id": entity_id
+            "entity_id": entity_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -1031,16 +999,16 @@ def register(mcp: FastMCP):
             entity_service = ctx.fastmcp.entity_service
             memory_ids, count = await entity_service.get_entity_memories(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
 
             return {
                 "memory_ids": memory_ids,
-                "count": count
+                "count": count,
             }
 
         except NotFoundError as e:
             raise ToolError(str(e))
         except Exception as e:
             logger.error("Failed to get entity memories", exc_info=True)
-            raise ToolError(f"Failed to get entity memories: {str(e)}")
+            raise ToolError(f"Failed to get entity memories: {e!s}")

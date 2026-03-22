@@ -1,5 +1,4 @@
-"""
-Integration tests for ProjectService with in-memory stubs
+"""Integration tests for ProjectService with in-memory stubs
 """
 
 from uuid import uuid4
@@ -29,7 +28,7 @@ async def test_create_project_basic(test_project_service):
     )
 
     project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     assert project is not None
@@ -60,7 +59,7 @@ async def test_create_project_minimal(test_project_service):
     )
 
     project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     assert project is not None
@@ -87,12 +86,12 @@ async def test_get_project(test_project_service):
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     # Retrieve project
     retrieved_project = await test_project_service.get_project(
-        user_id=user_id, project_id=created_project.id
+        user_id=user_id, project_id=created_project.id,
     )
 
     assert retrieved_project is not None
@@ -135,7 +134,7 @@ async def test_list_projects_multiple(test_project_service):
             project_type=ProjectType.DEVELOPMENT,
         )
         await test_project_service.create_project(
-            user_id=user_id, project_data=project_data
+            user_id=user_id, project_data=project_data,
         )
 
     # List all projects
@@ -189,7 +188,7 @@ async def test_list_projects_filter_by_status(test_project_service):
 
     # Filter by active
     active_projects = await test_project_service.list_projects(
-        user_id=user_id, status=ProjectStatus.ACTIVE
+        user_id=user_id, status=ProjectStatus.ACTIVE,
     )
     assert len(active_projects) == 1
     assert active_projects[0].name == "active-project"
@@ -197,7 +196,7 @@ async def test_list_projects_filter_by_status(test_project_service):
 
     # Filter by archived
     archived_projects = await test_project_service.list_projects(
-        user_id=user_id, status=ProjectStatus.ARCHIVED
+        user_id=user_id, status=ProjectStatus.ARCHIVED,
     )
     assert len(archived_projects) == 1
     assert archived_projects[0].name == "archived-project"
@@ -205,7 +204,7 @@ async def test_list_projects_filter_by_status(test_project_service):
 
     # Filter by completed
     completed_projects = await test_project_service.list_projects(
-        user_id=user_id, status=ProjectStatus.COMPLETED
+        user_id=user_id, status=ProjectStatus.COMPLETED,
     )
     assert len(completed_projects) == 1
     assert completed_projects[0].name == "completed-project"
@@ -244,7 +243,7 @@ async def test_list_projects_filter_by_repo(test_project_service):
 
     # Filter by specific repo
     forgetful_projects = await test_project_service.list_projects(
-        user_id=user_id, repo_name="scottrbk/forgetful"
+        user_id=user_id, repo_name="scottrbk/forgetful",
     )
     assert len(forgetful_projects) == 1
     assert forgetful_projects[0].name == "project1"
@@ -252,7 +251,7 @@ async def test_list_projects_filter_by_repo(test_project_service):
 
     # Filter by different repo
     other_projects = await test_project_service.list_projects(
-        user_id=user_id, repo_name="scottrbk/other-repo"
+        user_id=user_id, repo_name="scottrbk/other-repo",
     )
     assert len(other_projects) == 1
     assert other_projects[0].name == "project2"
@@ -299,7 +298,7 @@ async def test_list_projects_combined_filters(test_project_service):
 
     # Filter by active + forgetful
     filtered_projects = await test_project_service.list_projects(
-        user_id=user_id, status=ProjectStatus.ACTIVE, repo_name="scottrbk/forgetful"
+        user_id=user_id, status=ProjectStatus.ACTIVE, repo_name="scottrbk/forgetful",
     )
 
     assert len(filtered_projects) == 1
@@ -321,14 +320,14 @@ async def test_update_project_single_field(test_project_service):
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     # Update only name
     update_data = ProjectUpdate(name="updated-name")
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id, project_id=created_project.id, project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data,
     )
 
     assert updated_project is not None
@@ -355,16 +354,16 @@ async def test_update_project_multiple_fields(test_project_service):
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     # Update name and description
     update_data = ProjectUpdate(
-        name="updated-name", description="Updated description with new information"
+        name="updated-name", description="Updated description with new information",
     )
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id, project_id=created_project.id, project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data,
     )
 
     assert updated_project is not None
@@ -387,7 +386,7 @@ async def test_update_project_status_change(test_project_service):
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     assert created_project.status == ProjectStatus.ACTIVE
@@ -396,7 +395,7 @@ async def test_update_project_status_change(test_project_service):
     update_data = ProjectUpdate(status=ProjectStatus.ARCHIVED)
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id, project_id=created_project.id, project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data,
     )
 
     assert updated_project.status == ProjectStatus.ARCHIVED
@@ -416,7 +415,7 @@ async def test_update_project_no_changes(test_project_service):
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     original_updated_at = created_project.updated_at
@@ -425,7 +424,7 @@ async def test_update_project_no_changes(test_project_service):
     update_data = ProjectUpdate(name="test-project", description="Test description")
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id, project_id=created_project.id, project_data=update_data
+        user_id=user_id, project_id=created_project.id, project_data=update_data,
     )
 
     # Should return existing project without changes
@@ -445,7 +444,7 @@ async def test_update_project_not_found(test_project_service):
     update_data = ProjectUpdate(name="updated-name")
 
     updated_project = await test_project_service.update_project(
-        user_id=user_id, project_id=99999, project_data=update_data
+        user_id=user_id, project_id=99999, project_data=update_data,
     )
 
     assert updated_project is None
@@ -464,19 +463,19 @@ async def test_delete_project(test_project_service):
     )
 
     created_project = await test_project_service.create_project(
-        user_id=user_id, project_data=project_data
+        user_id=user_id, project_data=project_data,
     )
 
     # Delete project
     success = await test_project_service.delete_project(
-        user_id=user_id, project_id=created_project.id
+        user_id=user_id, project_id=created_project.id,
     )
 
     assert success is True
 
     # Verify project no longer exists
     deleted_project = await test_project_service.get_project(
-        user_id=user_id, project_id=created_project.id
+        user_id=user_id, project_id=created_project.id,
     )
 
     assert deleted_project is None
@@ -488,7 +487,7 @@ async def test_delete_project_not_found(test_project_service):
     user_id = uuid4()
 
     success = await test_project_service.delete_project(
-        user_id=user_id, project_id=99999
+        user_id=user_id, project_id=99999,
     )
 
     assert success is False
@@ -508,12 +507,12 @@ async def test_project_user_isolation(test_project_service):
     )
 
     user1_project = await test_project_service.create_project(
-        user_id=user1_id, project_data=project_data
+        user_id=user1_id, project_data=project_data,
     )
 
     # User 2 tries to get user 1's project
     retrieved_project = await test_project_service.get_project(
-        user_id=user2_id, project_id=user1_project.id
+        user_id=user2_id, project_id=user1_project.id,
     )
 
     assert retrieved_project is None
@@ -563,7 +562,7 @@ async def test_list_projects_filter_by_name(test_project_service):
 
     # Filter by partial name match
     forgetful_projects = await test_project_service.list_projects(
-        user_id=user_id, name="forgetful"
+        user_id=user_id, name="forgetful",
     )
     assert len(forgetful_projects) == 2
     project_names = [p.name for p in forgetful_projects]
@@ -571,14 +570,14 @@ async def test_list_projects_filter_by_name(test_project_service):
 
     # Filter with different partial match
     backend_projects = await test_project_service.list_projects(
-        user_id=user_id, name="backend"
+        user_id=user_id, name="backend",
     )
     assert len(backend_projects) == 1
     assert backend_projects[0].name == "forgetful-backend"
 
     # No match
     no_match = await test_project_service.list_projects(
-        user_id=user_id, name="nonexistent"
+        user_id=user_id, name="nonexistent",
     )
     assert len(no_match) == 0
 
@@ -600,21 +599,21 @@ async def test_list_projects_filter_by_name_case_insensitive(test_project_servic
 
     # Search with lowercase
     lowercase_match = await test_project_service.list_projects(
-        user_id=user_id, name="forgetful"
+        user_id=user_id, name="forgetful",
     )
     assert len(lowercase_match) == 1
     assert lowercase_match[0].name == "Forgetful-Project"
 
     # Search with uppercase
     uppercase_match = await test_project_service.list_projects(
-        user_id=user_id, name="FORGETFUL"
+        user_id=user_id, name="FORGETFUL",
     )
     assert len(uppercase_match) == 1
     assert uppercase_match[0].name == "Forgetful-Project"
 
     # Search with mixed case
     mixedcase_match = await test_project_service.list_projects(
-        user_id=user_id, name="FoRgEtFuL"
+        user_id=user_id, name="FoRgEtFuL",
     )
     assert len(mixedcase_match) == 1
     assert mixedcase_match[0].name == "Forgetful-Project"

@@ -1,23 +1,22 @@
+"""PostgreSQL repository for Skill data access operations
 """
-PostgreSQL repository for Skill data access operations
-"""
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
 
 from sqlalchemy import select
 
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.models.skill_models import Skill, SkillCreate, SkillSummary, SkillUpdate
+from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
+from app.repositories.embeddings.reranker_adapter import RerankAdapter
+from app.repositories.helpers import build_skill_embedding_text
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.postgres_tables import (
     MemoryTable,
     SkillsTable,
     memory_skill_association,
 )
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
-from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
-from app.repositories.embeddings.reranker_adapter import RerankAdapter
-from app.repositories.helpers import build_skill_embedding_text
-from app.models.skill_models import Skill, SkillCreate, SkillUpdate, SkillSummary
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ class PostgresSkillRepository:
     async def create_skill(
         self,
         user_id: UUID,
-        skill_data: SkillCreate
+        skill_data: SkillCreate,
     ) -> Skill:
         """Create a new skill with embedding
 
@@ -89,15 +88,15 @@ class PostgresSkillRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_skill_by_id(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> Skill | None:
         """Get skill by ID with ownership check
 
@@ -112,7 +111,7 @@ class PostgresSkillRepository:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(SkillsTable).where(
                     SkillsTable.id == skill_id,
-                    SkillsTable.user_id == user_id
+                    SkillsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -130,8 +129,8 @@ class PostgresSkillRepository:
                 extra={
                     "user_id": str(user_id),
                     "skill_id": skill_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -140,7 +139,7 @@ class PostgresSkillRepository:
         user_id: UUID,
         project_id: int | None = None,
         tags: list[str] | None = None,
-        importance_threshold: int | None = None
+        importance_threshold: int | None = None,
     ) -> list[SkillSummary]:
         """List skills with optional filtering
 
@@ -156,7 +155,7 @@ class PostgresSkillRepository:
         try:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(SkillsTable).where(
-                    SkillsTable.user_id == user_id
+                    SkillsTable.user_id == user_id,
                 )
 
                 if project_id is not None:
@@ -181,8 +180,8 @@ class PostgresSkillRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -190,7 +189,7 @@ class PostgresSkillRepository:
         self,
         user_id: UUID,
         skill_id: int,
-        skill_data: SkillUpdate
+        skill_data: SkillUpdate,
     ) -> Skill:
         """Update skill (PATCH semantics)
 
@@ -212,7 +211,7 @@ class PostgresSkillRepository:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(SkillsTable).where(
                     SkillsTable.id == skill_id,
-                    SkillsTable.user_id == user_id
+                    SkillsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -236,7 +235,7 @@ class PostgresSkillRepository:
                 for field, value in update_data.items():
                     setattr(skill_table, field, value)
 
-                skill_table.updated_at = datetime.now(timezone.utc)
+                skill_table.updated_at = datetime.now(UTC)
 
                 await session.commit()
                 await session.refresh(skill_table)
@@ -252,15 +251,15 @@ class PostgresSkillRepository:
                 extra={
                     "user_id": str(user_id),
                     "skill_id": skill_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def delete_skill(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> bool:
         """Delete skill with ownership check
 
@@ -275,7 +274,7 @@ class PostgresSkillRepository:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(SkillsTable).where(
                     SkillsTable.id == skill_id,
-                    SkillsTable.user_id == user_id
+                    SkillsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -296,8 +295,8 @@ class PostgresSkillRepository:
                 extra={
                     "user_id": str(user_id),
                     "skill_id": skill_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -306,7 +305,7 @@ class PostgresSkillRepository:
         user_id: UUID,
         query: str,
         k: int = 5,
-        project_id: int | None = None
+        project_id: int | None = None,
     ) -> list[SkillSummary]:
         """Search skills by semantic similarity
 
@@ -330,14 +329,14 @@ class PostgresSkillRepository:
 
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(SkillsTable).where(
-                    SkillsTable.user_id == user_id
+                    SkillsTable.user_id == user_id,
                 )
 
                 if project_id is not None:
                     stmt = stmt.where(SkillsTable.project_id == project_id)
 
                 stmt = stmt.order_by(
-                    SkillsTable.embedding.cosine_distance(query_embedding)
+                    SkillsTable.embedding.cosine_distance(query_embedding),
                 )
                 stmt = stmt.limit(candidates_k)
 
@@ -351,7 +350,7 @@ class PostgresSkillRepository:
                 if self.rerank_adapter is not None and len(skills) > k:
                     documents = [s.description for s in skills]
                     ranked = await self.rerank_adapter.rerank(
-                        query=query, documents=documents
+                        query=query, documents=documents,
                     )
                     skills = [skills[idx] for idx, score in ranked[:k]]
 
@@ -364,8 +363,8 @@ class PostgresSkillRepository:
                 extra={
                     "user_id": str(user_id),
                     "query": query,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 

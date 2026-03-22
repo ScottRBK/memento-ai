@@ -1,20 +1,20 @@
-"""
-REST API endpoints for File operations.
+"""REST API endpoints for File operations.
 
 Provides CRUD operations for binary files.
 """
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 from app.models.file_models import (
     FileCreate,
     FileUpdate,
 )
-from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +24,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/files", methods=["GET"])
     async def list_files(request: Request) -> JSONResponse:
-        """
-        List files with optional filtering.
+        """List files with optional filtering.
 
         Query params:
             project_id: Filter by project
@@ -49,7 +48,7 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
-                    status_code=400
+                    status_code=400,
                 )
         tags = [t.strip() for t in tags_str.split(",")] if tags_str else None
 
@@ -57,12 +56,12 @@ def register(mcp: FastMCP):
             user_id=user.id,
             project_id=project_id,
             mime_type=mime_type,
-            tags=tags
+            tags=tags,
         )
 
         return JSONResponse({
             "files": [f.model_dump(mode="json") for f in files],
-            "total": len(files)
+            "total": len(files),
         })
 
     @mcp.custom_route("/api/v1/files/{file_id}", methods=["GET"])
@@ -78,7 +77,7 @@ def register(mcp: FastMCP):
         try:
             file = await mcp.file_service.get_file(
                 user_id=user.id,
-                file_id=file_id
+                file_id=file_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "File not found"}, status_code=404)
@@ -101,7 +100,7 @@ def register(mcp: FastMCP):
 
         file = await mcp.file_service.create_file(
             user_id=user.id,
-            file_data=file_data
+            file_data=file_data,
         )
 
         return JSONResponse(file.model_dump(mode="json"), status_code=201)
@@ -126,7 +125,7 @@ def register(mcp: FastMCP):
             file = await mcp.file_service.update_file(
                 user_id=user.id,
                 file_id=file_id,
-                file_data=update_data
+                file_data=update_data,
             )
         except NotFoundError:
             return JSONResponse({"error": "File not found"}, status_code=404)
@@ -146,7 +145,7 @@ def register(mcp: FastMCP):
         try:
             success = await mcp.file_service.delete_file(
                 user_id=user.id,
-                file_id=file_id
+                file_id=file_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "File not found"}, status_code=404)

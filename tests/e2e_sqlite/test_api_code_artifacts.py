@@ -1,5 +1,4 @@
-"""
-E2E tests for Code Artifact REST API endpoints.
+"""E2E tests for Code Artifact REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/code-artifacts endpoints.
@@ -28,7 +27,7 @@ class TestCodeArtifactAPIList:
             "description": "A test code snippet",
             "code": "def hello():\n    return 'Hello, World!'",
             "language": "python",
-            "tags": ["test"]
+            "tags": ["test"],
         }
         create_response = await http_client.post("/api/v1/code-artifacts", json=payload)
         assert create_response.status_code == 201
@@ -49,14 +48,14 @@ class TestCodeArtifactAPIList:
             "description": "A Python snippet",
             "code": "print('Hello')",
             "language": "python",
-            "tags": ["python"]
+            "tags": ["python"],
         })
         await http_client.post("/api/v1/code-artifacts", json={
             "title": "JavaScript Artifact",
             "description": "A JavaScript snippet",
             "code": "console.log('Hello')",
             "language": "javascript",
-            "tags": ["javascript"]
+            "tags": ["javascript"],
         })
 
         # Filter by python
@@ -75,7 +74,7 @@ class TestCodeArtifactAPIList:
             "description": "A tagged snippet",
             "code": "# special code",
             "language": "python",
-            "tags": ["special-artifact-tag"]
+            "tags": ["special-artifact-tag"],
         })
 
         # Filter by tag
@@ -103,7 +102,7 @@ class TestCodeArtifactAPICrud:
             "description": "A new code snippet",
             "code": "function greet() {\n  return 'Hello';\n}",
             "language": "javascript",
-            "tags": ["new", "artifact"]
+            "tags": ["new", "artifact"],
         }
         response = await http_client.post("/api/v1/code-artifacts", json=payload)
         assert response.status_code == 201
@@ -117,7 +116,7 @@ class TestCodeArtifactAPICrud:
         """POST /api/v1/code-artifacts returns 400 for invalid data."""
         payload = {
             "title": "",  # Empty title should fail
-            "language": "python"
+            "language": "python",
         }
         response = await http_client.post("/api/v1/code-artifacts", json=payload)
         assert response.status_code == 400
@@ -131,7 +130,7 @@ class TestCodeArtifactAPICrud:
             "description": "Testing get endpoint",
             "code": "SELECT * FROM users;",
             "language": "sql",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         artifact_id = create_response.json()["id"]
 
@@ -157,7 +156,7 @@ class TestCodeArtifactAPICrud:
             "description": "Original description",
             "code": "# Original code",
             "language": "python",
-            "tags": ["original"]
+            "tags": ["original"],
         })
         artifact_id = create_response.json()["id"]
 
@@ -166,7 +165,7 @@ class TestCodeArtifactAPICrud:
             "title": "Updated Artifact Title",
             "description": "Updated description",
             "code": "# Updated code\nprint('Updated!')",
-            "tags": ["updated"]
+            "tags": ["updated"],
         }
         response = await http_client.put(f"/api/v1/code-artifacts/{artifact_id}", json=update_payload)
         assert response.status_code == 200
@@ -190,7 +189,7 @@ class TestCodeArtifactAPICrud:
             "description": "Will be deleted",
             "code": "# Will be deleted",
             "language": "python",
-            "tags": ["delete"]
+            "tags": ["delete"],
         })
         artifact_id = create_response.json()["id"]
 
@@ -224,7 +223,7 @@ class TestCodeArtifactLanguages:
                 "description": f"Testing {lang} language",
                 "code": f"// Code in {lang}",
                 "language": lang,
-                "tags": [lang]
+                "tags": [lang],
             })
             assert response.status_code == 201, f"Failed for language: {lang}"
             assert response.json()["language"] == lang

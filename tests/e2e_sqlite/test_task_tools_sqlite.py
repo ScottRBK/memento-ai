@@ -1,12 +1,10 @@
-"""
-E2E tests for task MCP tools with in-memory SQLite backend.
+"""E2E tests for task MCP tools with in-memory SQLite backend.
 
 Covers task CRUD, state machine, claim, criteria, dependencies, and plan auto-completion.
 """
 
 import pytest
 from fastmcp.exceptions import ToolError
-
 
 # ---- Helpers ----
 
@@ -194,7 +192,7 @@ async def test_transition_task_lifecycle_e2e(mcp_client):
     task_id = create_result.data["id"]
     version = create_result.data["version"]
 
-    # todo -> doing
+    # TODO -> doing
     doing_result = await mcp_client.call_tool(
         "execute_forgetful_tool",
         {
@@ -240,7 +238,7 @@ async def test_transition_task_invalid_e2e(mcp_client):
     task_id = create_result.data["id"]
     version = create_result.data["version"]
 
-    # todo -> done is invalid (must go through doing)
+    # TODO -> done is invalid (must go through doing)
     with pytest.raises((ToolError, Exception)) as exc_info:
         await mcp_client.call_tool(
             "execute_forgetful_tool",
@@ -480,7 +478,7 @@ async def test_done_after_criteria_met_e2e(mcp_client):
         },
     )
 
-    # todo -> doing -> done
+    # TODO -> doing -> done
     doing_result = await mcp_client.call_tool(
         "execute_forgetful_tool",
         {

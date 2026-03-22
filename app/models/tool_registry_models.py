@@ -1,11 +1,12 @@
+"""Models used for tool registry
 """
-Models used for tool registry
-"""
-from enum import Enum
-from typing import List, Dict, Any, Optional, Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
+
 
 class ToolCategory(str, Enum):
     """Tool categories for organisation and filtering"""
@@ -27,8 +28,8 @@ class ToolParameter(BaseModel):
     type: str = Field(..., description="The data type of the parameter")
     description: str = Field(..., description="Describes what the parameter does and how it impacts the behaviour of the method")
     required: bool = Field(default=False, description="Whether this parameter is required")
-    default: Optional[Any] = Field(default=None, description="Default value if parameter is not provided")
-    example: Optional[Any] = Field(default=None, description="Example value for this parameter")
+    default: Any | None = Field(default=None, description="Default value if parameter is not provided")
+    example: Any | None = Field(default=None, description="Example value for this parameter")
 
 class ToolMetadata(BaseModel):
     """Complete metadata for a tool"""
@@ -53,12 +54,12 @@ class ToolMetadata(BaseModel):
                     "type": param.type,
                     "required": param.required,
                     "description": param.description,
-                    "example": param.example
+                    "example": param.example,
                 }
                 for param in self.parameters
             },
             "returns": self.returns,
-            "example": self.examples[0] if self.examples else None
+            "example": self.examples[0] if self.examples else None,
         }
 
     def to_detailed_dict(self) -> dict[str, Any]:
@@ -82,7 +83,7 @@ class ToolMetadata(BaseModel):
             "returns": self.returns,
             "examples": self.examples,
             "tags": self.tags,
-            "json_schema": self._generate_json_schema()
+            "json_schema": self._generate_json_schema(),
         }
 
     def _generate_json_schema(self) -> dict[str, Any]:
@@ -154,5 +155,5 @@ class ToolImplementation:
     """Stores tool metadata alongside its callable implementation"""
     metadata: ToolMetadata
     implementation: Callable[..., Awaitable[Any]]
-    
-    
+
+

@@ -1,5 +1,4 @@
-"""
-E2E tests for Graph REST API endpoints.
+"""E2E tests for Graph REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/graph endpoints.
@@ -33,7 +32,7 @@ class TestGraphAPI:
             "context": "Testing graph API",
             "keywords": ["graph", "test"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "Graph Memory 2",
@@ -41,7 +40,7 @@ class TestGraphAPI:
             "context": "Testing graph API",
             "keywords": ["graph", "test"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
 
         # Get graph
@@ -67,7 +66,7 @@ class TestGraphAPI:
         await http_client.post("/api/v1/entities", json={
             "name": "Graph Test Entity",
             "entity_type": "Organization",
-            "notes": "Entity for graph test"
+            "notes": "Entity for graph test",
         })
 
         # Get graph with entities
@@ -88,7 +87,7 @@ class TestGraphAPI:
         await http_client.post("/api/v1/entities", json={
             "name": "Excluded Entity",
             "entity_type": "Individual",
-            "notes": "Should be excluded"
+            "notes": "Should be excluded",
         })
 
         # Create memory
@@ -98,7 +97,7 @@ class TestGraphAPI:
             "context": "Testing exclude entities",
             "keywords": ["graph"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
 
         # Get graph without entities
@@ -119,7 +118,7 @@ class TestGraphAPI:
             "context": "Testing graph edges",
             "keywords": ["linkA"],
             "tags": ["edge-test"],
-            "importance": 7
+            "importance": 7,
         })
         mem1_id = mem1_response.json()["id"]
 
@@ -129,13 +128,13 @@ class TestGraphAPI:
             "context": "Testing graph edges",
             "keywords": ["linkB"],
             "tags": ["edge-test"],
-            "importance": 7
+            "importance": 7,
         })
         mem2_id = mem2_response.json()["id"]
 
         # Link them
         await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
-            "related_ids": [mem2_id]
+            "related_ids": [mem2_id],
         })
 
         # Get graph
@@ -159,7 +158,7 @@ class TestGraphAPI:
                 "context": "Testing limit",
                 "keywords": [f"limit{i}"],
                 "tags": ["limit-test"],
-                "importance": 7
+                "importance": 7,
             })
 
         # Get graph with limit
@@ -195,7 +194,7 @@ class TestGraphAPI:
                 "context": "Testing pagination offset",
                 "keywords": [f"pagination{i}"],
                 "tags": ["pagination-test"],
-                "importance": 7
+                "importance": 7,
             })
 
         # Get first 2 memories
@@ -224,7 +223,7 @@ class TestGraphAPI:
                 "context": "Testing pagination metadata",
                 "keywords": [f"meta{i}"],
                 "tags": ["meta-test"],
-                "importance": 7
+                "importance": 7,
             })
 
         # Get first page
@@ -255,7 +254,7 @@ class TestGraphAPI:
                 "context": "Testing has_more flag",
                 "keywords": [f"small{i}"],
                 "tags": ["small-test"],
-                "importance": 7
+                "importance": 7,
             })
 
         # Get with limit higher than total
@@ -282,7 +281,7 @@ class TestGraphAPI:
             "context": "Testing sort by importance",
             "keywords": ["lowpriority"],
             "tags": ["sort-test"],
-            "importance": 3
+            "importance": 3,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "High Importance",
@@ -290,7 +289,7 @@ class TestGraphAPI:
             "context": "Testing sort by importance",
             "keywords": ["highpriority"],
             "tags": ["sort-test"],
-            "importance": 10
+            "importance": 10,
         })
 
         # Sort by importance descending
@@ -313,7 +312,7 @@ class TestGraphAPI:
             "context": "Testing sort",
             "keywords": ["first"],
             "tags": ["sort-test"],
-            "importance": 7
+            "importance": 7,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "Second Created",
@@ -321,7 +320,7 @@ class TestGraphAPI:
             "context": "Testing sort",
             "keywords": ["second"],
             "tags": ["sort-test"],
-            "importance": 7
+            "importance": 7,
         })
 
         # Sort by created_at descending (default) should put newest first
@@ -397,7 +396,7 @@ class TestMemorySubgraph:
             "context": "Testing subgraph",
             "keywords": ["center"],
             "tags": ["subgraph-test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_response.json()["id"]
 
@@ -431,7 +430,7 @@ class TestMemorySubgraph:
             "context": "Testing subgraph links",
             "keywords": ["subgraphCenter"],
             "tags": ["subgraph"],
-            "importance": 7
+            "importance": 7,
         })
         center_id = center_response.json()["id"]
 
@@ -442,13 +441,13 @@ class TestMemorySubgraph:
             "context": "Testing subgraph links",
             "keywords": ["subgraphLinked"],
             "tags": ["subgraph"],
-            "importance": 7
+            "importance": 7,
         })
         linked_id = linked_response.json()["id"]
 
         # Link them
         await http_client.post(f"/api/v1/memories/{center_id}/links", json={
-            "related_ids": [linked_id]
+            "related_ids": [linked_id],
         })
 
         # Get subgraph
@@ -474,7 +473,7 @@ class TestMemorySubgraph:
             "context": "Testing depth",
             "keywords": ["depthChain1"],
             "tags": ["depth"],
-            "importance": 7
+            "importance": 7,
         })
         mem1_id = mem1_response.json()["id"]
 
@@ -484,7 +483,7 @@ class TestMemorySubgraph:
             "context": "Testing depth",
             "keywords": ["depthChain2"],
             "tags": ["depth"],
-            "importance": 7
+            "importance": 7,
         })
         mem2_id = mem2_response.json()["id"]
 
@@ -494,16 +493,16 @@ class TestMemorySubgraph:
             "context": "Testing depth",
             "keywords": ["depthChain3"],
             "tags": ["depth"],
-            "importance": 7
+            "importance": 7,
         })
         mem3_id = mem3_response.json()["id"]
 
         # Link: 1 -> 2 -> 3
         await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
-            "related_ids": [mem2_id]
+            "related_ids": [mem2_id],
         })
         await http_client.post(f"/api/v1/memories/{mem2_id}/links", json={
-            "related_ids": [mem3_id]
+            "related_ids": [mem3_id],
         })
 
         # Get subgraph with depth=1 (should only get mem1 and mem2)
@@ -539,7 +538,7 @@ class TestMemorySubgraph:
             "context": "Testing depth",
             "keywords": ["depthTest"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_response.json()["id"]
 
@@ -557,13 +556,13 @@ class TestGraphEntityEdges:
         # Create two entities
         entity1_resp = await http_client.post("/api/v1/entities", json={
             "name": "Alice Developer",
-            "entity_type": "Individual"
+            "entity_type": "Individual",
         })
         entity1_id = entity1_resp.json()["id"]
 
         entity2_resp = await http_client.post("/api/v1/entities", json={
             "name": "TechCorp Inc",
-            "entity_type": "Organization"
+            "entity_type": "Organization",
         })
         entity2_id = entity2_resp.json()["id"]
 
@@ -572,7 +571,7 @@ class TestGraphEntityEdges:
             "target_entity_id": entity2_id,
             "relationship_type": "works_at",
             "strength": 0.9,
-            "confidence": 0.95
+            "confidence": 0.95,
         })
 
         # Get graph
@@ -601,20 +600,20 @@ class TestGraphEntityEdges:
             "context": "Meeting notes",
             "keywords": ["meeting"],
             "tags": ["project"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_resp.json()["id"]
 
         # Create entity
         entity_resp = await http_client.post("/api/v1/entities", json={
             "name": "Project Alpha",
-            "entity_type": "Team"
+            "entity_type": "Team",
         })
         entity_id = entity_resp.json()["id"]
 
         # Link entity to memory
         await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         # Get graph
@@ -638,26 +637,26 @@ class TestGraphEntityEdges:
         # Create two entities
         entity_a_resp = await http_client.post("/api/v1/entities", json={
             "name": "Entity A",
-            "entity_type": "Organization"
+            "entity_type": "Organization",
         })
         entity_a_id = entity_a_resp.json()["id"]
 
         entity_b_resp = await http_client.post("/api/v1/entities", json={
             "name": "Entity B",
-            "entity_type": "Organization"
+            "entity_type": "Organization",
         })
         entity_b_id = entity_b_resp.json()["id"]
 
         # Create A -> B relationship
         await http_client.post(f"/api/v1/entities/{entity_a_id}/relationships", json={
             "target_entity_id": entity_b_id,
-            "relationship_type": "partners_with"
+            "relationship_type": "partners_with",
         })
 
         # Create B -> A relationship (reverse direction)
         await http_client.post(f"/api/v1/entities/{entity_b_id}/relationships", json={
             "target_entity_id": entity_a_id,
-            "relationship_type": "partners_with"
+            "relationship_type": "partners_with",
         })
 
         # Get graph
@@ -684,7 +683,7 @@ class TestGraphEntityEdges:
         # Create entity and memory with relationship
         entity_resp = await http_client.post("/api/v1/entities", json={
             "name": "Test Entity",
-            "entity_type": "Organization"
+            "entity_type": "Organization",
         })
         entity_id = entity_resp.json()["id"]
 
@@ -694,12 +693,12 @@ class TestGraphEntityEdges:
             "context": "Testing",
             "keywords": ["test"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_resp.json()["id"]
 
         await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         # Get graph WITHOUT entities
@@ -721,39 +720,39 @@ class TestGraphEntityEdges:
         # Memory link
         mem1_resp = await http_client.post("/api/v1/memories", json={
             "title": "Memory 1", "content": "Content 1", "context": "Context",
-            "keywords": ["k1"], "tags": ["t1"], "importance": 7
+            "keywords": ["k1"], "tags": ["t1"], "importance": 7,
         })
         mem1_id = mem1_resp.json()["id"]
 
         mem2_resp = await http_client.post("/api/v1/memories", json={
             "title": "Memory 2", "content": "Content 2", "context": "Context",
-            "keywords": ["k2"], "tags": ["t2"], "importance": 7
+            "keywords": ["k2"], "tags": ["t2"], "importance": 7,
         })
         mem2_id = mem2_resp.json()["id"]
 
         await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
-            "related_ids": [mem2_id]
+            "related_ids": [mem2_id],
         })
 
         # Entity relationship
         ent1_resp = await http_client.post("/api/v1/entities", json={
-            "name": "Entity 1", "entity_type": "Organization"
+            "name": "Entity 1", "entity_type": "Organization",
         })
         ent1_id = ent1_resp.json()["id"]
 
         ent2_resp = await http_client.post("/api/v1/entities", json={
-            "name": "Entity 2", "entity_type": "Organization"
+            "name": "Entity 2", "entity_type": "Organization",
         })
         ent2_id = ent2_resp.json()["id"]
 
         await http_client.post(f"/api/v1/entities/{ent1_id}/relationships", json={
             "target_entity_id": ent2_id,
-            "relationship_type": "related_to"
+            "relationship_type": "related_to",
         })
 
         # Entity-memory link
         await http_client.post(f"/api/v1/entities/{ent1_id}/memories", json={
-            "memory_id": mem1_id
+            "memory_id": mem1_id,
         })
 
         # Get graph
@@ -775,19 +774,19 @@ class TestGraphEntityEdges:
         """Entity edges only appear when both endpoint nodes are in the result set."""
         # Create two entities
         ent1_resp = await http_client.post("/api/v1/entities", json={
-            "name": "Visible Entity", "entity_type": "Organization"
+            "name": "Visible Entity", "entity_type": "Organization",
         })
         ent1_id = ent1_resp.json()["id"]
 
         ent2_resp = await http_client.post("/api/v1/entities", json={
-            "name": "Also Visible Entity", "entity_type": "Organization"
+            "name": "Also Visible Entity", "entity_type": "Organization",
         })
         ent2_id = ent2_resp.json()["id"]
 
         # Create relationship
         await http_client.post(f"/api/v1/entities/{ent1_id}/relationships", json={
             "target_entity_id": ent2_id,
-            "relationship_type": "connected_to"
+            "relationship_type": "connected_to",
         })
 
         # Get graph with entities - edge should appear
@@ -808,34 +807,34 @@ class TestGraphEntityEdges:
             "context": "Subgraph entity test",
             "keywords": ["subgraph", "entity"],
             "tags": ["test"],
-            "importance": 8
+            "importance": 8,
         })
         memory_id = mem_resp.json()["id"]
 
         # Create two entities
         ent1_resp = await http_client.post("/api/v1/entities", json={
-            "name": "Linked Entity 1", "entity_type": "Individual"
+            "name": "Linked Entity 1", "entity_type": "Individual",
         })
         ent1_id = ent1_resp.json()["id"]
 
         ent2_resp = await http_client.post("/api/v1/entities", json={
-            "name": "Linked Entity 2", "entity_type": "Individual"
+            "name": "Linked Entity 2", "entity_type": "Individual",
         })
         ent2_id = ent2_resp.json()["id"]
 
         # Link both entities to memory
         await http_client.post(f"/api/v1/entities/{ent1_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
         await http_client.post(f"/api/v1/entities/{ent2_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         # Create relationship between entities
         await http_client.post(f"/api/v1/entities/{ent1_id}/relationships", json={
             "target_entity_id": ent2_id,
             "relationship_type": "collaborates_with",
-            "strength": 0.8
+            "strength": 0.8,
         })
 
         # Get subgraph
@@ -870,7 +869,7 @@ class TestSubgraphEndpoint:
             "context": "Testing CTE subgraph",
             "keywords": ["cte_center"],
             "tags": ["cte-test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_response.json()["id"]
 
@@ -898,7 +897,7 @@ class TestSubgraphEndpoint:
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "CTE Center Entity",
             "entity_type": "Organization",
-            "notes": "Entity at center of CTE subgraph"
+            "notes": "Entity at center of CTE subgraph",
         })
         entity_id = entity_response.json()["id"]
 
@@ -932,7 +931,7 @@ class TestSubgraphEndpoint:
                 "context": "Wildlife documentary research",
                 "keywords": ["penguin", "antarctica", "migration"],
                 "tags": ["depth-test"],
-                "importance": 7
+                "importance": 7,
             })
             mem1_id = mem1_response.json()["id"]
 
@@ -942,7 +941,7 @@ class TestSubgraphEndpoint:
                 "context": "Physics lecture notes",
                 "keywords": ["quantum", "physics", "entanglement"],
                 "tags": ["depth-test"],
-                "importance": 7
+                "importance": 7,
             })
             mem2_id = mem2_response.json()["id"]
 
@@ -952,16 +951,16 @@ class TestSubgraphEndpoint:
                 "context": "Art history seminar",
                 "keywords": ["art", "renaissance", "painting"],
                 "tags": ["depth-test"],
-                "importance": 7
+                "importance": 7,
             })
             mem3_id = mem3_response.json()["id"]
 
             # Link: M1 -> M2 -> M3
             await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
-                "related_ids": [mem2_id]
+                "related_ids": [mem2_id],
             })
             await http_client.post(f"/api/v1/memories/{mem2_id}/links", json={
-                "related_ids": [mem3_id]
+                "related_ids": [mem3_id],
             })
 
             # Depth 1: Should get M1 and M2 only
@@ -1000,7 +999,7 @@ class TestSubgraphEndpoint:
             "context": "Testing cycle detection",
             "keywords": ["cycle_a"],
             "tags": ["cycle"],
-            "importance": 7
+            "importance": 7,
         })
         mem_a_id = mem_a.json()["id"]
 
@@ -1010,7 +1009,7 @@ class TestSubgraphEndpoint:
             "context": "Testing cycle detection",
             "keywords": ["cycle_b"],
             "tags": ["cycle"],
-            "importance": 7
+            "importance": 7,
         })
         mem_b_id = mem_b.json()["id"]
 
@@ -1020,19 +1019,19 @@ class TestSubgraphEndpoint:
             "context": "Testing cycle detection",
             "keywords": ["cycle_c"],
             "tags": ["cycle"],
-            "importance": 7
+            "importance": 7,
         })
         mem_c_id = mem_c.json()["id"]
 
         # Create cycle: A -> B -> C -> A
         await http_client.post(f"/api/v1/memories/{mem_a_id}/links", json={
-            "related_ids": [mem_b_id]
+            "related_ids": [mem_b_id],
         })
         await http_client.post(f"/api/v1/memories/{mem_b_id}/links", json={
-            "related_ids": [mem_c_id]
+            "related_ids": [mem_c_id],
         })
         await http_client.post(f"/api/v1/memories/{mem_c_id}/links", json={
-            "related_ids": [mem_a_id]
+            "related_ids": [mem_a_id],
         })
 
         # Should complete without infinite loop, even with depth=3
@@ -1057,24 +1056,24 @@ class TestSubgraphEndpoint:
             "context": "Testing node_types filter",
             "keywords": ["filter"],
             "tags": ["filter-test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_response.json()["id"]
 
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "Filter Test Entity",
-            "entity_type": "Organization"
+            "entity_type": "Organization",
         })
         entity_id = entity_response.json()["id"]
 
         # Link entity to memory
         await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         # With node_types=memory only - should not traverse to entity
         response = await http_client.get(
-            f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory"
+            f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory",
         )
         assert response.status_code == 200
         data = response.json()
@@ -1085,7 +1084,7 @@ class TestSubgraphEndpoint:
 
         # With node_types=memory,entity - should traverse to entity
         response = await http_client.get(
-            f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory,entity"
+            f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory,entity",
         )
         assert response.status_code == 200
         data = response.json()
@@ -1105,19 +1104,19 @@ class TestSubgraphEndpoint:
                 "context": "Testing max_nodes",
                 "keywords": [f"truncation_{i}"],
                 "tags": ["truncation"],
-                "importance": 7
+                "importance": 7,
             })
             mem_ids.append(mem_response.json()["id"])
 
         # Link all to first
         for i in range(1, len(mem_ids)):
             await http_client.post(f"/api/v1/memories/{mem_ids[0]}/links", json={
-                "related_ids": [mem_ids[i]]
+                "related_ids": [mem_ids[i]],
             })
 
         # Request with very low max_nodes
         response = await http_client.get(
-            f"/api/v1/graph/subgraph?node_id=memory_{mem_ids[0]}&max_nodes=2"
+            f"/api/v1/graph/subgraph?node_id=memory_{mem_ids[0]}&max_nodes=2",
         )
         assert response.status_code == 200
         data = response.json()
@@ -1137,7 +1136,7 @@ class TestSubgraphEndpoint:
             "context": "Testing depth field",
             "keywords": ["depth_center"],
             "tags": ["depth"],
-            "importance": 7
+            "importance": 7,
         })
         center_id = center_response.json()["id"]
 
@@ -1147,12 +1146,12 @@ class TestSubgraphEndpoint:
             "context": "Testing depth field",
             "keywords": ["depth_neighbor"],
             "tags": ["depth"],
-            "importance": 7
+            "importance": 7,
         })
         neighbor_id = neighbor_response.json()["id"]
 
         await http_client.post(f"/api/v1/memories/{center_id}/links", json={
-            "related_ids": [neighbor_id]
+            "related_ids": [neighbor_id],
         })
 
         response = await http_client.get(f"/api/v1/graph/subgraph?node_id=memory_{center_id}")
@@ -1177,7 +1176,7 @@ class TestSubgraphEndpoint:
             "context": "Testing edge types",
             "keywords": ["edge1"],
             "tags": ["edges"],
-            "importance": 7
+            "importance": 7,
         })
         mem1_id = mem1.json()["id"]
 
@@ -1187,48 +1186,48 @@ class TestSubgraphEndpoint:
             "context": "Testing edge types",
             "keywords": ["edge2"],
             "tags": ["edges"],
-            "importance": 7
+            "importance": 7,
         })
         mem2_id = mem2.json()["id"]
 
         # Create entities
         ent1 = await http_client.post("/api/v1/entities", json={
             "name": "Edge Entity 1",
-            "entity_type": "Individual"
+            "entity_type": "Individual",
         })
         ent1_id = ent1.json()["id"]
 
         ent2 = await http_client.post("/api/v1/entities", json={
             "name": "Edge Entity 2",
-            "entity_type": "Individual"
+            "entity_type": "Individual",
         })
         ent2_id = ent2.json()["id"]
 
         # Create all edge types:
         # memory_link: mem1 <-> mem2
         await http_client.post(f"/api/v1/memories/{mem1_id}/links", json={
-            "related_ids": [mem2_id]
+            "related_ids": [mem2_id],
         })
 
         # entity_memory: ent1 -> mem1
         await http_client.post(f"/api/v1/entities/{ent1_id}/memories", json={
-            "memory_id": mem1_id
+            "memory_id": mem1_id,
         })
 
         # entity_relationship: ent1 -> ent2
         await http_client.post(f"/api/v1/entities/{ent1_id}/relationships", json={
             "target_entity_id": ent2_id,
-            "relationship_type": "knows"
+            "relationship_type": "knows",
         })
 
         # Link ent2 to mem2 to ensure both entities are in subgraph
         await http_client.post(f"/api/v1/entities/{ent2_id}/memories", json={
-            "memory_id": mem2_id
+            "memory_id": mem2_id,
         })
 
         # Get subgraph
         response = await http_client.get(
-            f"/api/v1/graph/subgraph?node_id=memory_{mem1_id}&depth=2"
+            f"/api/v1/graph/subgraph?node_id=memory_{mem1_id}&depth=2",
         )
         assert response.status_code == 200
         data = response.json()
@@ -1300,7 +1299,7 @@ class TestSubgraphEndpoint:
             "context": "Testing meta fields",
             "keywords": ["meta"],
             "tags": ["meta-test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_response.json()["id"]
 
@@ -1332,7 +1331,7 @@ class TestGraphNewNodeTypes:
         project_resp = await http_client.post("/api/v1/projects", json={
             "name": "Test Project",
             "description": "Project for graph test",
-            "project_type": "development"
+            "project_type": "development",
         })
         assert project_resp.status_code in [200, 201]
         project_id = project_resp.json()["id"]
@@ -1360,7 +1359,7 @@ class TestGraphNewNodeTypes:
             "description": "Document for graph test",
             "content": "This is the document content for testing graph API",
             "document_type": "text",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         assert doc_resp.status_code in [200, 201]
         document_id = doc_resp.json()["id"]
@@ -1388,7 +1387,7 @@ class TestGraphNewNodeTypes:
             "description": "Code artifact for graph test",
             "code": "def hello(): return 'world'",
             "language": "python",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         assert artifact_resp.status_code in [200, 201]
         artifact_id = artifact_resp.json()["id"]
@@ -1414,7 +1413,7 @@ class TestGraphNewNodeTypes:
         project_resp = await http_client.post("/api/v1/projects", json={
             "name": "Edge Test Project",
             "description": "Project for edge test",
-            "project_type": "development"
+            "project_type": "development",
         })
         project_id = project_resp.json()["id"]
 
@@ -1426,7 +1425,7 @@ class TestGraphNewNodeTypes:
             "keywords": ["project"],
             "tags": ["project-test"],
             "importance": 7,
-            "project_ids": [project_id]
+            "project_ids": [project_id],
         })
 
         # Get graph
@@ -1449,7 +1448,7 @@ class TestGraphNewNodeTypes:
         project_resp = await http_client.post("/api/v1/projects", json={
             "name": "Document Edge Project",
             "description": "Project for document edge test",
-            "project_type": "development"
+            "project_type": "development",
         })
         project_id = project_resp.json()["id"]
 
@@ -1460,7 +1459,7 @@ class TestGraphNewNodeTypes:
             "content": "Document content for edge testing",
             "document_type": "text",
             "tags": ["test"],
-            "project_id": project_id
+            "project_id": project_id,
         })
 
         # Get graph
@@ -1483,7 +1482,7 @@ class TestGraphNewNodeTypes:
         project_resp = await http_client.post("/api/v1/projects", json={
             "name": "Artifact Edge Project",
             "description": "Project for artifact edge test",
-            "project_type": "development"
+            "project_type": "development",
         })
         project_id = project_resp.json()["id"]
 
@@ -1494,7 +1493,7 @@ class TestGraphNewNodeTypes:
             "code": "print('hello')",
             "language": "python",
             "tags": ["test"],
-            "project_id": project_id
+            "project_id": project_id,
         })
 
         # Get graph
@@ -1519,7 +1518,7 @@ class TestGraphNewNodeTypes:
             "description": "Document to be linked",
             "content": "Document content",
             "document_type": "text",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         document_id = doc_resp.json()["id"]
 
@@ -1531,7 +1530,7 @@ class TestGraphNewNodeTypes:
             "keywords": ["document"],
             "tags": ["document-test"],
             "importance": 7,
-            "document_ids": [document_id]
+            "document_ids": [document_id],
         })
 
         # Get graph
@@ -1556,7 +1555,7 @@ class TestGraphNewNodeTypes:
             "description": "Artifact to be linked",
             "code": "x = 1",
             "language": "python",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         artifact_id = artifact_resp.json()["id"]
 
@@ -1568,7 +1567,7 @@ class TestGraphNewNodeTypes:
             "keywords": ["artifact"],
             "tags": ["artifact-test"],
             "importance": 7,
-            "code_artifact_ids": [artifact_id]
+            "code_artifact_ids": [artifact_id],
         })
 
         # Get graph
@@ -1591,7 +1590,7 @@ class TestGraphNewNodeTypes:
         await http_client.post("/api/v1/projects", json={
             "name": "Filter Test Project",
             "description": "Project for filter test",
-            "project_type": "development"
+            "project_type": "development",
         })
 
         # Get graph without projects
@@ -1610,7 +1609,7 @@ class TestGraphNewNodeTypes:
         project_resp = await http_client.post("/api/v1/projects", json={
             "name": "Center Project",
             "description": "Project to center subgraph on",
-            "project_type": "development"
+            "project_type": "development",
         })
         project_id = project_resp.json()["id"]
 
@@ -1622,7 +1621,7 @@ class TestGraphNewNodeTypes:
             "keywords": ["project"],
             "tags": ["test"],
             "importance": 7,
-            "project_ids": [project_id]
+            "project_ids": [project_id],
         })
 
         # Get subgraph centered on project
@@ -1646,7 +1645,7 @@ class TestGraphNewNodeTypes:
             "description": "Document to center subgraph on",
             "content": "Document content for subgraph test",
             "document_type": "text",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         document_id = doc_resp.json()["id"]
 
@@ -1658,7 +1657,7 @@ class TestGraphNewNodeTypes:
             "keywords": ["document"],
             "tags": ["test"],
             "importance": 7,
-            "document_ids": [document_id]
+            "document_ids": [document_id],
         })
 
         # Get subgraph centered on document
@@ -1682,7 +1681,7 @@ class TestGraphNewNodeTypes:
             "description": "Artifact to center subgraph on",
             "code": "result = 42",
             "language": "python",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         artifact_id = artifact_resp.json()["id"]
 
@@ -1694,7 +1693,7 @@ class TestGraphNewNodeTypes:
             "keywords": ["artifact"],
             "tags": ["test"],
             "importance": 7,
-            "code_artifact_ids": [artifact_id]
+            "code_artifact_ids": [artifact_id],
         })
 
         # Get subgraph centered on artifact
@@ -1719,7 +1718,7 @@ class TestGraphNewNodeTypes:
             "context": "Testing new meta fields",
             "keywords": ["meta"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = mem_resp.json()["id"]
 

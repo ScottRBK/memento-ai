@@ -45,7 +45,7 @@ In this sense **Forgetful** becomes a little bit like Obsidian for AI Agents, wh
 
 We find, [as do others (A-MEM: Agentic Memory or LLM Agents)](https://arxiv.org/abs/2502.12110), all this helps in ensuring that when the agent requires relevant information from the memory system later, the correct information is returned.
 
-In addition to just memories, **Forgetful** also has the concept of entities (think organisation, people, products), projects, documents, code artifacts, and plans with tasks for multi-agent coordination, all of which can be associated with one or more memories.
+In addition to just memories, **Forgetful** also has the concept of entities (think organisation, people, products), projects, documents, code artifacts, skills (procedural knowledge following the [Agent Skills](https://agentskills.io) standard), and plans with tasks for multi-agent coordination, all of which can be associated with one or more memories.
 
 
 ![Architecture](docs/images/Forgetful%20Architecture.drawio_transparent.png)
@@ -60,6 +60,7 @@ In addition to just memories, **Forgetful** also has the concept of entities (th
 - Flexible ranking (embedding and cross encoder) providers, run everything locally without calls to the cloud thanks to FastEmbed
 - Automatic linking of semantically similar memories, automating the creation of the knowledge graph.
 - Plans and Tasks for multi-agent coordination -- structure work into plans with tasks that have acceptance criteria, state management with optimistic locking, and dependency tracking with cycle detection.
+- Skills for procedural memory -- store step-by-step instructions and agent capabilities with semantic search, import/export in Agent Skills SKILL.md format, and cross-referencing with memories.
 
 For the complete roadmap, see [Features Roadmap](docs/features_roadmap.md).
 
@@ -283,13 +284,14 @@ results = execute_forgetful_tool(
 
 ### Tool Categories
 
-Forgetful provides **42 tools** across **6 categories**:
+Forgetful provides tools across **7 categories**:
 
 - **Memory Tools** (7) – create, query, update, link, mark obsolete
 - **Project Tools** (5) – organize knowledge by context/scope
 - **Entity Tools** (15) – track people, orgs, devices; build knowledge graphs
 - **Code Artifact Tools** (5) – store reusable code snippets
 - **Document Tools** (5) – store long-form content (>400 words)
+- **Skill Tools** (10) – store procedural knowledge with semantic search and SKILL.md import/export
 - **User Tools** (2) – profile and authentication
 
 For complete documentation with extensive examples, see [Complete Tool Reference](docs/tool_reference.md).

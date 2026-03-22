@@ -1,7 +1,6 @@
 """Task repository for Postgres data access operations"""
 
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -130,14 +129,14 @@ class PostgresTaskRepository:
             return summaries
 
     async def update_task(
-        self, user_id: UUID, task_id: int, task_data: TaskUpdate
+        self, user_id: UUID, task_id: int, task_data: TaskUpdate,
     ) -> Task:
         async with self.db_adapter.session(user_id) as session:
             update_data = task_data.model_dump(exclude_unset=True)
             if not update_data:
                 return await self.get_task_by_id(user_id, task_id)
 
-            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.now(UTC)
             stmt = (
                 update(TasksTable)
                 .where(TasksTable.user_id == user_id, TasksTable.id == task_id)
@@ -154,7 +153,7 @@ class PostgresTaskRepository:
     async def delete_task(self, user_id: UUID, task_id: int) -> bool:
         async with self.db_adapter.session(user_id) as session:
             stmt = delete(TasksTable).where(
-                TasksTable.user_id == user_id, TasksTable.id == task_id
+                TasksTable.user_id == user_id, TasksTable.id == task_id,
             )
             result = await session.execute(stmt)
             return result.rowcount > 0
@@ -170,7 +169,7 @@ class PostgresTaskRepository:
         assigned_agent: str | None = None,
     ) -> Task:
         async with self.db_adapter.session(user_id) as session:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             values = {
                 "state": new_state.value,
                 "version": expected_version + 1,
@@ -197,14 +196,14 @@ class PostgresTaskRepository:
                     select(TasksTable).where(
                         TasksTable.user_id == user_id,
                         TasksTable.id == task_id,
-                    )
+                    ),
                 )
                 exists = check.scalar_one_or_none()
                 if not exists:
                     raise NotFoundError(f"Task with id {task_id} not found")
                 raise ConflictError(
                     f"Version conflict for task {task_id}: expected {expected_version}, "
-                    f"current is {exists.version}"
+                    f"current is {exists.version}",
                 )
 
             await session.refresh(task_orm, attribute_names=["criteria", "depends_on"])
@@ -213,7 +212,7 @@ class PostgresTaskRepository:
     # ---- Criteria CRUD ----
 
     async def create_criterion(
-        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate
+        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate,
     ) -> Criterion:
         async with self.db_adapter.session(user_id) as session:
             new_criterion = CriteriaTable(
@@ -226,7 +225,7 @@ class PostgresTaskRepository:
             return Criterion.model_validate(new_criterion)
 
     async def update_criterion(
-        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate
+        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate,
     ) -> Criterion:
         async with self.db_adapter.session(user_id) as session:
             update_data = criterion_data.model_dump(exclude_unset=True)
@@ -242,11 +241,11 @@ class PostgresTaskRepository:
                 return Criterion.model_validate(c)
 
             if update_data.get("met") is True:
-                update_data["met_at"] = datetime.now(timezone.utc)
+                update_data["met_at"] = datetime.now(UTC)
             elif update_data.get("met") is False:
                 update_data["met_at"] = None
 
-            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.now(UTC)
 
             stmt = (
                 update(CriteriaTable)
@@ -273,7 +272,7 @@ class PostgresTaskRepository:
             return result.rowcount > 0
 
     async def get_criteria_for_task(
-        self, user_id: UUID, task_id: int
+        self, user_id: UUID, task_id: int,
     ) -> list[Criterion]:
         async with self.db_adapter.session(user_id) as session:
             stmt = (
@@ -290,7 +289,7 @@ class PostgresTaskRepository:
     # ---- Dependencies ----
 
     async def add_dependency(
-        self, user_id: UUID, task_id: int, depends_on_task_id: int
+        self, user_id: UUID, task_id: int, depends_on_task_id: int,
     ) -> TaskDependency:
         async with self.db_adapter.session(user_id) as session:
             dep = TaskDependenciesTable(
@@ -303,7 +302,7 @@ class PostgresTaskRepository:
             return TaskDependency.model_validate(dep)
 
     async def remove_dependency(
-        self, user_id: UUID, task_id: int, depends_on_task_id: int
+        self, user_id: UUID, task_id: int, depends_on_task_id: int,
     ) -> bool:
         async with self.db_adapter.session(user_id) as session:
             stmt = delete(TaskDependenciesTable).where(

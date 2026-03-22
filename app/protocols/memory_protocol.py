@@ -1,8 +1,8 @@
-from typing import Protocol, List, Dict, Any, Tuple
+from dataclasses import dataclass
+from typing import Any, Protocol
 from uuid import UUID
 
 from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
-from dataclasses import dataclass
 
 
 @dataclass
@@ -18,23 +18,23 @@ class ValidationResult:
 
 
 class MemoryRepository(Protocol):
-    "Contract for the Memory Repository"
-    
+    """Contract for the Memory Repository"""
+
     async def search(
             self,
             user_id: UUID,
-            query: str, 
+            query: str,
             query_context: str,
-            k: int, 
+            k: int,
             importance_threshold: int | None,
             project_ids: list[int] | None,
-            exclude_ids: list[int] | None
+            exclude_ids: list[int] | None,
     ) -> list[Memory]:
         ...
     async def create_memory(
             self,
-            user_id: UUID, 
-            memory: MemoryCreate
+            user_id: UUID,
+            memory: MemoryCreate,
     ) -> Memory:
         ...
     async def create_links_batch(
@@ -64,7 +64,7 @@ class MemoryRepository(Protocol):
             user_id: UUID,
             memory_id: int,
             reason: str,
-            superseded_by: int
+            superseded_by: int,
     ) -> bool:
         ...
     async def get_linked_memories(
@@ -79,7 +79,7 @@ class MemoryRepository(Protocol):
             self,
             user_id: UUID,
             memory_id: int,
-            max_links: int
+            max_links: int,
     ) -> list[Memory]:
         ...
 
@@ -94,8 +94,7 @@ class MemoryRepository(Protocol):
             sort_order: str = "desc",
             tags: list[str] | None = None,
     ) -> tuple[list[Memory], int]:
-        """
-        Get memories with pagination, sorting, and filtering.
+        """Get memories with pagination, sorting, and filtering.
 
         Args:
             user_id: User ID
@@ -119,8 +118,7 @@ class MemoryRepository(Protocol):
             source_id: int,
             target_id: int,
     ) -> bool:
-        """
-        Remove bidirectional link between two memories.
+        """Remove bidirectional link between two memories.
 
         Args:
             user_id: User ID for isolation
@@ -143,10 +141,9 @@ class MemoryRepository(Protocol):
             include_projects: bool,
             include_documents: bool,
             include_code_artifacts: bool,
-            max_nodes: int
+            max_nodes: int,
     ) -> tuple[list[dict[str, Any]], bool]:
-        """
-        Traverse graph using recursive CTE from center node.
+        """Traverse graph using recursive CTE from center node.
 
         Uses a single recursive CTE query to traverse all edge types:
         - memory_links (memory <-> memory)
@@ -189,7 +186,8 @@ class MemoryRepository(Protocol):
     async def reset_embedding_storage(self) -> None:
         """Prepare vector storage for new dimensions.
         SQLite: DROP + CREATE vec_memories with new dimensions
-        Postgres: ALTER embedding column type"""
+        Postgres: ALTER embedding column type
+        """
         ...
 
     async def bulk_update_embeddings(self, updates: list[tuple[int, list[float]]]) -> None:

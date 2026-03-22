@@ -1,13 +1,12 @@
-"""
-Pydantic models for File entities
+"""Pydantic models for File entities
 
 Files store binary content (images, PDFs, fonts, etc.) as base64-encoded data.
 They can be linked to memories and entities for multi-modal knowledge management.
 """
 import base64
-from datetime import datetime, timezone
-from typing import List
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import UTC, datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
 
@@ -26,33 +25,33 @@ class FileCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.FILE_FILENAME_MAX_LENGTH,
-        description="Original filename with extension (e.g., 'screenshot.png', 'report.pdf')"
+        description="Original filename with extension (e.g., 'screenshot.png', 'report.pdf')",
     )
     description: str = Field(
         ...,
         min_length=1,
         max_length=settings.FILE_DESCRIPTION_MAX_LENGTH,
-        description="Purpose and content description. What is this file? When should it be used?"
+        description="Purpose and content description. What is this file? When should it be used?",
     )
     data: str = Field(
         ...,
         min_length=1,
-        description="Base64-encoded file content. Decoded size must not exceed FILE_MAX_SIZE_BYTES."
+        description="Base64-encoded file content. Decoded size must not exceed FILE_MAX_SIZE_BYTES.",
     )
     mime_type: str = Field(
         ...,
         min_length=1,
         max_length=255,
-        description="MIME type (e.g., 'image/png', 'application/pdf', 'font/woff2')"
+        description="MIME type (e.g., 'image/png', 'application/pdf', 'font/woff2')",
     )
     tags: list[str] = Field(
         default_factory=list,
         max_length=settings.FILE_TAGS_MAX_COUNT,
-        description="Tags for categorization and discovery (e.g., ['screenshot', 'ui', 'v2'])"
+        description="Tags for categorization and discovery (e.g., ['screenshot', 'ui', 'v2'])",
     )
     project_id: int | None = Field(
         default=None,
-        description="Optional project ID for immediate association with a project"
+        description="Optional project ID for immediate association with a project",
     )
 
     @field_validator("filename", "description", "mime_type")
@@ -98,7 +97,7 @@ class FileCreate(BaseModel):
         if len(decoded) > settings.FILE_MAX_SIZE_BYTES:
             raise ValueError(
                 f"Decoded file size ({len(decoded)} bytes) exceeds maximum "
-                f"({settings.FILE_MAX_SIZE_BYTES} bytes)"
+                f"({settings.FILE_MAX_SIZE_BYTES} bytes)",
             )
 
         return v
@@ -114,33 +113,33 @@ class FileUpdate(BaseModel):
         default=None,
         min_length=1,
         max_length=settings.FILE_FILENAME_MAX_LENGTH,
-        description="New filename. Unchanged if null."
+        description="New filename. Unchanged if null.",
     )
     description: str | None = Field(
         default=None,
         min_length=1,
         max_length=settings.FILE_DESCRIPTION_MAX_LENGTH,
-        description="New description. Unchanged if null."
+        description="New description. Unchanged if null.",
     )
     data: str | None = Field(
         default=None,
         min_length=1,
-        description="New base64-encoded content (replaces file). Unchanged if null."
+        description="New base64-encoded content (replaces file). Unchanged if null.",
     )
     mime_type: str | None = Field(
         default=None,
         min_length=1,
         max_length=255,
-        description="New MIME type. Unchanged if null."
+        description="New MIME type. Unchanged if null.",
     )
     tags: list[str] | None = Field(
         default=None,
         max_length=settings.FILE_TAGS_MAX_COUNT,
-        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
+        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags.",
     )
     project_id: int | None = Field(
         default=None,
-        description="New project association. Unchanged if null."
+        description="New project association. Unchanged if null.",
     )
 
     @field_validator("filename", "description", "mime_type")
@@ -189,7 +188,7 @@ class FileUpdate(BaseModel):
         if len(decoded) > settings.FILE_MAX_SIZE_BYTES:
             raise ValueError(
                 f"Decoded file size ({len(decoded)} bytes) exceeds maximum "
-                f"({settings.FILE_MAX_SIZE_BYTES} bytes)"
+                f"({settings.FILE_MAX_SIZE_BYTES} bytes)",
             )
 
         return v
@@ -203,23 +202,23 @@ class File(FileCreate):
     """
     id: int = Field(
         ...,
-        description="Unique file identifier (auto-generated)"
+        description="Unique file identifier (auto-generated)",
     )
     size_bytes: int = Field(
         ...,
-        description="Size of decoded binary content in bytes"
+        description="Size of decoded binary content in bytes",
     )
     project_id: int | None = Field(
         default=None,
-        description="Associated project ID. Null if not linked to a project."
+        description="Associated project ID. Null if not linked to a project.",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the file was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the file was created (UTC)",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the file was last updated (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the file was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -233,39 +232,39 @@ class FileSummary(BaseModel):
     """
     id: int = Field(
         ...,
-        description="Unique file identifier"
+        description="Unique file identifier",
     )
     filename: str = Field(
         ...,
-        description="Original filename"
+        description="Original filename",
     )
     description: str = Field(
         ...,
-        description="File description"
+        description="File description",
     )
     mime_type: str = Field(
         ...,
-        description="MIME type"
+        description="MIME type",
     )
     size_bytes: int = Field(
         ...,
-        description="Size of decoded binary content in bytes"
+        description="Size of decoded binary content in bytes",
     )
     tags: list[str] = Field(
         ...,
-        description="Tags for categorization"
+        description="Tags for categorization",
     )
     project_id: int | None = Field(
         default=None,
-        description="Associated project ID"
+        description="Associated project ID",
     )
     created_at: datetime = Field(
         ...,
-        description="When the file was created (UTC)"
+        description="When the file was created (UTC)",
     )
     updated_at: datetime = Field(
         ...,
-        description="When the file was last updated (UTC)"
+        description="When the file was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)

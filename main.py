@@ -1,32 +1,43 @@
-"""
-    FastAPI application for a python service
+"""FastAPI application for a python service
 """
 import argparse
 import asyncio
-import signal
-import sys
-from pathlib import Path
-from contextlib import asynccontextmanager
-from fastmcp import FastMCP
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-
-from app.config.settings import settings
-from app.version import get_version
-from app.routes.api import health, memories, entities, projects, documents, code_artifacts, graph, auth, activity
-from app.routes.api import plans as plans_routes, tasks as tasks_routes
-from app.routes.api import files as files_routes
-from app.routes.mcp import skill_tools as skill_routes
-from app.routes.api import skills as skills_api
-from app.routes.mcp import meta_tools
-from app.routes.mcp.tool_registry import ToolRegistry
-from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.config.auth import build_auth_provider
+import atexit
 
 # NOTE: Logging is configured inside lifespan() to avoid STDIO pollution
 # before MCP handshake completes. Do NOT add module-level logging here.
 import logging
-import atexit
+import signal
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.config.auth import build_auth_provider
+from app.config.settings import settings
+from app.routes.api import (
+    activity,
+    auth,
+    code_artifacts,
+    documents,
+    entities,
+    graph,
+    health,
+    memories,
+    projects,
+)
+from app.routes.api import files as files_routes
+from app.routes.api import plans as plans_routes
+from app.routes.api import skills as skills_api
+from app.routes.api import tasks as tasks_routes
+from app.routes.mcp import meta_tools
+from app.routes.mcp import skill_tools as skill_routes
+from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
+from app.routes.mcp.tool_registry import ToolRegistry
+from app.version import get_version
 
 # Global references - initialized in lifespan()
 _queue_listener = None
@@ -36,20 +47,22 @@ logger = logging.getLogger(__name__)
 def _get_embedding_adapter():
     """Create embedding adapter based on settings. Called during lifespan."""
     from app.repositories.embeddings.embedding_adapter import (
-        FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter,
-        OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter,
+        AzureOpenAIAdapter,
+        FastEmbeddingAdapter,
+        GoogleEmbeddingsAdapter,
+        OllamaEmbeddingsAdapter,
+        OpenAIEmbeddingsAdapter,
     )
 
     if settings.EMBEDDING_PROVIDER == "Azure":
         return AzureOpenAIAdapter()
-    elif settings.EMBEDDING_PROVIDER == "Google":
+    if settings.EMBEDDING_PROVIDER == "Google":
         return GoogleEmbeddingsAdapter()
-    elif settings.EMBEDDING_PROVIDER == "OpenAI":
+    if settings.EMBEDDING_PROVIDER == "OpenAI":
         return OpenAIEmbeddingsAdapter()
-    elif settings.EMBEDDING_PROVIDER == "Ollama":
+    if settings.EMBEDDING_PROVIDER == "Ollama":
         return OllamaEmbeddingsAdapter()
-    else:
-        return FastEmbeddingAdapter()
+    return FastEmbeddingAdapter()
 
 
 def _get_reranker_adapter():
@@ -59,11 +72,13 @@ def _get_reranker_adapter():
     if settings.RERANKING_PROVIDER == "HTTP":
         from app.repositories.embeddings.reranker_adapter import HttpRerankAdapter
         return HttpRerankAdapter()
-    else:  # Default: FastEmbed
-        from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter
-        return FastEmbedCrossEncoderAdapter(
-            cache_dir=settings.FASTEMBED_CACHE_DIR
-        )
+    # Default: FastEmbed
+    from app.repositories.embeddings.reranker_adapter import (
+        FastEmbedCrossEncoderAdapter,
+    )
+    return FastEmbedCrossEncoderAdapter(
+        cache_dir=settings.FASTEMBED_CACHE_DIR,
+    )
 
 
 def _check_first_run_models():
@@ -76,13 +91,21 @@ def _check_first_run_models():
 def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
     """Create all repositories based on database setting. Called during lifespan."""
     if settings.DATABASE == "Postgres":
-        from app.repositories.postgres.user_repository import PostgresUserRepository
-        from app.repositories.postgres.memory_repository import PostgresMemoryRepository
-        from app.repositories.postgres.project_repository import PostgresProjectRepository
-        from app.repositories.postgres.code_artifact_repository import PostgresCodeArtifactRepository
-        from app.repositories.postgres.document_repository import PostgresDocumentRepository
+        from app.repositories.postgres.activity_repository import (
+            PostgresActivityRepository,
+        )
+        from app.repositories.postgres.code_artifact_repository import (
+            PostgresCodeArtifactRepository,
+        )
+        from app.repositories.postgres.document_repository import (
+            PostgresDocumentRepository,
+        )
         from app.repositories.postgres.entity_repository import PostgresEntityRepository
-        from app.repositories.postgres.activity_repository import PostgresActivityRepository
+        from app.repositories.postgres.memory_repository import PostgresMemoryRepository
+        from app.repositories.postgres.project_repository import (
+            PostgresProjectRepository,
+        )
+        from app.repositories.postgres.user_repository import PostgresUserRepository
 
         repos = {
             "user": PostgresUserRepository(db_adapter=db_adapter),
@@ -103,7 +126,9 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             repos["file"] = PostgresFileRepository(db_adapter=db_adapter)
 
         if settings.SKILLS_ENABLED:
-            from app.repositories.postgres.skill_repository import PostgresSkillRepository
+            from app.repositories.postgres.skill_repository import (
+                PostgresSkillRepository,
+            )
             repos["skill"] = PostgresSkillRepository(
                 db_adapter=db_adapter,
                 embedding_adapter=embeddings_adapter,
@@ -117,14 +142,16 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             repos["task"] = PostgresTaskRepository(db_adapter=db_adapter)
 
         return repos
-    elif settings.DATABASE == "SQLite":
-        from app.repositories.sqlite.user_repository import SqliteUserRepository
-        from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
-        from app.repositories.sqlite.project_repository import SqliteProjectRepository
-        from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
+    if settings.DATABASE == "SQLite":
+        from app.repositories.sqlite.activity_repository import SqliteActivityRepository
+        from app.repositories.sqlite.code_artifact_repository import (
+            SqliteCodeArtifactRepository,
+        )
         from app.repositories.sqlite.document_repository import SqliteDocumentRepository
         from app.repositories.sqlite.entity_repository import SqliteEntityRepository
-        from app.repositories.sqlite.activity_repository import SqliteActivityRepository
+        from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
+        from app.repositories.sqlite.project_repository import SqliteProjectRepository
+        from app.repositories.sqlite.user_repository import SqliteUserRepository
 
         repos = {
             "user": SqliteUserRepository(db_adapter=db_adapter),
@@ -159,8 +186,7 @@ def _create_repositories(db_adapter, embeddings_adapter, reranker_adapter):
             repos["task"] = SqliteTaskRepository(db_adapter=db_adapter)
 
         return repos
-    else:
-        raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
+    raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
 
 
 def _create_db_adapter():
@@ -168,11 +194,10 @@ def _create_db_adapter():
     if settings.DATABASE == "Postgres":
         from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
         return PostgresDatabaseAdapter()
-    elif settings.DATABASE == "SQLite":
+    if settings.DATABASE == "SQLite":
         from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
         return SqliteDatabaseAdapter()
-    else:
-        raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
+    raise ValueError(f"Unsupported DATABASE setting: {settings.DATABASE}. Must be 'Postgres' or 'SQLite'")
 
 
 @asynccontextmanager
@@ -184,7 +209,7 @@ async def lifespan(app):
     from app.config.logging_config import configure_logging, shutdown_logging
     _queue_listener = configure_logging(
         log_level=settings.LOG_LEVEL,
-        log_format=settings.LOG_FORMAT
+        log_format=settings.LOG_FORMAT,
     )
     atexit.register(shutdown_logging)
 
@@ -208,15 +233,15 @@ async def lifespan(app):
 
     repos = _create_repositories(db_adapter, embeddings_adapter, reranker_adapter)
 
-    from app.services.user_service import UserService
-    from app.services.memory_service import MemoryService
-    from app.services.project_service import ProjectService
+    from app.events import EventBus
+    from app.services.activity_service import ActivityService
     from app.services.code_artifact_service import CodeArtifactService
     from app.services.document_service import DocumentService
     from app.services.entity_service import EntityService
     from app.services.graph_service import GraphService
-    from app.services.activity_service import ActivityService
-    from app.events import EventBus
+    from app.services.memory_service import MemoryService
+    from app.services.project_service import ProjectService
+    from app.services.user_service import UserService
 
     # Create activity service (always available for API queries)
     # Event bus only created when activity tracking is enabled
@@ -305,7 +330,7 @@ async def lifespan(app):
         from app.middleware.auth import TokenCache
         mcp.token_cache = TokenCache(
             ttl_seconds=settings.TOKEN_CACHE_TTL_SECONDS,
-            max_size=settings.TOKEN_CACHE_MAX_SIZE
+            max_size=settings.TOKEN_CACHE_MAX_SIZE,
         )
         logger.info(f"Token cache initialized (TTL: {settings.TOKEN_CACHE_TTL_SECONDS}s, max: {settings.TOKEN_CACHE_MAX_SIZE})")
     else:
@@ -363,8 +388,8 @@ async def root(request: Request) -> JSONResponse:
         "status": "running",
         "docs": "/docs",
         "endpoints": {
-            "health": "/health"
-        }
+            "health": "/health",
+        },
     })
 
 
@@ -398,8 +423,8 @@ async def _run_reembed(args):
     configure_logging(log_level="INFO", log_format="console")
     atexit.register(shutdown_logging)
 
-    from app.services.re_embedding_service import ReEmbeddingService
     from app.services.backup_service import BackupService
+    from app.services.re_embedding_service import ReEmbeddingService
 
     embeddings_adapter = _get_embedding_adapter()
     backup_service = BackupService()
@@ -462,7 +487,7 @@ async def _run_reembed(args):
         print("\n\nInterrupted! Restoring from backup...")
         if backup_path:
             asyncio.get_event_loop().run_until_complete(
-                backup_service.restore_backup(backup_path)
+                backup_service.restore_backup(backup_path),
             )
             print(f"  Restored: {backup_path}")
         sys.exit(1)
@@ -543,47 +568,47 @@ async def _run_reembed(args):
 def cli():
     """Command-line interface for running the Forgetful MCP server."""
     parser = argparse.ArgumentParser(
-        description="Forgetful - MCP Server for AI Agent Memory"
+        description="Forgetful - MCP Server for AI Agent Memory",
     )
     parser.add_argument(
         "--transport",
         choices=["stdio", "http"],
         default="stdio",
-        help="Transport method (default: stdio for MCP clients)"
+        help="Transport method (default: stdio for MCP clients)",
     )
     parser.add_argument(
         "--host",
         default=settings.SERVER_HOST,
-        help=f"HTTP host (default: {settings.SERVER_HOST})"
+        help=f"HTTP host (default: {settings.SERVER_HOST})",
     )
     parser.add_argument(
         "--port",
         type=int,
         default=settings.SERVER_PORT,
-        help=f"HTTP port (default: {settings.SERVER_PORT})"
+        help=f"HTTP port (default: {settings.SERVER_PORT})",
     )
     parser.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {get_version()}"
+        version=f"%(prog)s {get_version()}",
     )
 
     # Re-embed arguments
     parser.add_argument(
         "--re-embed",
         action="store_true",
-        help="Re-embed all memories with the currently configured provider"
+        help="Re-embed all memories with the currently configured provider",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
         default=20,
-        help="Batch size for re-embedding (default: 20)"
+        help="Batch size for re-embedding (default: 20)",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show what would happen without making changes"
+        help="Show what would happen without making changes",
     )
 
     args = parser.parse_args()
@@ -617,7 +642,7 @@ def cli():
                     "Content-Type",
                 ],
                 expose_headers=["mcp-session-id"],
-            )
+            ),
         ]
 
         import uvicorn

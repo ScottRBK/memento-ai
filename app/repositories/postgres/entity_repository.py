@@ -1,34 +1,32 @@
+"""PostgreSQL repository for Entity and EntityRelationship data access operations
 """
-PostgreSQL repository for Entity and EntityRelationship data access operations
-"""
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from typing import List
 
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.models.entity_models import (
+    Entity,
+    EntityCreate,
+    EntityRelationship,
+    EntityRelationshipCreate,
+    EntityRelationshipUpdate,
+    EntitySummary,
+    EntityType,
+    EntityUpdate,
+)
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.postgres_tables import (
     EntitiesTable,
     EntityRelationshipsTable,
     MemoryTable,
     ProjectsTable,
+    entity_project_association,
     memory_entity_association,
-    entity_project_association
 )
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
-from app.models.entity_models import (
-    Entity,
-    EntityCreate,
-    EntityUpdate,
-    EntitySummary,
-    EntityRelationship,
-    EntityRelationshipCreate,
-    EntityRelationshipUpdate,
-    EntityType
-)
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +48,7 @@ class PostgresEntityRepository:
     async def create_entity(
         self,
         user_id: UUID,
-        entity_data: EntityCreate
+        entity_data: EntityCreate,
     ) -> Entity:
         """Create new entity
 
@@ -71,7 +69,7 @@ class PostgresEntityRepository:
                     custom_type=entity_data.custom_type,
                     notes=entity_data.notes,
                     tags=entity_data.tags,
-                    aka=entity_data.aka
+                    aka=entity_data.aka,
                 )
 
                 # Handle project associations (many-to-many)
@@ -79,7 +77,7 @@ class PostgresEntityRepository:
                     # Fetch project objects for the provided IDs
                     projects_stmt = select(ProjectsTable).where(
                         ProjectsTable.id.in_(entity_data.project_ids),
-                        ProjectsTable.user_id == user_id
+                        ProjectsTable.user_id == user_id,
                     )
                     projects_result = await session.execute(projects_stmt)
                     projects = projects_result.scalars().all()
@@ -100,15 +98,15 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_entity_by_id(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> Entity | None:
         """Get entity by ID with ownership check
 
@@ -123,10 +121,10 @@ class PostgresEntityRepository:
             async with self.db_adapter.session(user_id) as session:
                 # Query with ownership check and eager load projects
                 stmt = select(EntitiesTable).options(
-                    selectinload(EntitiesTable.projects)
+                    selectinload(EntitiesTable.projects),
                 ).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -144,8 +142,8 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "entity_id": entity_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -189,20 +187,20 @@ class PostgresEntityRepository:
 
                 # Build main query with filters and eager load projects
                 stmt = select(EntitiesTable).options(
-                    selectinload(EntitiesTable.projects)
+                    selectinload(EntitiesTable.projects),
                 ).where(*conditions)
 
                 if project_ids is not None:
                     # Filter entities that have any of the specified project IDs
                     # Use join to the association table
                     stmt = stmt.join(EntitiesTable.projects).where(
-                        ProjectsTable.id.in_(project_ids)
+                        ProjectsTable.id.in_(project_ids),
                     )
 
                 # Order by creation date (newest first), then by ID for deterministic ordering
                 stmt = stmt.order_by(
                     EntitiesTable.created_at.desc(),
-                    EntitiesTable.id.desc()
+                    EntitiesTable.id.desc(),
                 )
 
                 # Apply pagination
@@ -212,7 +210,7 @@ class PostgresEntityRepository:
                 count_stmt = select(func.count(func.distinct(EntitiesTable.id))).where(*conditions)
                 if project_ids is not None:
                     count_stmt = count_stmt.join(EntitiesTable.projects).where(
-                        ProjectsTable.id.in_(project_ids)
+                        ProjectsTable.id.in_(project_ids),
                     )
 
                 # Execute count query first
@@ -232,8 +230,8 @@ class PostgresEntityRepository:
                         "offset": offset,
                         "project_filtered": project_ids is not None,
                         "entity_type": entity_type.value if entity_type else None,
-                        "tags_filter": tags
-                    }
+                        "tags_filter": tags,
+                    },
                 )
 
                 return [EntitySummary.model_validate(e) for e in entities], total or 0
@@ -244,8 +242,8 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -255,7 +253,7 @@ class PostgresEntityRepository:
         search_query: str,
         entity_type: EntityType | None = None,
         tags: list[str] | None = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> list[EntitySummary]:
         """Search entities by name using text matching
 
@@ -278,8 +276,8 @@ class PostgresEntityRepository:
                     or_(
                         EntitiesTable.name.ilike(search_pattern),
                         # Search in AKA array - convert to string and search
-                        func.array_to_string(EntitiesTable.aka, ' ').ilike(search_pattern)
-                    )
+                        func.array_to_string(EntitiesTable.aka, " ").ilike(search_pattern),
+                    ),
                 )
 
                 # Apply optional filters
@@ -298,7 +296,7 @@ class PostgresEntityRepository:
                 logger.info("Entity search completed", extra={
                     "user_id": str(user_id),
                     "query": search_query,
-                    "results_count": len(entities)
+                    "results_count": len(entities),
                 })
 
                 return [EntitySummary.model_validate(e) for e in entities]
@@ -310,8 +308,8 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "query": search_query,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -319,7 +317,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         entity_id: int,
-        entity_data: EntityUpdate
+        entity_data: EntityUpdate,
     ) -> Entity:
         """Update entity (PATCH semantics)
 
@@ -340,10 +338,10 @@ class PostgresEntityRepository:
             async with self.db_adapter.session(user_id) as session:
                 # Fetch existing entity with projects loaded
                 stmt = select(EntitiesTable).options(
-                    selectinload(EntitiesTable.projects)
+                    selectinload(EntitiesTable.projects),
                 ).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -356,7 +354,7 @@ class PostgresEntityRepository:
                 update_data = entity_data.model_dump(exclude_unset=True)
 
                 # Convert EntityType enum to string if provided
-                if "entity_type" in update_data and update_data["entity_type"]:
+                if update_data.get("entity_type"):
                     update_data["entity_type"] = update_data["entity_type"].value
 
                 # Handle project_ids separately (many-to-many relationship)
@@ -370,7 +368,7 @@ class PostgresEntityRepository:
                     # Fetch project objects for the provided IDs
                     projects_stmt = select(ProjectsTable).where(
                         ProjectsTable.id.in_(project_ids),
-                        ProjectsTable.user_id == user_id
+                        ProjectsTable.user_id == user_id,
                     )
                     projects_result = await session.execute(projects_stmt)
                     projects = projects_result.scalars().all()
@@ -379,7 +377,7 @@ class PostgresEntityRepository:
                     entity_table.projects = list(projects)
 
                 # Update timestamp
-                entity_table.updated_at = datetime.now(timezone.utc)
+                entity_table.updated_at = datetime.now(UTC)
 
                 await session.commit()
                 await session.refresh(entity_table, ["projects"])
@@ -395,15 +393,15 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "entity_id": entity_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def delete_entity(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> bool:
         """Delete entity (cascade removes associations and relationships)
 
@@ -419,7 +417,7 @@ class PostgresEntityRepository:
                 # Check ownership and get entity
                 stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -440,8 +438,8 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "entity_id": entity_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -451,7 +449,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         entity_id: int,
-        memory_id: int
+        memory_id: int,
     ) -> bool:
         """Link entity to memory
 
@@ -471,7 +469,7 @@ class PostgresEntityRepository:
                 # Verify entity exists and is owned by user
                 entity_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 entity_result = await session.execute(entity_stmt)
                 entity_table = entity_result.scalar_one_or_none()
@@ -482,7 +480,7 @@ class PostgresEntityRepository:
                 # Verify memory exists and is owned by user
                 memory_stmt = select(MemoryTable).where(
                     MemoryTable.id == memory_id,
-                    MemoryTable.user_id == user_id
+                    MemoryTable.user_id == user_id,
                 )
                 memory_result = await session.execute(memory_stmt)
                 memory_table = memory_result.scalar_one_or_none()
@@ -510,8 +508,8 @@ class PostgresEntityRepository:
                     "user_id": str(user_id),
                     "entity_id": entity_id,
                     "memory_id": memory_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -519,7 +517,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         entity_id: int,
-        memory_id: int
+        memory_id: int,
     ) -> bool:
         """Unlink entity from memory
 
@@ -536,7 +534,7 @@ class PostgresEntityRepository:
                 # Verify entity exists and is owned by user
                 entity_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 entity_result = await session.execute(entity_stmt)
                 entity_table = entity_result.scalar_one_or_none()
@@ -547,7 +545,7 @@ class PostgresEntityRepository:
                 # Verify memory exists and is owned by user
                 memory_stmt = select(MemoryTable).where(
                     MemoryTable.id == memory_id,
-                    MemoryTable.user_id == user_id
+                    MemoryTable.user_id == user_id,
                 )
                 memory_result = await session.execute(memory_stmt)
                 memory_table = memory_result.scalar_one_or_none()
@@ -574,8 +572,8 @@ class PostgresEntityRepository:
                     "user_id": str(user_id),
                     "entity_id": entity_id,
                     "memory_id": memory_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -585,7 +583,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         entity_id: int,
-        project_id: int
+        project_id: int,
     ) -> bool:
         """Link entity to project
 
@@ -605,7 +603,7 @@ class PostgresEntityRepository:
                 # Verify entity exists and is owned by user
                 entity_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 entity_result = await session.execute(entity_stmt)
                 entity_table = entity_result.scalar_one_or_none()
@@ -616,7 +614,7 @@ class PostgresEntityRepository:
                 # Verify project exists and is owned by user
                 project_stmt = select(ProjectsTable).where(
                     ProjectsTable.id == project_id,
-                    ProjectsTable.user_id == user_id
+                    ProjectsTable.user_id == user_id,
                 )
                 project_result = await session.execute(project_stmt)
                 project_table = project_result.scalar_one_or_none()
@@ -644,8 +642,8 @@ class PostgresEntityRepository:
                     "user_id": str(user_id),
                     "entity_id": entity_id,
                     "project_id": project_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -653,7 +651,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         entity_id: int,
-        project_id: int
+        project_id: int,
     ) -> bool:
         """Unlink entity from project
 
@@ -670,7 +668,7 @@ class PostgresEntityRepository:
                 # Verify entity exists and is owned by user
                 entity_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 entity_result = await session.execute(entity_stmt)
                 entity_table = entity_result.scalar_one_or_none()
@@ -681,7 +679,7 @@ class PostgresEntityRepository:
                 # Verify project exists and is owned by user
                 project_stmt = select(ProjectsTable).where(
                     ProjectsTable.id == project_id,
-                    ProjectsTable.user_id == user_id
+                    ProjectsTable.user_id == user_id,
                 )
                 project_result = await session.execute(project_stmt)
                 project_table = project_result.scalar_one_or_none()
@@ -708,8 +706,8 @@ class PostgresEntityRepository:
                     "user_id": str(user_id),
                     "entity_id": entity_id,
                     "project_id": project_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -718,7 +716,7 @@ class PostgresEntityRepository:
     async def create_entity_relationship(
         self,
         user_id: UUID,
-        relationship_data: EntityRelationshipCreate
+        relationship_data: EntityRelationshipCreate,
     ) -> EntityRelationship:
         """Create relationship between two entities
 
@@ -737,7 +735,7 @@ class PostgresEntityRepository:
                 # Verify source entity exists and is owned by user
                 source_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == relationship_data.source_entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 source_result = await session.execute(source_stmt)
                 source_entity = source_result.scalar_one_or_none()
@@ -748,7 +746,7 @@ class PostgresEntityRepository:
                 # Verify target entity exists and is owned by user
                 target_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == relationship_data.target_entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 target_result = await session.execute(target_stmt)
                 target_entity = target_result.scalar_one_or_none()
@@ -764,7 +762,7 @@ class PostgresEntityRepository:
                     relationship_type=relationship_data.relationship_type,
                     strength=relationship_data.strength,
                     confidence=relationship_data.confidence,
-                    relationship_metadata=relationship_data.metadata or {}
+                    relationship_metadata=relationship_data.metadata or {},
                 )
 
                 session.add(relationship_table)
@@ -781,7 +779,7 @@ class PostgresEntityRepository:
                     confidence=relationship_table.confidence,
                     metadata=relationship_table.relationship_metadata,
                     created_at=relationship_table.created_at,
-                    updated_at=relationship_table.updated_at
+                    updated_at=relationship_table.updated_at,
                 )
 
         except NotFoundError:
@@ -792,8 +790,8 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -802,7 +800,7 @@ class PostgresEntityRepository:
         user_id: UUID,
         entity_id: int,
         direction: str | None = None,
-        relationship_type: str | None = None
+        relationship_type: str | None = None,
     ) -> list[EntityRelationship]:
         """Get relationships for an entity
 
@@ -823,7 +821,7 @@ class PostgresEntityRepository:
                 # Verify entity exists and is owned by user
                 entity_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 entity_result = await session.execute(entity_stmt)
                 entity_table = entity_result.scalar_one_or_none()
@@ -835,12 +833,12 @@ class PostgresEntityRepository:
                 if direction == "outgoing":
                     stmt = select(EntityRelationshipsTable).where(
                         EntityRelationshipsTable.source_entity_id == entity_id,
-                        EntityRelationshipsTable.user_id == user_id
+                        EntityRelationshipsTable.user_id == user_id,
                     )
                 elif direction == "incoming":
                     stmt = select(EntityRelationshipsTable).where(
                         EntityRelationshipsTable.target_entity_id == entity_id,
-                        EntityRelationshipsTable.user_id == user_id
+                        EntityRelationshipsTable.user_id == user_id,
                     )
                 else:
                     # Both directions
@@ -848,8 +846,8 @@ class PostgresEntityRepository:
                         and_(
                             (EntityRelationshipsTable.source_entity_id == entity_id) |
                             (EntityRelationshipsTable.target_entity_id == entity_id),
-                            EntityRelationshipsTable.user_id == user_id
-                        )
+                            EntityRelationshipsTable.user_id == user_id,
+                        ),
                     )
 
                 # Filter by relationship type if provided
@@ -873,7 +871,7 @@ class PostgresEntityRepository:
                         confidence=r.confidence,
                         metadata=r.relationship_metadata,
                         created_at=r.created_at,
-                        updated_at=r.updated_at
+                        updated_at=r.updated_at,
                     )
                     for r in relationships
                 ]
@@ -887,8 +885,8 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "entity_id": entity_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -896,7 +894,7 @@ class PostgresEntityRepository:
         self,
         user_id: UUID,
         relationship_id: int,
-        relationship_data: EntityRelationshipUpdate
+        relationship_data: EntityRelationshipUpdate,
     ) -> EntityRelationship:
         """Update entity relationship (PATCH semantics)
 
@@ -918,7 +916,7 @@ class PostgresEntityRepository:
                 # Fetch existing relationship
                 stmt = select(EntityRelationshipsTable).where(
                     EntityRelationshipsTable.id == relationship_id,
-                    EntityRelationshipsTable.user_id == user_id
+                    EntityRelationshipsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -931,14 +929,14 @@ class PostgresEntityRepository:
                 update_data = relationship_data.model_dump(exclude_unset=True)
 
                 # Map metadata field to relationship_metadata for ORM
-                if 'metadata' in update_data:
-                    update_data['relationship_metadata'] = update_data.pop('metadata')
+                if "metadata" in update_data:
+                    update_data["relationship_metadata"] = update_data.pop("metadata")
 
                 for field, value in update_data.items():
                     setattr(relationship_table, field, value)
 
                 # Update timestamp
-                relationship_table.updated_at = datetime.now(timezone.utc)
+                relationship_table.updated_at = datetime.now(UTC)
 
                 await session.commit()
                 await session.refresh(relationship_table)
@@ -953,7 +951,7 @@ class PostgresEntityRepository:
                     confidence=relationship_table.confidence,
                     metadata=relationship_table.relationship_metadata,
                     created_at=relationship_table.created_at,
-                    updated_at=relationship_table.updated_at
+                    updated_at=relationship_table.updated_at,
                 )
 
         except NotFoundError:
@@ -965,15 +963,15 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "relationship_id": relationship_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def delete_entity_relationship(
         self,
         user_id: UUID,
-        relationship_id: int
+        relationship_id: int,
     ) -> bool:
         """Delete entity relationship
 
@@ -989,7 +987,7 @@ class PostgresEntityRepository:
                 # Check ownership and get relationship
                 stmt = select(EntityRelationshipsTable).where(
                     EntityRelationshipsTable.id == relationship_id,
-                    EntityRelationshipsTable.user_id == user_id
+                    EntityRelationshipsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -1010,8 +1008,8 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "relationship_id": relationship_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -1019,7 +1017,7 @@ class PostgresEntityRepository:
 
     async def get_all_entity_relationships(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[EntityRelationship]:
         """Get all entity relationships for a user (for graph visualization)
 
@@ -1032,7 +1030,7 @@ class PostgresEntityRepository:
         try:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(EntityRelationshipsTable).where(
-                    EntityRelationshipsTable.user_id == user_id
+                    EntityRelationshipsTable.user_id == user_id,
                 ).order_by(EntityRelationshipsTable.created_at.desc())
 
                 result = await session.execute(stmt)
@@ -1048,7 +1046,7 @@ class PostgresEntityRepository:
                         confidence=r.confidence,
                         metadata=r.relationship_metadata,
                         created_at=r.created_at,
-                        updated_at=r.updated_at
+                        updated_at=r.updated_at,
                     )
                     for r in relationships
                 ]
@@ -1059,14 +1057,14 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_all_entity_memory_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-memory associations for a user (for graph visualization)
 
@@ -1081,18 +1079,18 @@ class PostgresEntityRepository:
                 # Query the association table with ownership verification
                 stmt = select(
                     memory_entity_association.c.entity_id,
-                    memory_entity_association.c.memory_id
+                    memory_entity_association.c.memory_id,
                 ).select_from(
-                    memory_entity_association
+                    memory_entity_association,
                 ).join(
                     EntitiesTable,
-                    EntitiesTable.id == memory_entity_association.c.entity_id
+                    EntitiesTable.id == memory_entity_association.c.entity_id,
                 ).join(
                     MemoryTable,
-                    MemoryTable.id == memory_entity_association.c.memory_id
+                    MemoryTable.id == memory_entity_association.c.memory_id,
                 ).where(
                     EntitiesTable.user_id == user_id,
-                    MemoryTable.user_id == user_id
+                    MemoryTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -1104,14 +1102,14 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_all_entity_project_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-project associations for a user (for graph visualization)
 
@@ -1126,18 +1124,18 @@ class PostgresEntityRepository:
                 # Query the association table with ownership verification
                 stmt = select(
                     entity_project_association.c.entity_id,
-                    entity_project_association.c.project_id
+                    entity_project_association.c.project_id,
                 ).select_from(
-                    entity_project_association
+                    entity_project_association,
                 ).join(
                     EntitiesTable,
-                    EntitiesTable.id == entity_project_association.c.entity_id
+                    EntitiesTable.id == entity_project_association.c.entity_id,
                 ).join(
                     ProjectsTable,
-                    ProjectsTable.id == entity_project_association.c.project_id
+                    ProjectsTable.id == entity_project_association.c.project_id,
                 ).where(
                     EntitiesTable.user_id == user_id,
-                    ProjectsTable.user_id == user_id
+                    ProjectsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -1149,14 +1147,14 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_all_entity_file_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-file associations for a user (for graph visualization)
 
@@ -1167,22 +1165,25 @@ class PostgresEntityRepository:
             List of (entity_id, file_id) tuples representing all links
         """
         try:
-            from app.repositories.postgres.postgres_tables import entity_file_association, FilesTable
+            from app.repositories.postgres.postgres_tables import (
+                FilesTable,
+                entity_file_association,
+            )
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(
                     entity_file_association.c.entity_id,
-                    entity_file_association.c.file_id
+                    entity_file_association.c.file_id,
                 ).select_from(
-                    entity_file_association
+                    entity_file_association,
                 ).join(
                     EntitiesTable,
-                    EntitiesTable.id == entity_file_association.c.entity_id
+                    EntitiesTable.id == entity_file_association.c.entity_id,
                 ).join(
                     FilesTable,
-                    FilesTable.id == entity_file_association.c.file_id
+                    FilesTable.id == entity_file_association.c.file_id,
                 ).where(
                     EntitiesTable.user_id == user_id,
-                    FilesTable.user_id == user_id
+                    FilesTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -1194,15 +1195,15 @@ class PostgresEntityRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_entity_memories(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> list[int]:
         """Get all memory IDs linked to a specific entity
 
@@ -1221,7 +1222,7 @@ class PostgresEntityRepository:
                 # First verify the entity exists and is owned by user
                 entity_stmt = select(EntitiesTable).where(
                     EntitiesTable.id == entity_id,
-                    EntitiesTable.user_id == user_id
+                    EntitiesTable.user_id == user_id,
                 )
                 entity_result = await session.execute(entity_stmt)
                 entity = entity_result.scalar_one_or_none()
@@ -1231,15 +1232,15 @@ class PostgresEntityRepository:
 
                 # Query the association table for memory IDs linked to this entity
                 stmt = select(
-                    memory_entity_association.c.memory_id
+                    memory_entity_association.c.memory_id,
                 ).select_from(
-                    memory_entity_association
+                    memory_entity_association,
                 ).join(
                     MemoryTable,
-                    MemoryTable.id == memory_entity_association.c.memory_id
+                    MemoryTable.id == memory_entity_association.c.memory_id,
                 ).where(
                     memory_entity_association.c.entity_id == entity_id,
-                    MemoryTable.user_id == user_id
+                    MemoryTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -1254,7 +1255,7 @@ class PostgresEntityRepository:
                 extra={
                     "user_id": str(user_id),
                     "entity_id": entity_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise

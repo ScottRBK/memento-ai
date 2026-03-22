@@ -1,5 +1,4 @@
-"""
-E2E tests for Document REST API endpoints.
+"""E2E tests for Document REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/documents endpoints.
@@ -28,7 +27,7 @@ class TestDocumentAPIList:
             "description": "A test document",
             "content": "This is the document content with enough text to be valid.",
             "document_type": "analysis",
-            "tags": ["test"]
+            "tags": ["test"],
         }
         create_response = await http_client.post("/api/v1/documents", json=payload)
         assert create_response.status_code == 201
@@ -49,14 +48,14 @@ class TestDocumentAPIList:
             "description": "An analysis document",
             "content": "Analysis content here with enough text.",
             "document_type": "analysis",
-            "tags": ["analysis"]
+            "tags": ["analysis"],
         })
         await http_client.post("/api/v1/documents", json={
             "title": "Guide Document",
             "description": "A guide document",
             "content": "Guide content here with enough text.",
             "document_type": "guide",
-            "tags": ["guide"]
+            "tags": ["guide"],
         })
 
         # Filter by analysis
@@ -75,7 +74,7 @@ class TestDocumentAPIList:
             "description": "A tagged document",
             "content": "Content for tagged document test.",
             "document_type": "specification",
-            "tags": ["special-tag"]
+            "tags": ["special-tag"],
         })
 
         # Filter by tag
@@ -103,7 +102,7 @@ class TestDocumentAPICrud:
             "description": "A new document",
             "content": "This is the content of the new document.",
             "document_type": "analysis",
-            "tags": ["new", "document"]
+            "tags": ["new", "document"],
         }
         response = await http_client.post("/api/v1/documents", json=payload)
         assert response.status_code == 201
@@ -117,7 +116,7 @@ class TestDocumentAPICrud:
         """POST /api/v1/documents returns 400 for invalid data."""
         payload = {
             "title": "",  # Empty title should fail
-            "document_type": "analysis"
+            "document_type": "analysis",
         }
         response = await http_client.post("/api/v1/documents", json=payload)
         assert response.status_code == 400
@@ -131,7 +130,7 @@ class TestDocumentAPICrud:
             "description": "Testing get endpoint",
             "content": "Content for getting the document.",
             "document_type": "guide",
-            "tags": ["test"]
+            "tags": ["test"],
         })
         document_id = create_response.json()["id"]
 
@@ -157,7 +156,7 @@ class TestDocumentAPICrud:
             "description": "Original description",
             "content": "Original content for the document.",
             "document_type": "specification",
-            "tags": ["original"]
+            "tags": ["original"],
         })
         document_id = create_response.json()["id"]
 
@@ -165,7 +164,7 @@ class TestDocumentAPICrud:
         update_payload = {
             "title": "Updated Document Title",
             "description": "Updated description",
-            "tags": ["updated"]
+            "tags": ["updated"],
         }
         response = await http_client.put(f"/api/v1/documents/{document_id}", json=update_payload)
         assert response.status_code == 200
@@ -188,7 +187,7 @@ class TestDocumentAPICrud:
             "description": "Will be deleted",
             "content": "Content that will be deleted.",
             "document_type": "note",
-            "tags": ["delete"]
+            "tags": ["delete"],
         })
         document_id = create_response.json()["id"]
 
@@ -222,7 +221,7 @@ class TestDocumentTypes:
                 "description": f"Testing {dtype} type",
                 "content": f"Content for {dtype} document type test.",
                 "document_type": dtype,
-                "tags": [dtype]
+                "tags": [dtype],
             })
             assert response.status_code == 201, f"Failed for type: {dtype}"
             assert response.json()["document_type"] == dtype

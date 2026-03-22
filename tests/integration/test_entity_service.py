@@ -1,11 +1,17 @@
+"""Integration tests for EntityService with in-memory stubs
 """
-Integration tests for EntityService with in-memory stubs
-"""
-import pytest
 from uuid import uuid4
 
-from app.models.entity_models import EntityCreate, EntityUpdate, EntityType, EntityRelationshipCreate, EntityRelationshipUpdate
+import pytest
+
 from app.exceptions import NotFoundError
+from app.models.entity_models import (
+    EntityCreate,
+    EntityRelationshipCreate,
+    EntityRelationshipUpdate,
+    EntityType,
+    EntityUpdate,
+)
 
 
 @pytest.mark.asyncio
@@ -16,7 +22,7 @@ async def test_create_entity(test_entity_service):
         name="Acme Corp",
         entity_type=EntityType.ORGANIZATION,
         notes="A software company",
-        tags=["tech", "b2b"]
+        tags=["tech", "b2b"],
     )
 
     entity = await test_entity_service.create_entity(user_id, entity_data)
@@ -36,7 +42,7 @@ async def test_create_entity_with_custom_type(test_entity_service):
         name="IoT Sensor",
         entity_type=EntityType.OTHER,
         custom_type="Sensor",
-        tags=["hardware"]
+        tags=["hardware"],
     )
 
     entity = await test_entity_service.create_entity(user_id, entity_data)
@@ -54,7 +60,7 @@ async def test_get_entity(test_entity_service):
     entity_data = EntityCreate(
         name="Test Entity",
         entity_type=EntityType.INDIVIDUAL,
-        tags=[]
+        tags=[],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -82,7 +88,7 @@ async def test_list_entities(test_entity_service):
         entity_data = EntityCreate(
             name=f"Entity {i}",
             entity_type=EntityType.ORGANIZATION,
-            tags=["test"]
+            tags=["test"],
         )
         await test_entity_service.create_entity(user_id, entity_data)
 
@@ -100,12 +106,12 @@ async def test_list_entities_filter_by_type(test_entity_service):
     # Create different types
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Company", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Company", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
 
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Person", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Person", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     # Filter by organization
@@ -123,12 +129,12 @@ async def test_list_entities_filter_by_tags(test_entity_service):
     # Create with different tags
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Dev Team", entity_type=EntityType.TEAM, tags=["engineering"])
+        EntityCreate(name="Dev Team", entity_type=EntityType.TEAM, tags=["engineering"]),
     )
 
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Sales Team", entity_type=EntityType.TEAM, tags=["sales"])
+        EntityCreate(name="Sales Team", entity_type=EntityType.TEAM, tags=["sales"]),
     )
 
     # Filter by engineering tag
@@ -148,7 +154,7 @@ async def test_update_entity(test_entity_service):
         name="Original Name",
         entity_type=EntityType.ORGANIZATION,
         notes="Original notes",
-        tags=["original"]
+        tags=["original"],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -169,7 +175,7 @@ async def test_delete_entity(test_entity_service):
     entity_data = EntityCreate(
         name="To Delete",
         entity_type=EntityType.ORGANIZATION,
-        tags=[]
+        tags=[],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -190,7 +196,7 @@ async def test_link_entity_to_memory(test_entity_service):
     entity_data = EntityCreate(
         name="Test Entity",
         entity_type=EntityType.ORGANIZATION,
-        tags=[]
+        tags=[],
     )
     entity = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -207,7 +213,7 @@ async def test_unlink_entity_from_memory(test_entity_service):
     entity_data = EntityCreate(
         name="Test Entity",
         entity_type=EntityType.ORGANIZATION,
-        tags=[]
+        tags=[],
     )
     entity = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -226,11 +232,11 @@ async def test_create_entity_relationship(test_entity_service):
     # Create two entities
     entity1 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     entity2 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     # Create relationship
@@ -240,7 +246,7 @@ async def test_create_entity_relationship(test_entity_service):
         relationship_type="employs",
         strength=0.9,
         confidence=0.8,
-        metadata={"role": "developer"}
+        metadata={"role": "developer"},
     )
 
     relationship = await test_entity_service.create_entity_relationship(user_id, relationship_data)
@@ -261,11 +267,11 @@ async def test_get_entity_relationships(test_entity_service):
     # Create entities
     entity1 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     entity2 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     # Create relationship
@@ -274,8 +280,8 @@ async def test_get_entity_relationships(test_entity_service):
         EntityRelationshipCreate(
             source_entity_id=entity1.id,
             target_entity_id=entity2.id,
-            relationship_type="employs"
-        )
+            relationship_type="employs",
+        ),
     )
 
     # Get relationships
@@ -292,11 +298,11 @@ async def test_get_entity_relationships_filter_by_direction(test_entity_service)
     # Create entities
     entity1 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     entity2 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     # Create relationship
@@ -305,19 +311,19 @@ async def test_get_entity_relationships_filter_by_direction(test_entity_service)
         EntityRelationshipCreate(
             source_entity_id=entity1.id,
             target_entity_id=entity2.id,
-            relationship_type="employs"
-        )
+            relationship_type="employs",
+        ),
     )
 
     # Get outgoing relationships
     outgoing = await test_entity_service.get_entity_relationships(
-        user_id, entity1.id, direction="outgoing"
+        user_id, entity1.id, direction="outgoing",
     )
     assert len(outgoing) == 1
 
     # Get incoming relationships
     incoming = await test_entity_service.get_entity_relationships(
-        user_id, entity1.id, direction="incoming"
+        user_id, entity1.id, direction="incoming",
     )
     assert len(incoming) == 0
 
@@ -329,11 +335,11 @@ async def test_update_entity_relationship(test_entity_service):
     # Create entities and relationship
     entity1 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     entity2 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     relationship = await test_entity_service.create_entity_relationship(
@@ -342,14 +348,14 @@ async def test_update_entity_relationship(test_entity_service):
             source_entity_id=entity1.id,
             target_entity_id=entity2.id,
             relationship_type="employs",
-            strength=0.5
-        )
+            strength=0.5,
+        ),
     )
 
     # Update
     update_data = EntityRelationshipUpdate(strength=0.9, metadata={"updated": True})
     updated = await test_entity_service.update_entity_relationship(
-        user_id, relationship.id, update_data
+        user_id, relationship.id, update_data,
     )
 
     assert updated.strength == 0.9
@@ -364,11 +370,11 @@ async def test_delete_entity_relationship(test_entity_service):
     # Create entities and relationship
     entity1 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Entity 1", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     entity2 = await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Entity 2", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     relationship = await test_entity_service.create_entity_relationship(
@@ -376,8 +382,8 @@ async def test_delete_entity_relationship(test_entity_service):
         EntityRelationshipCreate(
             source_entity_id=entity1.id,
             target_entity_id=entity2.id,
-            relationship_type="employs"
-        )
+            relationship_type="employs",
+        ),
     )
 
     # Delete
@@ -397,15 +403,15 @@ async def test_search_entities_basic(test_entity_service):
     # Create entities with different names
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Tech Corp", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Tech Corp", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="TechFlow Inc", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="TechFlow Inc", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Sarah Chen", entity_type=EntityType.INDIVIDUAL, tags=[])
+        EntityCreate(name="Sarah Chen", entity_type=EntityType.INDIVIDUAL, tags=[]),
     )
 
     # Search for "tech"
@@ -422,7 +428,7 @@ async def test_search_entities_case_insensitive(test_entity_service):
 
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="UPPERCASE ORG", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="UPPERCASE ORG", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
 
     # Search with lowercase should still find it
@@ -440,22 +446,22 @@ async def test_search_entities_with_type_filter(test_entity_service):
     # Create different types
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Server Alpha", entity_type=EntityType.DEVICE, tags=[])
+        EntityCreate(name="Server Alpha", entity_type=EntityType.DEVICE, tags=[]),
     )
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Server Beta", entity_type=EntityType.DEVICE, tags=[])
+        EntityCreate(name="Server Beta", entity_type=EntityType.DEVICE, tags=[]),
     )
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Server Team", entity_type=EntityType.TEAM, tags=[])
+        EntityCreate(name="Server Team", entity_type=EntityType.TEAM, tags=[]),
     )
 
     # Search for "server" but only devices
     results = await test_entity_service.search_entities(
         user_id,
         "server",
-        entity_type=EntityType.DEVICE
+        entity_type=EntityType.DEVICE,
     )
 
     assert len(results) == 2
@@ -470,18 +476,18 @@ async def test_search_entities_with_tags_filter(test_entity_service):
     # Create entities with different tags
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Dev Server", entity_type=EntityType.DEVICE, tags=["production"])
+        EntityCreate(name="Dev Server", entity_type=EntityType.DEVICE, tags=["production"]),
     )
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Test Server", entity_type=EntityType.DEVICE, tags=["staging"])
+        EntityCreate(name="Test Server", entity_type=EntityType.DEVICE, tags=["staging"]),
     )
 
     # Search for "server" with production tag
     results = await test_entity_service.search_entities(
         user_id,
         "server",
-        tags=["production"]
+        tags=["production"],
     )
 
     assert len(results) == 1
@@ -497,7 +503,7 @@ async def test_search_entities_limit(test_entity_service):
     for i in range(10):
         await test_entity_service.create_entity(
             user_id,
-            EntityCreate(name=f"Test Entity {i}", entity_type=EntityType.ORGANIZATION, tags=[])
+            EntityCreate(name=f"Test Entity {i}", entity_type=EntityType.ORGANIZATION, tags=[]),
         )
 
     # Search with limit
@@ -513,7 +519,7 @@ async def test_search_entities_no_results(test_entity_service):
 
     await test_entity_service.create_entity(
         user_id,
-        EntityCreate(name="Acme Corp", entity_type=EntityType.ORGANIZATION, tags=[])
+        EntityCreate(name="Acme Corp", entity_type=EntityType.ORGANIZATION, tags=[]),
     )
 
     # Search for non-existent name
@@ -536,7 +542,7 @@ async def test_create_entity_with_multiple_projects(test_entity_service):
         entity_type=EntityType.ORGANIZATION,
         notes="Associated with multiple projects",
         tags=["multi-project"],
-        project_ids=[1, 2, 3]
+        project_ids=[1, 2, 3],
     )
 
     entity = await test_entity_service.create_entity(user_id, entity_data)
@@ -559,7 +565,7 @@ async def test_create_entity_with_no_projects(test_entity_service):
         entity_type=EntityType.INDIVIDUAL,
         notes="No project associations",
         tags=["unassociated"],
-        project_ids=None
+        project_ids=None,
     )
 
     entity = await test_entity_service.create_entity(user_id, entity_data)
@@ -578,7 +584,7 @@ async def test_get_entity_with_project_ids(test_entity_service):
         name="Test Entity",
         entity_type=EntityType.ORGANIZATION,
         tags=["test"],
-        project_ids=[10, 20]
+        project_ids=[10, 20],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -603,8 +609,8 @@ async def test_list_entities_filter_by_project_ids(test_entity_service):
             name="Project 1 Entity",
             entity_type=EntityType.ORGANIZATION,
             tags=["proj-filter"],
-            project_ids=[100]
-        )
+            project_ids=[100],
+        ),
     )
 
     await test_entity_service.create_entity(
@@ -613,8 +619,8 @@ async def test_list_entities_filter_by_project_ids(test_entity_service):
             name="Project 2 Entity",
             entity_type=EntityType.ORGANIZATION,
             tags=["proj-filter"],
-            project_ids=[200]
-        )
+            project_ids=[200],
+        ),
     )
 
     await test_entity_service.create_entity(
@@ -623,14 +629,14 @@ async def test_list_entities_filter_by_project_ids(test_entity_service):
             name="Multi Project Entity",
             entity_type=EntityType.ORGANIZATION,
             tags=["proj-filter"],
-            project_ids=[100, 200]
-        )
+            project_ids=[100, 200],
+        ),
     )
 
     # Filter by project 100
     entities_in_proj100, total_100 = await test_entity_service.list_entities(
         user_id,
-        project_ids=[100]
+        project_ids=[100],
     )
 
     # Should find 2 entities (one with project 100, one with both 100 and 200)
@@ -640,7 +646,7 @@ async def test_list_entities_filter_by_project_ids(test_entity_service):
     # Filter by project 200
     entities_in_proj200, total_200 = await test_entity_service.list_entities(
         user_id,
-        project_ids=[200]
+        project_ids=[200],
     )
 
     proj_filter_entities_200 = [e for e in entities_in_proj200 if "proj-filter" in e.tags]
@@ -658,7 +664,7 @@ async def test_update_entity_change_projects(test_entity_service):
         entity_type=EntityType.ORGANIZATION,
         notes="Testing project updates",
         tags=["update-test"],
-        project_ids=[1, 2]
+        project_ids=[1, 2],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -684,7 +690,7 @@ async def test_update_entity_clear_all_projects(test_entity_service):
         name="Clear Projects Entity",
         entity_type=EntityType.ORGANIZATION,
         tags=["clear-test"],
-        project_ids=[1, 2, 3]
+        project_ids=[1, 2, 3],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -710,7 +716,7 @@ async def test_create_entity_with_aka(test_entity_service):
         entity_type=EntityType.INDIVIDUAL,
         notes="A person with multiple nicknames",
         tags=["employee"],
-        aka=["Johnny", "J.S.", "John S."]
+        aka=["Johnny", "J.S.", "John S."],
     )
 
     entity = await test_entity_service.create_entity(user_id, entity_data)
@@ -729,7 +735,7 @@ async def test_create_entity_without_aka(test_entity_service):
     entity_data = EntityCreate(
         name="No Aliases Entity",
         entity_type=EntityType.ORGANIZATION,
-        tags=[]
+        tags=[],
     )
 
     entity = await test_entity_service.create_entity(user_id, entity_data)
@@ -748,7 +754,7 @@ async def test_update_entity_aka(test_entity_service):
         name="Microsoft Corporation",
         entity_type=EntityType.ORGANIZATION,
         tags=["tech"],
-        aka=["MSFT"]
+        aka=["MSFT"],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -773,7 +779,7 @@ async def test_update_entity_clear_aka(test_entity_service):
         name="Test Entity",
         entity_type=EntityType.ORGANIZATION,
         tags=[],
-        aka=["Alias1", "Alias2"]
+        aka=["Alias1", "Alias2"],
     )
     created = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -798,8 +804,8 @@ async def test_search_entities_by_aka(test_entity_service):
             name="Microsoft Corporation",
             entity_type=EntityType.ORGANIZATION,
             tags=["aka-search-test"],
-            aka=["MSFT", "Microsoft"]
-        )
+            aka=["MSFT", "Microsoft"],
+        ),
     )
 
     # Search by aka - should find the entity
@@ -823,8 +829,8 @@ async def test_search_entities_by_partial_aka(test_entity_service):
             name="John Smith",
             entity_type=EntityType.INDIVIDUAL,
             tags=["partial-aka-test"],
-            aka=["Johnny", "J.S."]
-        )
+            aka=["Johnny", "J.S."],
+        ),
     )
 
     # Search by partial aka match
@@ -847,8 +853,8 @@ async def test_search_entities_name_and_aka(test_entity_service):
             name="Tech Corp",
             entity_type=EntityType.ORGANIZATION,
             tags=["name-aka-test"],
-            aka=["TC"]
-        )
+            aka=["TC"],
+        ),
     )
 
     # Create entity found by aka
@@ -858,8 +864,8 @@ async def test_search_entities_name_and_aka(test_entity_service):
             name="Other Inc",
             entity_type=EntityType.ORGANIZATION,
             tags=["name-aka-test"],
-            aka=["Tech Alias"]
-        )
+            aka=["Tech Alias"],
+        ),
     )
 
     # Search for "tech" - should find both (one by name, one by aka)
@@ -884,7 +890,7 @@ async def test_get_entity_memories_basic(test_entity_service):
     entity_data = EntityCreate(
         name="Test Entity for Memories",
         entity_type=EntityType.ORGANIZATION,
-        tags=["memory-test"]
+        tags=["memory-test"],
     )
     entity = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -912,7 +918,7 @@ async def test_get_entity_memories_empty(test_entity_service):
     entity_data = EntityCreate(
         name="Entity With No Memories",
         entity_type=EntityType.INDIVIDUAL,
-        tags=["empty-test"]
+        tags=["empty-test"],
     )
     entity = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -941,7 +947,7 @@ async def test_get_entity_memories_after_unlink(test_entity_service):
     entity_data = EntityCreate(
         name="Entity for Unlink Test",
         entity_type=EntityType.DEVICE,
-        tags=["unlink-test"]
+        tags=["unlink-test"],
     )
     entity = await test_entity_service.create_entity(user_id, entity_data)
 
@@ -975,7 +981,7 @@ async def test_get_entity_memories_user_isolation(test_entity_service):
     entity_data = EntityCreate(
         name="User 1 Entity",
         entity_type=EntityType.ORGANIZATION,
-        tags=["isolation-test"]
+        tags=["isolation-test"],
     )
     entity = await test_entity_service.create_entity(user_id_1, entity_data)
 

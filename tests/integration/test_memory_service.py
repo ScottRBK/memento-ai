@@ -1,15 +1,15 @@
-"""
-Integration tests for MemoryService with stubbed database
+"""Integration tests for MemoryService with stubbed database
 
 Tests critical memory workflows without real PostgreSQL/embeddings dependency
 """
-import pytest
 from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
+
 from app.config.settings import settings
-from app.models.activity_models import EntityType, ActionType
-from app.models.memory_models import MemoryCreate, MemoryUpdate, MemoryQueryRequest
+from app.models.activity_models import ActionType, EntityType
+from app.models.memory_models import MemoryCreate, MemoryQueryRequest, MemoryUpdate
 
 
 @pytest.mark.asyncio
@@ -23,12 +23,12 @@ async def test_create_memory_basic(test_memory_service):
         context="Testing memory creation in isolated environment",
         keywords=["test", "integration", "memory"],
         tags=["testing", "pattern"],
-        importance=7
+        importance=7,
     )
 
     memory, similar_memories = await test_memory_service.create_memory(
         user_id=user_id,
-        memory_data=memory_data
+        memory_data=memory_data,
     )
 
     assert memory is not None
@@ -51,7 +51,7 @@ async def test_create_memory_with_auto_linking(test_memory_service):
         context="Documenting testing approach for Python projects",
         keywords=["python", "pytest", "testing"],
         tags=["testing", "python"],
-        importance=9
+        importance=9,
     )
     memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
 
@@ -62,7 +62,7 @@ async def test_create_memory_with_auto_linking(test_memory_service):
         context="Extending testing documentation with integration patterns",
         keywords=["python", "integration", "testing"],
         tags=["testing", "python"],
-        importance=8
+        importance=8,
     )
     memory2, similar_memories = await test_memory_service.create_memory(user_id, memory2_data)
 
@@ -85,7 +85,7 @@ async def test_query_memory_with_token_budget(test_memory_service):
             context=f"Context {i}",
             keywords=[f"keyword{i}"],
             tags=[f"tag{i}"],
-            importance=5 + (i % 5)  # Importance 5-9
+            importance=5 + (i % 5),  # Importance 5-9
         )
         await test_memory_service.create_memory(user_id, memory_data)
 
@@ -94,7 +94,7 @@ async def test_query_memory_with_token_budget(test_memory_service):
         query="test query",
         query_context="looking for test information",
         k=10,
-        include_links=False
+        include_links=False,
     )
 
     result = await test_memory_service.query_memory(user_id, query_request)
@@ -118,7 +118,7 @@ async def test_query_memory_with_linked_memories(test_memory_service):
         context="Primary context",
         keywords=["primary"],
         tags=["main"],
-        importance=9
+        importance=9,
     )
     primary, _ = await test_memory_service.create_memory(user_id, primary_data)
 
@@ -129,7 +129,7 @@ async def test_query_memory_with_linked_memories(test_memory_service):
         context="Related context",
         keywords=["linked"],
         tags=["related"],
-        importance=8
+        importance=8,
     )
     linked, _ = await test_memory_service.create_memory(user_id, linked_data)
 
@@ -137,7 +137,7 @@ async def test_query_memory_with_linked_memories(test_memory_service):
     await test_memory_service.link_memories(
         user_id=user_id,
         memory_id=primary.id,
-        related_ids=[linked.id]
+        related_ids=[linked.id],
     )
 
     # Query should return primary + linked
@@ -146,7 +146,7 @@ async def test_query_memory_with_linked_memories(test_memory_service):
         query_context="searching for primary memory",
         k=5,
         include_links=True,
-        max_links_per_primary=5
+        max_links_per_primary=5,
     )
 
     result = await test_memory_service.query_memory(user_id, query_request)
@@ -172,7 +172,7 @@ async def test_link_memories_bidirectional(test_memory_service):
         context="Technical documentation about Python async features",
         keywords=["python", "asyncio", "async"],
         tags=["programming", "python"],
-        importance=7
+        importance=7,
     )
     memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
 
@@ -182,7 +182,7 @@ async def test_link_memories_bidirectional(test_memory_service):
         context="Database optimization technique",
         keywords=["database", "pooling", "performance"],
         tags=["database", "optimization"],
-        importance=7
+        importance=7,
     )
     memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
 
@@ -190,7 +190,7 @@ async def test_link_memories_bidirectional(test_memory_service):
     links_created = await test_memory_service.link_memories(
         user_id=user_id,
         memory_id=memory1.id,
-        related_ids=[memory2.id]
+        related_ids=[memory2.id],
     )
 
     assert len(links_created) > 0
@@ -216,7 +216,7 @@ async def test_update_memory_content(test_memory_service):
         context="Original context",
         keywords=["original"],
         tags=["original"],
-        importance=7
+        importance=7,
     )
     memory, _ = await test_memory_service.create_memory(user_id, memory_data)
 
@@ -224,13 +224,13 @@ async def test_update_memory_content(test_memory_service):
     memory_update = MemoryUpdate(
         title="Updated Title",
         content="Updated content with new information",
-        importance=9
+        importance=9,
     )
 
     updated_memory = await test_memory_service.update_memory(
         user_id=user_id,
         memory_id=memory.id,
-        updated_memory=memory_update
+        updated_memory=memory_update,
     )
 
     assert updated_memory is not None
@@ -252,7 +252,7 @@ async def test_mark_memory_obsolete(test_memory_service):
         context="Old context",
         keywords=["old"],
         tags=["outdated"],
-        importance=7
+        importance=7,
     )
     old_memory, _ = await test_memory_service.create_memory(user_id, old_memory_data)
 
@@ -263,7 +263,7 @@ async def test_mark_memory_obsolete(test_memory_service):
         context="New context",
         keywords=["new"],
         tags=["current"],
-        importance=8
+        importance=8,
     )
     new_memory, _ = await test_memory_service.create_memory(user_id, new_memory_data)
 
@@ -272,7 +272,7 @@ async def test_mark_memory_obsolete(test_memory_service):
         user_id=user_id,
         memory_id=old_memory.id,
         reason="Superseded by updated information",
-        superseded_by=new_memory.id
+        superseded_by=new_memory.id,
     )
 
     assert success is True
@@ -307,7 +307,7 @@ async def test_get_recent_memories_basic(test_memory_service):
             context=f"Context {i}",
             keywords=[f"keyword{i}"],
             tags=[f"tag{i}"],
-            importance=7
+            importance=7,
         )
         memory, _ = await test_memory_service.create_memory(user_id, memory_data)
         memories_created.append(memory)
@@ -337,7 +337,7 @@ async def test_get_recent_memories_with_project_filter(test_memory_service):
         keywords=["projectA"],
         tags=["project"],
         importance=7,
-        project_ids=[1]
+        project_ids=[1],
     )
     memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
 
@@ -348,7 +348,7 @@ async def test_get_recent_memories_with_project_filter(test_memory_service):
         keywords=["projectB"],
         tags=["project"],
         importance=7,
-        project_ids=[2]
+        project_ids=[2],
     )
     memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
 
@@ -359,7 +359,7 @@ async def test_get_recent_memories_with_project_filter(test_memory_service):
         keywords=["projectA"],
         tags=["project"],
         importance=7,
-        project_ids=[1]
+        project_ids=[1],
     )
     memory3, _ = await test_memory_service.create_memory(user_id, memory3_data)
 
@@ -367,7 +367,7 @@ async def test_get_recent_memories_with_project_filter(test_memory_service):
     recent_project_a, total = await test_memory_service.get_recent_memories(
         user_id,
         limit=10,
-        project_ids=[1]
+        project_ids=[1],
     )
 
     assert len(recent_project_a) == 2
@@ -388,7 +388,7 @@ async def test_get_recent_memories_excludes_obsolete(test_memory_service):
         context="Active context",
         keywords=["active"],
         tags=["current"],
-        importance=7
+        importance=7,
     )
     memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
 
@@ -398,7 +398,7 @@ async def test_get_recent_memories_excludes_obsolete(test_memory_service):
         context="Obsolete context",
         keywords=["obsolete"],
         tags=["old"],
-        importance=7
+        importance=7,
     )
     memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
 
@@ -406,7 +406,7 @@ async def test_get_recent_memories_excludes_obsolete(test_memory_service):
     await test_memory_service.mark_memory_obsolete(
         user_id=user_id,
         memory_id=memory2.id,
-        reason="Testing obsolete filtering"
+        reason="Testing obsolete filtering",
     )
 
     # Get recent memories - should only return active one
@@ -430,7 +430,7 @@ async def test_unlink_memories_success(test_memory_service):
         context="Musical hobby routine",
         keywords=["guitar", "music", "practice"],
         tags=["hobby", "music"],
-        importance=7
+        importance=7,
     )
     memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
 
@@ -440,7 +440,7 @@ async def test_unlink_memories_success(test_memory_service):
         context="Database performance tips",
         keywords=["sql", "database", "performance"],
         tags=["database", "optimization"],
-        importance=7
+        importance=7,
     )
     memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
 
@@ -448,7 +448,7 @@ async def test_unlink_memories_success(test_memory_service):
     await test_memory_service.link_memories(
         user_id=user_id,
         memory_id=memory1.id,
-        related_ids=[memory2.id]
+        related_ids=[memory2.id],
     )
 
     # Verify link exists
@@ -459,7 +459,7 @@ async def test_unlink_memories_success(test_memory_service):
     success = await test_memory_service.unlink_memories(
         user_id=user_id,
         memory_id=memory1.id,
-        target_id=memory2.id
+        target_id=memory2.id,
     )
 
     assert success is True
@@ -485,7 +485,7 @@ async def test_unlink_memories_not_found(test_memory_service):
         context="Physics research notes",
         keywords=["quantum", "physics", "entanglement"],
         tags=["science"],
-        importance=7
+        importance=7,
     )
     memory1, _ = await test_memory_service.create_memory(user_id, memory1_data)
 
@@ -495,7 +495,7 @@ async def test_unlink_memories_not_found(test_memory_service):
         context="Historical architecture",
         keywords=["castle", "medieval", "architecture"],
         tags=["history"],
-        importance=7
+        importance=7,
     )
     memory2, _ = await test_memory_service.create_memory(user_id, memory2_data)
 
@@ -507,7 +507,7 @@ async def test_unlink_memories_not_found(test_memory_service):
     success = await test_memory_service.unlink_memories(
         user_id=user_id,
         memory_id=memory1.id,
-        target_id=memory2.id
+        target_id=memory2.id,
     )
 
     assert success is False
@@ -535,12 +535,12 @@ async def test_create_memory_with_provenance(test_memory_service):
         source_url="https://github.com/scottrbk/forgetful/blob/main/src/main.py",
         confidence=0.85,
         encoding_agent="claude-sonnet-4-20250514",
-        encoding_version="0.1.0"
+        encoding_version="0.1.0",
     )
 
     memory, _ = await test_memory_service.create_memory(
         user_id=user_id,
-        memory_data=memory_data
+        memory_data=memory_data,
     )
 
     assert memory is not None
@@ -563,13 +563,13 @@ async def test_create_memory_without_provenance(test_memory_service):
         context="User-provided knowledge",
         keywords=["manual", "user"],
         tags=["no-provenance"],
-        importance=7
+        importance=7,
         # No provenance fields - should default to None
     )
 
     memory, _ = await test_memory_service.create_memory(
         user_id=user_id,
-        memory_data=memory_data
+        memory_data=memory_data,
     )
 
     assert memory is not None
@@ -593,7 +593,7 @@ async def test_update_memory_add_provenance(test_memory_service):
         context="Initial creation",
         keywords=["no-provenance"],
         tags=["test"],
-        importance=7
+        importance=7,
     )
     memory, _ = await test_memory_service.create_memory(user_id, memory_data)
 
@@ -604,13 +604,13 @@ async def test_update_memory_add_provenance(test_memory_service):
         source_repo="owner/repo",
         source_files=["file1.py"],
         confidence=0.9,
-        encoding_agent="manual-review"
+        encoding_agent="manual-review",
     )
 
     updated_memory = await test_memory_service.update_memory(
         user_id=user_id,
         memory_id=memory.id,
-        updated_memory=memory_update
+        updated_memory=memory_update,
     )
 
     assert updated_memory.source_repo == "owner/repo"
@@ -636,7 +636,7 @@ async def test_update_memory_modify_provenance(test_memory_service):
         tags=["test"],
         importance=7,
         confidence=0.5,
-        encoding_agent="old-agent"
+        encoding_agent="old-agent",
     )
     memory, _ = await test_memory_service.create_memory(user_id, memory_data)
 
@@ -646,13 +646,13 @@ async def test_update_memory_modify_provenance(test_memory_service):
     # Update provenance fields
     memory_update = MemoryUpdate(
         confidence=0.95,
-        encoding_agent="verified-by-human"
+        encoding_agent="verified-by-human",
     )
 
     updated_memory = await test_memory_service.update_memory(
         user_id=user_id,
         memory_id=memory.id,
-        updated_memory=memory_update
+        updated_memory=memory_update,
     )
 
     assert updated_memory.confidence == 0.95
@@ -674,7 +674,7 @@ async def test_provenance_fields_in_query_results(test_memory_service):
         importance=8,
         source_repo="test/repo",
         confidence=0.75,
-        encoding_agent="test-agent"
+        encoding_agent="test-agent",
     )
     await test_memory_service.create_memory(user_id, memory_data)
 
@@ -683,7 +683,7 @@ async def test_provenance_fields_in_query_results(test_memory_service):
         query="provenance query test",
         query_context="testing provenance fields in results",
         k=5,
-        include_links=False
+        include_links=False,
     )
 
     result = await test_memory_service.query_memory(user_id, query_request)
@@ -691,7 +691,7 @@ async def test_provenance_fields_in_query_results(test_memory_service):
     assert len(result.primary_memories) >= 1
     found_memory = next(
         (m for m in result.primary_memories if m.title == "Provenance Query Test"),
-        None
+        None,
     )
     assert found_memory is not None
     assert found_memory.source_repo == "test/repo"
@@ -712,7 +712,7 @@ async def test_confidence_validation(test_memory_service):
         keywords=["low"],
         tags=["test"],
         importance=5,
-        confidence=0.0  # Minimum valid
+        confidence=0.0,  # Minimum valid
     )
     memory_low, _ = await test_memory_service.create_memory(user_id, memory_data_low)
     assert memory_low.confidence == 0.0
@@ -724,7 +724,7 @@ async def test_confidence_validation(test_memory_service):
         keywords=["high"],
         tags=["test"],
         importance=9,
-        confidence=1.0  # Maximum valid
+        confidence=1.0,  # Maximum valid
     )
     memory_high, _ = await test_memory_service.create_memory(user_id, memory_data_high)
     assert memory_high.confidence == 1.0
@@ -742,7 +742,7 @@ async def test_source_files_empty_string_cleaning(test_memory_service):
         keywords=["validation"],
         tags=["test"],
         importance=7,
-        source_files=["file1.py", "", "  ", "file2.py", "   file3.py   "]
+        source_files=["file1.py", "", "  ", "file2.py", "   file3.py   "],
     )
 
     memory, _ = await test_memory_service.create_memory(user_id, memory_data)
@@ -759,7 +759,7 @@ async def test_source_files_empty_string_cleaning(test_memory_service):
 
 @pytest.mark.asyncio
 async def test_get_memory_emits_read_event_when_tracking_enabled(
-    test_memory_service_with_event_bus
+    test_memory_service_with_event_bus,
 ):
     """get_memory() emits READ event when ACTIVITY_TRACK_READS=True."""
     service, event_bus = test_memory_service_with_event_bus
@@ -772,13 +772,13 @@ async def test_get_memory_emits_read_event_when_tracking_enabled(
         context="Context",
         keywords=["test"],
         tags=["test"],
-        importance=7
+        importance=7,
     )
     memory, _ = await service.create_memory(user_id, memory_data)
     event_bus.collected_events.clear()  # Clear creation event
 
     # Read the memory with tracking enabled
-    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+    with patch.object(settings, "ACTIVITY_TRACK_READS", True):
         result = await service.get_memory(user_id, memory.id)
 
     assert result is not None
@@ -791,7 +791,7 @@ async def test_get_memory_emits_read_event_when_tracking_enabled(
 
 @pytest.mark.asyncio
 async def test_get_memory_no_event_when_tracking_disabled(
-    test_memory_service_with_event_bus
+    test_memory_service_with_event_bus,
 ):
     """get_memory() does not emit event when ACTIVITY_TRACK_READS=False."""
     service, event_bus = test_memory_service_with_event_bus
@@ -804,13 +804,13 @@ async def test_get_memory_no_event_when_tracking_disabled(
         context="Context",
         keywords=["test"],
         tags=["test"],
-        importance=7
+        importance=7,
     )
     memory, _ = await service.create_memory(user_id, memory_data)
     event_bus.collected_events.clear()
 
     # Read with tracking disabled (default)
-    with patch.object(settings, 'ACTIVITY_TRACK_READS', False):
+    with patch.object(settings, "ACTIVITY_TRACK_READS", False):
         result = await service.get_memory(user_id, memory.id)
 
     assert result is not None
@@ -819,14 +819,14 @@ async def test_get_memory_no_event_when_tracking_disabled(
 
 @pytest.mark.asyncio
 async def test_get_memory_no_event_when_memory_not_found(
-    test_memory_service_with_event_bus
+    test_memory_service_with_event_bus,
 ):
     """get_memory() does not emit event when memory doesn't exist."""
     service, event_bus = test_memory_service_with_event_bus
     user_id = uuid4()
     event_bus.collected_events.clear()
 
-    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+    with patch.object(settings, "ACTIVITY_TRACK_READS", True):
         result = await service.get_memory(user_id, 99999)  # Non-existent
 
     assert result is None

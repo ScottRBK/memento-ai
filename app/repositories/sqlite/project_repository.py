@@ -1,9 +1,7 @@
-"""
-Project repository for SQLite data access operations
+"""Project repository for SQLite data access operations
 """
 
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -26,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class SqliteProjectRepository:
-    """
-    Repository for Project entity operations in SQLite
+    """Repository for Project entity operations in SQLite
 
     Handles CRUD operations for projects with SQLite backend.
     Projects organize memories, code artifacts, and documents by context.
@@ -145,15 +142,14 @@ class SqliteProjectRepository:
                     extra={"project_id": project_id, "project_name": project_orm.name},
                 )
                 return Project.model_validate(project_orm)
-            else:
-                logger.info(
-                    "Project not found",
-                    extra={"project_id": project_id, "user_id": str(user_id)},
-                )
-                return None
+            logger.info(
+                "Project not found",
+                extra={"project_id": project_id, "user_id": str(user_id)},
+            )
+            return None
 
     async def create_project(
-        self, user_id: UUID, project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate,
     ) -> Project:
         """Create new project
 
@@ -203,7 +199,7 @@ class SqliteProjectRepository:
             return project
 
     async def update_project(
-        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate,
     ) -> Project:
         """Update existing project
 
@@ -249,7 +245,7 @@ class SqliteProjectRepository:
                 return Project.model_validate(project_orm)
 
             # Add updated timestamp
-            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.now(UTC)
 
             # Execute update with RETURNING
             stmt = (
@@ -302,7 +298,7 @@ class SqliteProjectRepository:
 
         async with self.db_adapter.session(user_id) as session:
             stmt = delete(ProjectsTable).where(
-                ProjectsTable.user_id == str(user_id), ProjectsTable.id == project_id
+                ProjectsTable.user_id == str(user_id), ProjectsTable.id == project_id,
             )
 
             result = await session.execute(stmt)

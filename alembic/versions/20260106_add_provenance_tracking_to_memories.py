@@ -14,81 +14,80 @@ Adds provenance tracking fields to the memories table:
 
 All fields are optional (nullable) for backward compatibility.
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 from app.config.settings import settings
 
-
 # revision identifiers, used by Alembic.
-revision: str = '20260106_provenance'
-down_revision: Union[str, Sequence[str], None] = '20251216143413'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "20260106_provenance"
+down_revision: str | Sequence[str] | None = "20251216143413"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Add provenance tracking columns to memories table."""
     # Add source_repo column (Text, nullable)
     op.add_column(
-        'memories',
-        sa.Column('source_repo', sa.Text(), nullable=True)
+        "memories",
+        sa.Column("source_repo", sa.Text(), nullable=True),
     )
 
     # Add source_files column (JSON/ARRAY, nullable)
     if settings.DATABASE == "Postgres":
         op.add_column(
-            'memories',
-            sa.Column('source_files', postgresql.ARRAY(sa.String()), nullable=True)
+            "memories",
+            sa.Column("source_files", postgresql.ARRAY(sa.String()), nullable=True),
         )
     elif settings.DATABASE == "SQLite":
         op.add_column(
-            'memories',
-            sa.Column('source_files', sa.JSON(), nullable=True)
+            "memories",
+            sa.Column("source_files", sa.JSON(), nullable=True),
         )
     else:
         raise ValueError(f"Unsupported database type: {settings.DATABASE}")
 
     # Add source_url column (Text, nullable)
     op.add_column(
-        'memories',
-        sa.Column('source_url', sa.Text(), nullable=True)
+        "memories",
+        sa.Column("source_url", sa.Text(), nullable=True),
     )
 
     # Add confidence column (Float, nullable)
     op.add_column(
-        'memories',
-        sa.Column('confidence', sa.Float(), nullable=True)
+        "memories",
+        sa.Column("confidence", sa.Float(), nullable=True),
     )
 
     # Add encoding_agent column (Text, nullable)
     op.add_column(
-        'memories',
-        sa.Column('encoding_agent', sa.Text(), nullable=True)
+        "memories",
+        sa.Column("encoding_agent", sa.Text(), nullable=True),
     )
 
     # Add encoding_version column (Text, nullable)
     op.add_column(
-        'memories',
-        sa.Column('encoding_version', sa.Text(), nullable=True)
+        "memories",
+        sa.Column("encoding_version", sa.Text(), nullable=True),
     )
 
     # Add index on confidence for filtering by reliability
-    op.create_index('ix_memories_confidence', 'memories', ['confidence'])
+    op.create_index("ix_memories_confidence", "memories", ["confidence"])
 
 
 def downgrade() -> None:
     """Remove provenance tracking columns from memories table."""
     # Drop the index first
-    op.drop_index('ix_memories_confidence', table_name='memories')
+    op.drop_index("ix_memories_confidence", table_name="memories")
 
     # Drop all provenance columns
-    op.drop_column('memories', 'source_repo')
-    op.drop_column('memories', 'source_files')
-    op.drop_column('memories', 'source_url')
-    op.drop_column('memories', 'confidence')
-    op.drop_column('memories', 'encoding_agent')
-    op.drop_column('memories', 'encoding_version')
+    op.drop_column("memories", "source_repo")
+    op.drop_column("memories", "source_files")
+    op.drop_column("memories", "source_url")
+    op.drop_column("memories", "confidence")
+    op.drop_column("memories", "encoding_agent")
+    op.drop_column("memories", "encoding_version")

@@ -1,10 +1,10 @@
-"""
-Integration tests for OllamaEmbeddingsAdapter with mocked Ollama client.
+"""Integration tests for OllamaEmbeddingsAdapter with mocked Ollama client.
 
 Tests the adapter class in isolation - no real Ollama server required.
 """
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 
 @pytest.fixture

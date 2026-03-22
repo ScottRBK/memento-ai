@@ -1,11 +1,11 @@
+"""Integration tests for CodeArtifactService with in-memory stubs
 """
-Integration tests for CodeArtifactService with in-memory stubs
-"""
-import pytest
 from uuid import uuid4
 
-from app.models.code_artifact_models import CodeArtifactCreate, CodeArtifactUpdate
+import pytest
+
 from app.exceptions import NotFoundError
+from app.models.code_artifact_models import CodeArtifactCreate, CodeArtifactUpdate
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ async def test_create_code_artifact(test_code_artifact_service):
         description="FastAPI JWT validation",
         code="@app.middleware('http')\nasync def jwt_middleware(request, call_next):\n    return await call_next(request)",
         language="python",
-        tags=["fastapi", "auth"]
+        tags=["fastapi", "auth"],
     )
 
     artifact = await test_code_artifact_service.create_code_artifact(user_id, artifact_data)
@@ -38,7 +38,7 @@ async def test_get_code_artifact(test_code_artifact_service):
         description="Test",
         code="print('hello')",
         language="python",
-        tags=[]
+        tags=[],
     )
     created = await test_code_artifact_service.create_code_artifact(user_id, artifact_data)
 
@@ -68,7 +68,7 @@ async def test_list_code_artifacts(test_code_artifact_service):
             description="Test",
             code=f"code_{i}",
             language="python",
-            tags=["test"]
+            tags=["test"],
         )
         await test_code_artifact_service.create_code_artifact(user_id, artifact_data)
 
@@ -85,13 +85,13 @@ async def test_list_code_artifacts_filter_by_language(test_code_artifact_service
     # Create Python artifact
     await test_code_artifact_service.create_code_artifact(
         user_id,
-        CodeArtifactCreate(title="Python", description="Test", code="code", language="python", tags=[])
+        CodeArtifactCreate(title="Python", description="Test", code="code", language="python", tags=[]),
     )
 
     # Create JavaScript artifact
     await test_code_artifact_service.create_code_artifact(
         user_id,
-        CodeArtifactCreate(title="JS", description="Test", code="code", language="javascript", tags=[])
+        CodeArtifactCreate(title="JS", description="Test", code="code", language="javascript", tags=[]),
     )
 
     # Filter by Python
@@ -108,12 +108,12 @@ async def test_list_code_artifacts_filter_by_tags(test_code_artifact_service):
     # Create with different tags
     await test_code_artifact_service.create_code_artifact(
         user_id,
-        CodeArtifactCreate(title="Auth", description="Test", code="code", language="python", tags=["auth"])
+        CodeArtifactCreate(title="Auth", description="Test", code="code", language="python", tags=["auth"]),
     )
 
     await test_code_artifact_service.create_code_artifact(
         user_id,
-        CodeArtifactCreate(title="DB", description="Test", code="code", language="python", tags=["database"])
+        CodeArtifactCreate(title="DB", description="Test", code="code", language="python", tags=["database"]),
     )
 
     # Filter by auth tag
@@ -133,7 +133,7 @@ async def test_update_code_artifact(test_code_artifact_service):
         description="Original desc",
         code="original code",
         language="python",
-        tags=["original"]
+        tags=["original"],
     )
     created = await test_code_artifact_service.create_code_artifact(user_id, artifact_data)
 
@@ -156,7 +156,7 @@ async def test_delete_code_artifact(test_code_artifact_service):
         description="Test",
         code="code",
         language="python",
-        tags=[]
+        tags=[],
     )
     created = await test_code_artifact_service.create_code_artifact(user_id, artifact_data)
 

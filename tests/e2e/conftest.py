@@ -1,5 +1,4 @@
-"""
-E2E test fixtures with in-process FastMCP server + session-scoped PostgreSQL
+"""E2E test fixtures with in-process FastMCP server + session-scoped PostgreSQL
 
 Architecture:
 - Session: One PostgreSQL container (docker compose), one db_adapter with migrations
@@ -23,25 +22,42 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from fastmcp import FastMCP, Client
-from httpx import AsyncClient, ASGITransport, AsyncByteStream, Request, Response
+from fastmcp import Client, FastMCP
+from httpx import ASGITransport, AsyncByteStream, AsyncClient, Request, Response
 from sqlalchemy import text
 
 from app.config.settings import settings
 from app.events import EventBus
 from app.repositories.embeddings.embedding_adapter import (
-    FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter,
-    OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter,
+    AzureOpenAIAdapter,
+    FastEmbeddingAdapter,
+    GoogleEmbeddingsAdapter,
+    OllamaEmbeddingsAdapter,
+    OpenAIEmbeddingsAdapter,
 )
-from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter, HttpRerankAdapter
+from app.repositories.embeddings.reranker_adapter import (
+    FastEmbedCrossEncoderAdapter,
+    HttpRerankAdapter,
+)
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.skill_repository import PostgresSkillRepository
-from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity
-from app.routes.api import plans as plans_routes, tasks as tasks_routes
+from app.routes.api import (
+    activity,
+    auth,
+    code_artifacts,
+    documents,
+    entities,
+    graph,
+    health,
+    memories,
+    projects,
+)
 from app.routes.api import files as files_routes
+from app.routes.api import plans as plans_routes
 from app.routes.api import skills as skills_api
-from app.routes.mcp import skill_tools as skill_routes
+from app.routes.api import tasks as tasks_routes
 from app.routes.mcp import meta_tools
+from app.routes.mcp import skill_tools as skill_routes
 from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
 from app.routes.mcp.tool_registry import ToolRegistry
 from app.services.activity_service import ActivityService
@@ -50,10 +66,10 @@ from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
 from app.services.file_service import FileService
 from app.services.graph_service import GraphService
-from app.services.skill_service import SkillService
 from app.services.memory_service import MemoryService
 from app.services.plan_service import PlanService
 from app.services.project_service import ProjectService
+from app.services.skill_service import SkillService
 from app.services.task_service import TaskService
 from app.services.user_service import UserService
 from main import _create_repositories
@@ -218,7 +234,7 @@ def _wait_for_healthy(container_name: str, timeout: int = 120) -> None:
         try:
             result = subprocess.run(
                 ["docker", "inspect", "--format={{.State.Health.Status}}", container_name],
-                capture_output=True, text=True, check=True
+                capture_output=True, text=True, check=True,
             )
             status = result.stdout.strip()
             if status == "healthy":
@@ -237,7 +253,7 @@ def _container_running(container_name: str) -> bool:
     try:
         result = subprocess.run(
             ["docker", "inspect", "--format={{.State.Running}}", container_name],
-            capture_output=True, text=True, check=True
+            capture_output=True, text=True, check=True,
         )
         return result.stdout.strip() == "true"
     except subprocess.CalledProcessError:
@@ -276,15 +292,14 @@ def postgres_container():
         result = subprocess.run(
             ["docker", "compose", "-f", str(compose_file), "up", "-d", "forgetful-db"],
             env={**dict(__import__("os").environ), **env},
-            capture_output=True, text=True, cwd=str(project_root)
+            capture_output=True, text=True, cwd=str(project_root),
         )
         if result.returncode != 0:
             raise RuntimeError(
-                f"Failed to start forgetful-db:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}"
+                f"Failed to start forgetful-db:\nSTDOUT: {result.stdout}\nSTDERR: {result.stderr}",
             )
         _wait_for_healthy("forgetful-db")
 
-    yield
 
     # Don't tear down — the container is reusable across test runs.
     # Users can `docker compose down -v` manually if needed.
@@ -315,14 +330,13 @@ def embedding_adapter():
     """Session-scoped embedding adapter (model loading is expensive ~1-2s)."""
     if settings.EMBEDDING_PROVIDER == "Azure":
         return AzureOpenAIAdapter()
-    elif settings.EMBEDDING_PROVIDER == "Google":
+    if settings.EMBEDDING_PROVIDER == "Google":
         return GoogleEmbeddingsAdapter()
-    elif settings.EMBEDDING_PROVIDER == "OpenAI":
+    if settings.EMBEDDING_PROVIDER == "OpenAI":
         return OpenAIEmbeddingsAdapter()
-    elif settings.EMBEDDING_PROVIDER == "Ollama":
+    if settings.EMBEDDING_PROVIDER == "Ollama":
         return OllamaEmbeddingsAdapter()
-    else:
-        return FastEmbeddingAdapter()
+    return FastEmbeddingAdapter()
 
 
 @pytest.fixture(scope="session")
@@ -332,8 +346,7 @@ def reranker_adapter():
         return None
     if settings.RERANKING_PROVIDER == "HTTP":
         return HttpRerankAdapter()
-    else:
-        return FastEmbedCrossEncoderAdapter(cache_dir=settings.FASTEMBED_CACHE_DIR)
+    return FastEmbedCrossEncoderAdapter(cache_dir=settings.FASTEMBED_CACHE_DIR)
 
 
 # ---------------------------------------------------------------------------

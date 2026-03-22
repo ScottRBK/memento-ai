@@ -1,21 +1,21 @@
-"""
-REST API endpoints for Code Artifact operations.
+"""REST API endpoints for Code Artifact operations.
 
 Phase 3c of the Web UI foundation (Issue #3).
 Provides CRUD operations for code artifacts.
 """
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 from app.models.code_artifact_models import (
     CodeArtifactCreate,
     CodeArtifactUpdate,
 )
-from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +25,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/code-artifacts", methods=["GET"])
     async def list_code_artifacts(request: Request) -> JSONResponse:
-        """
-        List code artifacts with optional filtering.
+        """List code artifacts with optional filtering.
 
         Query params:
             project_id: Filter by project
@@ -50,7 +49,7 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
-                    status_code=400
+                    status_code=400,
                 )
         tags = [t.strip() for t in tags_str.split(",")] if tags_str else None
 
@@ -58,12 +57,12 @@ def register(mcp: FastMCP):
             user_id=user.id,
             project_id=project_id,
             language=language,
-            tags=tags
+            tags=tags,
         )
 
         return JSONResponse({
             "code_artifacts": [a.model_dump(mode="json") for a in artifacts],
-            "total": len(artifacts)
+            "total": len(artifacts),
         })
 
     @mcp.custom_route("/api/v1/code-artifacts/{artifact_id}", methods=["GET"])
@@ -79,7 +78,7 @@ def register(mcp: FastMCP):
         try:
             artifact = await mcp.code_artifact_service.get_code_artifact(
                 user_id=user.id,
-                artifact_id=artifact_id
+                artifact_id=artifact_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Code artifact not found"}, status_code=404)
@@ -102,7 +101,7 @@ def register(mcp: FastMCP):
 
         artifact = await mcp.code_artifact_service.create_code_artifact(
             user_id=user.id,
-            artifact_data=artifact_data
+            artifact_data=artifact_data,
         )
 
         return JSONResponse(artifact.model_dump(mode="json"), status_code=201)
@@ -127,7 +126,7 @@ def register(mcp: FastMCP):
             artifact = await mcp.code_artifact_service.update_code_artifact(
                 user_id=user.id,
                 artifact_id=artifact_id,
-                artifact_data=update_data
+                artifact_data=update_data,
             )
         except NotFoundError:
             return JSONResponse({"error": "Code artifact not found"}, status_code=404)
@@ -147,7 +146,7 @@ def register(mcp: FastMCP):
         try:
             success = await mcp.code_artifact_service.delete_code_artifact(
                 user_id=user.id,
-                artifact_id=artifact_id
+                artifact_id=artifact_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Code artifact not found"}, status_code=404)

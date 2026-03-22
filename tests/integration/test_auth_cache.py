@@ -1,16 +1,16 @@
-"""
-Integration tests for TokenCache
+"""Integration tests for TokenCache
 
 Tests token caching functionality with mock auth providers
 """
 import asyncio
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
 from starlette.requests import Request
 
+from app.config.settings import settings
 from app.middleware.auth import TokenCache, get_user_from_request
 from app.models.user_models import User
-from app.config.settings import settings
 
 
 class MockFastMCP:
@@ -52,7 +52,7 @@ async def test_token_cache_basic_set_get():
     user = User(
         external_id="test-user-123",
         name="Test User",
-        email="test@example.com"
+        email="test@example.com",
     )
 
     # Set and get
@@ -84,7 +84,7 @@ async def test_token_cache_expiration():
     user = User(
         external_id="test-user-expire",
         name="Expiring User",
-        email="expire@example.com"
+        email="expire@example.com",
     )
 
     await cache.set("expiring-token", user)
@@ -220,7 +220,7 @@ async def test_cache_hit_avoids_verify_token(test_user_service):
         return MockAccessToken(claims={
             "sub": "cache-test-user",
             "name": "Cache Test",
-            "email": "cache@example.com"
+            "email": "cache@example.com",
         })
 
     mock_auth = AsyncMock()
@@ -232,7 +232,7 @@ async def test_cache_hit_avoids_verify_token(test_user_service):
     request = create_mock_request("test-cache-token")
 
     # First call - should call verify_token
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         user1 = await get_user_from_request(request, mcp)
         assert call_count == 1
 
@@ -256,7 +256,7 @@ async def test_different_tokens_different_cache_entries(test_user_service):
         return MockAccessToken(claims={
             "sub": f"user-for-{token[-5:]}",
             "name": f"User {call_count}",
-            "email": f"user{call_count}@example.com"
+            "email": f"user{call_count}@example.com",
         })
 
     mock_auth = AsyncMock()
@@ -265,7 +265,7 @@ async def test_different_tokens_different_cache_entries(test_user_service):
     cache = TokenCache(ttl_seconds=300, max_size=100)
     mcp = MockFastMCP(test_user_service, auth_provider=mock_auth, token_cache=cache)
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         # First token
         request1 = create_mock_request("token-aaaaa")
         user1 = await get_user_from_request(request1, mcp)
@@ -291,7 +291,7 @@ async def test_cache_disabled_via_setting(test_user_service):
         return MockAccessToken(claims={
             "sub": "disabled-cache-user",
             "name": "Disabled Cache",
-            "email": "disabled@example.com"
+            "email": "disabled@example.com",
         })
 
     mock_auth = AsyncMock()
@@ -302,7 +302,7 @@ async def test_cache_disabled_via_setting(test_user_service):
 
     request = create_mock_request("disabled-test-token")
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', False):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", False):
         # First call
         await get_user_from_request(request, mcp)
         assert call_count == 1
@@ -326,7 +326,7 @@ async def test_invalid_token_not_cached(test_user_service):
 
     request = create_mock_request("invalid-token")
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         # Should raise ValueError
         with pytest.raises(ValueError, match="Invalid or expired token"):
             await get_user_from_request(request, mcp)
@@ -346,7 +346,7 @@ async def test_no_cache_when_cache_not_attached(test_user_service):
         return MockAccessToken(claims={
             "sub": "no-cache-user",
             "name": "No Cache",
-            "email": "nocache@example.com"
+            "email": "nocache@example.com",
         })
 
     mock_auth = AsyncMock()
@@ -357,7 +357,7 @@ async def test_no_cache_when_cache_not_attached(test_user_service):
 
     request = create_mock_request("no-cache-token")
 
-    with patch.object(settings, 'TOKEN_CACHE_ENABLED', True):
+    with patch.object(settings, "TOKEN_CACHE_ENABLED", True):
         # Both calls should verify_token since no cache
         await get_user_from_request(request, mcp)
         await get_user_from_request(request, mcp)

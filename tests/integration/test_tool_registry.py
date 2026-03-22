@@ -1,11 +1,11 @@
-"""
-Unit tests for ToolRegistry
+"""Unit tests for ToolRegistry
 
 Tests the registry methods in isolation without external dependencies.
 """
 import pytest
-from app.routes.mcp.tool_registry import ToolRegistry
+
 from app.models.tool_registry_models import ToolCategory, ToolParameter
+from app.routes.mcp.tool_registry import ToolRegistry
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ async def test_register_tool(empty_registry, sample_tool_impl):
             type="str",
             description="First argument",
             required=True,
-            example="test"
+            example="test",
         ),
         ToolParameter(
             name="arg2",
@@ -46,7 +46,7 @@ async def test_register_tool(empty_registry, sample_tool_impl):
             description="Second argument",
             required=False,
             default=5,
-            example=10
+            example=10,
         ),
     ]
 
@@ -73,8 +73,8 @@ async def test_get_tool(empty_registry, sample_tool_impl):
             name="arg1",
             type="str",
             description="Test arg",
-            required=True
-        )
+            required=True,
+        ),
     ]
 
     empty_registry.register(
@@ -264,7 +264,7 @@ async def test_execute_tool_with_context(empty_registry):
     result = await empty_registry.execute(
         "context_tool",
         {"arg": "test"},
-        user_id=42
+        user_id=42,
     )
     assert result["arg"] == "test"
     assert result["user_id"] == 42
@@ -307,12 +307,12 @@ async def test_execute_tool_with_optional_parameters(empty_registry):
     async def tool_with_defaults(
         required: str,
         optional: int = 10,
-        another: str = "default"
+        another: str = "default",
     ) -> dict:
         return {
             "required": required,
             "optional": optional,
-            "another": another
+            "another": another,
         }
 
     params = [
@@ -320,21 +320,21 @@ async def test_execute_tool_with_optional_parameters(empty_registry):
             name="required",
             type="str",
             description="Required param",
-            required=True
+            required=True,
         ),
         ToolParameter(
             name="optional",
             type="int",
             description="Optional param",
             required=False,
-            default=10
+            default=10,
         ),
         ToolParameter(
             name="another",
             type="str",
             description="Another optional",
             required=False,
-            default="default"
+            default="default",
         ),
     ]
 
@@ -350,7 +350,7 @@ async def test_execute_tool_with_optional_parameters(empty_registry):
     # Test with only required parameter
     result1 = await empty_registry.execute(
         "optional_tool",
-        {"required": "test"}
+        {"required": "test"},
     )
     assert result1["required"] == "test"
     assert result1["optional"] == 10
@@ -359,7 +359,7 @@ async def test_execute_tool_with_optional_parameters(empty_registry):
     # Test with all parameters
     result2 = await empty_registry.execute(
         "optional_tool",
-        {"required": "test2", "optional": 20, "another": "custom"}
+        {"required": "test2", "optional": 20, "another": "custom"},
     )
     assert result2["required"] == "test2"
     assert result2["optional"] == 20

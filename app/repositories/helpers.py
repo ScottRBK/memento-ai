@@ -1,14 +1,14 @@
 """Helper methods for the repository layer"""
 
-from app.models.memory_models import MemoryCreate, Memory
-
 import logging
+
+from app.models.memory_models import Memory, MemoryCreate
+
 logger = logging.getLogger(__name__)
 
 
 def build_embedding_text(memory_data: MemoryCreate) -> str:
-    """
-    Build combined text for embedding generation
+    """Build combined text for embedding generation
 
     Combines title, content, context, keywords and tags into a single
     text string optimized for semantic search.

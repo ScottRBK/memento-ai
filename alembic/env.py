@@ -3,9 +3,9 @@
 Supports both Postgres and SQLite with conditional configuration.
 """
 import asyncio
+import sys
 from logging.config import fileConfig
 from pathlib import Path
-import sys
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -108,8 +108,8 @@ async def run_async_migrations() -> None:
 
     # Load sqlite-vec extension for SQLite (if using SQLite)
     if settings.DATABASE == "SQLite":
-        from sqlalchemy import event
         import sqlite_vec
+        from sqlalchemy import event
 
         @event.listens_for(connectable.sync_engine, "connect")
         def on_connect(dbapi_conn, connection_record):
@@ -136,7 +136,7 @@ def run_migrations_online() -> None:
     2. Adapter usage (from init_db) - uses provided connection synchronously
     """
     # Check if connection provided via attributes (from adapter)
-    connectable = config.attributes.get('connection', None)
+    connectable = config.attributes.get("connection", None)
 
     if connectable is not None:
         # Use existing connection (sync context from run_sync)

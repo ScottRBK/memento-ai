@@ -1,28 +1,27 @@
-"""
-Integration tests for TaskService with in-memory stubs
+"""Integration tests for TaskService with in-memory stubs
 """
 
-import pytest
 from uuid import uuid4
 
-from app.models.plan_models import (
-    PlanCreate,
-    PlanUpdate,
-    PlanStatus,
-    TaskCreate,
-    TaskUpdate,
-    TaskState,
-    TaskPriority,
-    CriterionCreate,
-    CriterionUpdate,
-)
+import pytest
+
 from app.exceptions import (
     ConflictError,
     CyclicDependencyError,
     DependencyNotMetError,
     InvalidStateTransitionError,
 )
-
+from app.models.plan_models import (
+    CriterionCreate,
+    CriterionUpdate,
+    PlanCreate,
+    PlanStatus,
+    PlanUpdate,
+    TaskCreate,
+    TaskPriority,
+    TaskState,
+    TaskUpdate,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -124,14 +123,14 @@ async def test_list_tasks_by_state(test_task_service):
 
     # Transition t1 to DOING
     await task_service.transition_task(
-        user_id=user_id, task_id=t1.id, new_state=TaskState.DOING, expected_version=1
+        user_id=user_id, task_id=t1.id, new_state=TaskState.DOING, expected_version=1,
     )
 
     todo_tasks = await task_service.list_tasks(
-        user_id=user_id, plan_id=plan.id, state=TaskState.TODO
+        user_id=user_id, plan_id=plan.id, state=TaskState.TODO,
     )
     doing_tasks = await task_service.list_tasks(
-        user_id=user_id, plan_id=plan.id, state=TaskState.DOING
+        user_id=user_id, plan_id=plan.id, state=TaskState.DOING,
     )
 
     assert len(todo_tasks) == 1
@@ -200,13 +199,13 @@ async def test_transition_task_invalid(test_task_service):
         task_data=TaskCreate(title="Finish me", plan_id=plan.id),
     )
 
-    # todo -> doing (v1 -> v2)
+    # TODO -> doing (v1 -> v2)
     await task_service.transition_task(
-        user_id=user_id, task_id=task.id, new_state=TaskState.DOING, expected_version=1
+        user_id=user_id, task_id=task.id, new_state=TaskState.DOING, expected_version=1,
     )
     # doing -> done (v2 -> v3)
     await task_service.transition_task(
-        user_id=user_id, task_id=task.id, new_state=TaskState.DONE, expected_version=2
+        user_id=user_id, task_id=task.id, new_state=TaskState.DONE, expected_version=2,
     )
 
     # done -> doing is NOT valid (done can only go to todo)
@@ -300,12 +299,12 @@ async def test_transition_to_done_with_all_criteria_met(test_task_service):
             criterion_data=CriterionUpdate(met=True),
         )
 
-    # todo -> doing -> done
+    # TODO -> doing -> done
     await task_service.transition_task(
-        user_id=user_id, task_id=task.id, new_state=TaskState.DOING, expected_version=1
+        user_id=user_id, task_id=task.id, new_state=TaskState.DOING, expected_version=1,
     )
     done_task = await task_service.transition_task(
-        user_id=user_id, task_id=task.id, new_state=TaskState.DONE, expected_version=2
+        user_id=user_id, task_id=task.id, new_state=TaskState.DONE, expected_version=2,
     )
 
     assert done_task.state == TaskState.DONE
@@ -327,9 +326,9 @@ async def test_transition_to_done_with_unmet_criteria(test_task_service):
         ),
     )
 
-    # todo -> doing
+    # TODO -> doing
     await task_service.transition_task(
-        user_id=user_id, task_id=task.id, new_state=TaskState.DOING, expected_version=1
+        user_id=user_id, task_id=task.id, new_state=TaskState.DOING, expected_version=1,
     )
 
     # doing -> done should fail because criterion is not met
@@ -389,7 +388,7 @@ async def test_cycle_detection_self(test_task_service):
 
     with pytest.raises(CyclicDependencyError):
         await task_service.add_dependency(
-            user_id=user_id, task_id=task.id, depends_on_task_id=task.id
+            user_id=user_id, task_id=task.id, depends_on_task_id=task.id,
         )
 
 
@@ -401,21 +400,21 @@ async def test_cycle_detection_direct(test_task_service):
     plan = await _create_active_plan(plan_service, user_id)
 
     a = await task_service.create_task(
-        user_id=user_id, task_data=TaskCreate(title="A", plan_id=plan.id)
+        user_id=user_id, task_data=TaskCreate(title="A", plan_id=plan.id),
     )
     b = await task_service.create_task(
-        user_id=user_id, task_data=TaskCreate(title="B", plan_id=plan.id)
+        user_id=user_id, task_data=TaskCreate(title="B", plan_id=plan.id),
     )
 
     # A depends on B
     await task_service.add_dependency(
-        user_id=user_id, task_id=a.id, depends_on_task_id=b.id
+        user_id=user_id, task_id=a.id, depends_on_task_id=b.id,
     )
 
     # B depends on A => cycle
     with pytest.raises(CyclicDependencyError):
         await task_service.add_dependency(
-            user_id=user_id, task_id=b.id, depends_on_task_id=a.id
+            user_id=user_id, task_id=b.id, depends_on_task_id=a.id,
         )
 
 
@@ -427,28 +426,28 @@ async def test_cycle_detection_transitive(test_task_service):
     plan = await _create_active_plan(plan_service, user_id)
 
     a = await task_service.create_task(
-        user_id=user_id, task_data=TaskCreate(title="A", plan_id=plan.id)
+        user_id=user_id, task_data=TaskCreate(title="A", plan_id=plan.id),
     )
     b = await task_service.create_task(
-        user_id=user_id, task_data=TaskCreate(title="B", plan_id=plan.id)
+        user_id=user_id, task_data=TaskCreate(title="B", plan_id=plan.id),
     )
     c = await task_service.create_task(
-        user_id=user_id, task_data=TaskCreate(title="C", plan_id=plan.id)
+        user_id=user_id, task_data=TaskCreate(title="C", plan_id=plan.id),
     )
 
     # A depends on B
     await task_service.add_dependency(
-        user_id=user_id, task_id=a.id, depends_on_task_id=b.id
+        user_id=user_id, task_id=a.id, depends_on_task_id=b.id,
     )
     # B depends on C
     await task_service.add_dependency(
-        user_id=user_id, task_id=b.id, depends_on_task_id=c.id
+        user_id=user_id, task_id=b.id, depends_on_task_id=c.id,
     )
 
     # C depends on A => transitive cycle
     with pytest.raises(CyclicDependencyError):
         await task_service.add_dependency(
-            user_id=user_id, task_id=c.id, depends_on_task_id=a.id
+            user_id=user_id, task_id=c.id, depends_on_task_id=a.id,
         )
 
 
@@ -476,7 +475,7 @@ async def test_add_delete_criteria(test_task_service):
 
     # Delete criterion
     deleted = await task_service.delete_criterion(
-        user_id=user_id, criterion_id=criterion.id
+        user_id=user_id, criterion_id=criterion.id,
     )
     assert deleted is True
 
@@ -535,10 +534,10 @@ async def test_plan_auto_completion(test_task_service):
 
     # Complete first task: todo -> doing -> done
     await task_service.transition_task(
-        user_id=user_id, task_id=t1.id, new_state=TaskState.DOING, expected_version=1
+        user_id=user_id, task_id=t1.id, new_state=TaskState.DOING, expected_version=1,
     )
     await task_service.transition_task(
-        user_id=user_id, task_id=t1.id, new_state=TaskState.DONE, expected_version=2
+        user_id=user_id, task_id=t1.id, new_state=TaskState.DONE, expected_version=2,
     )
 
     # Plan should still be ACTIVE (not all tasks done)
@@ -547,10 +546,10 @@ async def test_plan_auto_completion(test_task_service):
 
     # Complete second task: todo -> doing -> done
     await task_service.transition_task(
-        user_id=user_id, task_id=t2.id, new_state=TaskState.DOING, expected_version=1
+        user_id=user_id, task_id=t2.id, new_state=TaskState.DOING, expected_version=1,
     )
     await task_service.transition_task(
-        user_id=user_id, task_id=t2.id, new_state=TaskState.DONE, expected_version=2
+        user_id=user_id, task_id=t2.id, new_state=TaskState.DONE, expected_version=2,
     )
 
     # Plan should now be auto-completed

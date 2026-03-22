@@ -1,25 +1,26 @@
-"""
-Integration tests for activity event emission across all services.
+"""Integration tests for activity event emission across all services.
 
 Tests verify that services emit the correct events when:
 - CRUD operations occur (CREATED, UPDATED, DELETED)
 - Read operations occur when ACTIVITY_TRACK_READS is enabled (READ, QUERIED)
 """
-import pytest
 from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
+
 from app.config.settings import settings
-from app.models.activity_models import EntityType, ActionType
-from app.models.project_models import ProjectCreate, ProjectType, ProjectUpdate
-from app.models.document_models import DocumentCreate
+from app.models.activity_models import ActionType, EntityType
 from app.models.code_artifact_models import CodeArtifactCreate
+from app.models.document_models import DocumentCreate
 from app.models.entity_models import (
     EntityCreate,
-    EntityType as EntityKind,
     EntityRelationshipCreate,
 )
-
+from app.models.entity_models import (
+    EntityType as EntityKind,
+)
+from app.models.project_models import ProjectCreate, ProjectType, ProjectUpdate
 
 # ============================================================================
 # Project Service Activity Event Tests
@@ -117,7 +118,7 @@ async def test_project_read_emits_event_when_tracking_enabled(test_project_servi
     event_bus.collected_events.clear()
 
     # Read with tracking enabled
-    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+    with patch.object(settings, "ACTIVITY_TRACK_READS", True):
         await service.get_project(user_id, project.id)
 
     assert len(event_bus.collected_events) == 1
@@ -142,7 +143,7 @@ async def test_project_list_emits_queried_event(test_project_service_with_event_
     event_bus.collected_events.clear()
 
     # List with tracking enabled
-    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+    with patch.object(settings, "ACTIVITY_TRACK_READS", True):
         await service.list_projects(user_id)
 
     assert len(event_bus.collected_events) == 1
@@ -324,7 +325,7 @@ async def test_entity_read_emits_event_when_tracking_enabled(test_entity_service
     event_bus.collected_events.clear()
 
     # Read with tracking enabled
-    with patch.object(settings, 'ACTIVITY_TRACK_READS', True):
+    with patch.object(settings, "ACTIVITY_TRACK_READS", True):
         await service.get_entity(user_id, entity.id)
 
     assert len(event_bus.collected_events) == 1

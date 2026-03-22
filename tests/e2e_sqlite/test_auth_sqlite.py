@@ -1,19 +1,18 @@
-"""
-End-to-end tests for authentication flow with SQLite backend
+"""End-to-end tests for authentication flow with SQLite backend
 
 Tests complete auth flow: FastMCP → Auth Middleware → User Provisioning → SQLite
 
 Integration tests (test_auth.py) mock dependencies for fast unit testing.
 These E2E tests validate the full stack with in-process FastMCP and in-memory SQLite.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 
 @pytest.mark.asyncio
 async def test_default_user_provisioning_sqlite(mcp_client):
-    """
-    Test that default user is provisioned when FASTMCP_SERVER_AUTH not set
+    """Test that default user is provisioned when FASTMCP_SERVER_AUTH not set
 
     This validates:
     - get_user_from_auth() detects no auth configured
@@ -26,8 +25,8 @@ async def test_default_user_provisioning_sqlite(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result1.data is not None
@@ -42,8 +41,8 @@ async def test_default_user_provisioning_sqlite(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result2.data is not None
@@ -59,10 +58,9 @@ class MockAccessToken:
 
 
 @pytest.mark.asyncio
-@patch('app.middleware.auth.get_access_token')
+@patch("app.middleware.auth.get_access_token")
 async def test_auth_enabled_user_from_token_sqlite(mock_get_token, sqlite_app, mcp_client):
-    """
-    Test that user is provisioned from bearer token when auth enabled
+    """Test that user is provisioned from bearer token when auth enabled
 
     This validates the complete auth flow with real database:
     1. get_user_from_auth() detects auth is configured
@@ -78,7 +76,7 @@ async def test_auth_enabled_user_from_token_sqlite(mock_get_token, sqlite_app, m
     mock_token = MockAccessToken(claims={
         "sub": "github|sqlite-e2e-test",
         "name": "SQLite E2E Auth User",
-        "email": "e2e-auth@sqlite.test"
+        "email": "e2e-auth@sqlite.test",
     })
     mock_get_token.return_value = mock_token
 
@@ -87,8 +85,8 @@ async def test_auth_enabled_user_from_token_sqlite(mock_get_token, sqlite_app, m
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result1.data is not None
@@ -101,8 +99,8 @@ async def test_auth_enabled_user_from_token_sqlite(mock_get_token, sqlite_app, m
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result2.data is not None

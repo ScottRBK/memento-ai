@@ -1,21 +1,12 @@
+"""REST API endpoints for Task, Criterion, and Dependency operations.
 """
-REST API endpoints for Task, Criterion, and Dependency operations.
-"""
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 
-from app.models.plan_models import (
-    CriterionCreate,
-    CriterionUpdate,
-    TaskCreate,
-    TaskState,
-    TaskPriority,
-    TaskUpdate,
-)
-from app.middleware.auth import get_user_from_request
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
 from app.exceptions import (
     ConflictError,
     CyclicDependencyError,
@@ -23,13 +14,21 @@ from app.exceptions import (
     InvalidStateTransitionError,
     NotFoundError,
 )
+from app.middleware.auth import get_user_from_request
+from app.models.plan_models import (
+    CriterionCreate,
+    CriterionUpdate,
+    TaskCreate,
+    TaskPriority,
+    TaskState,
+    TaskUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def register(mcp: FastMCP):
     """Register task REST routes with FastMCP"""
-
     # ---- Task endpoints ----
 
     @mcp.custom_route("/api/v1/tasks", methods=["GET"])
@@ -118,7 +117,7 @@ def register(mcp: FastMCP):
             return JSONResponse({"error": e.errors()}, status_code=400)
 
         task = await mcp.task_service.update_task(
-            user_id=user.id, task_id=task_id, task_data=update_data
+            user_id=user.id, task_id=task_id, task_data=update_data,
         )
         if not task:
             return JSONResponse({"error": "Task not found"}, status_code=404)
@@ -224,7 +223,7 @@ def register(mcp: FastMCP):
 
         try:
             criterion = await mcp.task_service.add_criterion(
-                user_id=user.id, task_id=task_id, criterion_data=criterion_data
+                user_id=user.id, task_id=task_id, criterion_data=criterion_data,
             )
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
@@ -251,7 +250,7 @@ def register(mcp: FastMCP):
 
         try:
             criterion = await mcp.task_service.update_criterion(
-                user_id=user.id, criterion_id=criterion_id, criterion_data=criterion_data
+                user_id=user.id, criterion_id=criterion_id, criterion_data=criterion_data,
             )
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
@@ -268,7 +267,7 @@ def register(mcp: FastMCP):
 
         criterion_id = int(request.path_params["criterion_id"])
         success = await mcp.task_service.delete_criterion(
-            user_id=user.id, criterion_id=criterion_id
+            user_id=user.id, criterion_id=criterion_id,
         )
         if not success:
             return JSONResponse({"error": "Criterion not found"}, status_code=404)
@@ -294,7 +293,7 @@ def register(mcp: FastMCP):
 
         try:
             dep = await mcp.task_service.add_dependency(
-                user_id=user.id, task_id=task_id, depends_on_task_id=depends_on_task_id
+                user_id=user.id, task_id=task_id, depends_on_task_id=depends_on_task_id,
             )
         except NotFoundError as e:
             return JSONResponse({"error": str(e)}, status_code=404)
@@ -317,7 +316,7 @@ def register(mcp: FastMCP):
         depends_on_task_id = int(request.path_params["depends_on_task_id"])
 
         success = await mcp.task_service.remove_dependency(
-            user_id=user.id, task_id=task_id, depends_on_task_id=depends_on_task_id
+            user_id=user.id, task_id=task_id, depends_on_task_id=depends_on_task_id,
         )
         if not success:
             return JSONResponse({"error": "Dependency not found"}, status_code=404)

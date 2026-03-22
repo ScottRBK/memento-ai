@@ -1,5 +1,4 @@
-"""
-E2E tests for Activity REST API endpoints.
+"""E2E tests for Activity REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/activity endpoints.
@@ -10,6 +9,7 @@ Tests that rely on automatic event emission are skipped here.
 Full event-driven tests run in PostgreSQL E2E suite (tests/e2e/).
 """
 import asyncio
+
 import pytest
 
 # Skip reason for event-dependent tests
@@ -44,7 +44,7 @@ class TestActivityAPIList:
             "context": "Testing activity API",
             "keywords": ["test", "activity"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         assert create_response.status_code == 201
@@ -74,7 +74,7 @@ class TestActivityAPIList:
                 "context": "Pagination test",
                 "keywords": ["pagination"],
                 "tags": ["test"],
-                "importance": 7
+                "importance": 7,
             }
             await http_client.post("/api/v1/memories", json=payload)
 
@@ -99,7 +99,7 @@ class TestActivityAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
 
         await asyncio.sleep(0.1)
@@ -123,14 +123,14 @@ class TestActivityAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = create_response.json()["id"]
 
         # Update the memory
         await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json={"title": "Updated Title"}
+            json={"title": "Updated Title"},
         )
 
         await asyncio.sleep(0.1)
@@ -154,7 +154,7 @@ class TestActivityAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         m1_id = m1.json()["id"]
 
@@ -164,7 +164,7 @@ class TestActivityAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
 
         await asyncio.sleep(0.1)
@@ -193,14 +193,14 @@ class TestActivityAPIUpdates:
             "context": "Update test",
             "keywords": ["update"],
             "tags": ["test"],
-            "importance": 5
+            "importance": 5,
         })
         memory_id = create_response.json()["id"]
 
         # Update the memory
         await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json={"title": "New Title", "importance": 9}
+            json={"title": "New Title", "importance": 9},
         )
 
         await asyncio.sleep(0.1)
@@ -237,7 +237,7 @@ class TestActivityAPIDelete:
             "context": "Delete test",
             "keywords": ["delete"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = create_response.json()["id"]
 
@@ -245,7 +245,7 @@ class TestActivityAPIDelete:
         await http_client.request(
             "DELETE",
             f"/api/v1/memories/{memory_id}",
-            json={"reason": "Test deletion"}
+            json={"reason": "Test deletion"},
         )
 
         await asyncio.sleep(0.1)
@@ -276,7 +276,7 @@ class TestActivityAPILinks:
             "context": "Hobby related to space",
             "keywords": ["astronomy", "stars"],
             "tags": ["hobby"],
-            "importance": 7
+            "importance": 7,
         })
         m2 = await http_client.post("/api/v1/memories", json={
             "title": "Baking Bread Recipe",
@@ -284,7 +284,7 @@ class TestActivityAPILinks:
             "context": "Cooking techniques",
             "keywords": ["baking", "bread"],
             "tags": ["cooking"],
-            "importance": 7
+            "importance": 7,
         })
 
         m1_id = m1.json()["id"]
@@ -299,7 +299,7 @@ class TestActivityAPILinks:
         # Link them manually
         link_response = await http_client.post(
             f"/api/v1/memories/{m1_id}/links",
-            json={"related_ids": [m2_id]}
+            json={"related_ids": [m2_id]},
         )
 
         await asyncio.sleep(0.1)
@@ -326,7 +326,7 @@ class TestActivityAPILinks:
             "context": "Outdoor adventure",
             "keywords": ["hiking"],
             "tags": ["outdoor"],
-            "importance": 7
+            "importance": 7,
         })
         m2 = await http_client.post("/api/v1/memories", json={
             "title": "Pasta Recipe",
@@ -334,7 +334,7 @@ class TestActivityAPILinks:
             "context": "Italian cooking",
             "keywords": ["pasta"],
             "tags": ["food"],
-            "importance": 7
+            "importance": 7,
         })
 
         m1_id = m1.json()["id"]
@@ -343,7 +343,7 @@ class TestActivityAPILinks:
         # Link them
         await http_client.post(
             f"/api/v1/memories/{m1_id}/links",
-            json={"related_ids": [m2_id]}
+            json={"related_ids": [m2_id]},
         )
 
         # Unlink them
@@ -374,14 +374,14 @@ class TestActivityAPIEntityHistory:
             "context": "History test",
             "keywords": ["history"],
             "tags": ["test"],
-            "importance": 5
+            "importance": 5,
         })
         memory_id = create_response.json()["id"]
 
         # Update the memory
         await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json={"title": "Updated Title", "importance": 8}
+            json={"title": "Updated Title", "importance": 8},
         )
 
         await asyncio.sleep(0.1)

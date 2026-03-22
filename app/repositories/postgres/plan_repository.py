@@ -1,7 +1,6 @@
 """Plan repository for Postgres data access operations"""
 
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -82,7 +81,7 @@ class PostgresPlanRepository:
             return [PlanSummary.model_validate(p) for p in plans_orm]
 
     async def update_plan(
-        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate
+        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate,
     ) -> Plan:
         logger.info("Updating plan", extra={"plan_id": plan_id})
 
@@ -100,7 +99,7 @@ class PostgresPlanRepository:
                     raise NotFoundError(f"Plan with id {plan_id} not found")
                 return Plan.model_validate(plan_orm)
 
-            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.now(UTC)
             stmt = (
                 update(PlansTable)
                 .where(PlansTable.user_id == user_id, PlansTable.id == plan_id)
@@ -119,7 +118,7 @@ class PostgresPlanRepository:
 
         async with self.db_adapter.session(user_id) as session:
             stmt = delete(PlansTable).where(
-                PlansTable.user_id == user_id, PlansTable.id == plan_id
+                PlansTable.user_id == user_id, PlansTable.id == plan_id,
             )
             result = await session.execute(stmt)
             return result.rowcount > 0

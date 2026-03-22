@@ -1,5 +1,4 @@
-"""
-End-to-end tests for authentication flow via HTTP
+"""End-to-end tests for authentication flow via HTTP
 
 Tests complete auth flow: HTTP Request → FastMCP → Auth Middleware → User Provisioning
 
@@ -13,8 +12,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 @pytest.mark.e2e
 async def test_default_user_provisioning_e2e(mcp_client):
-    """
-    Test that default user is provisioned when FASTMCP_SERVER_AUTH not set
+    """Test that default user is provisioned when FASTMCP_SERVER_AUTH not set
 
     This validates:
     - get_user_from_auth() detects no auth configured
@@ -26,8 +24,8 @@ async def test_default_user_provisioning_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result1.data is not None
@@ -42,8 +40,8 @@ async def test_default_user_provisioning_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result2.data is not None

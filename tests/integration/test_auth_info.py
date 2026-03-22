@@ -1,14 +1,13 @@
-"""
-Integration tests for /api/v1/auth/info endpoint
+"""Integration tests for /api/v1/auth/info endpoint
 
 Tests auth mode detection logic with mocked FastMCP instances.
 """
-from starlette.testclient import TestClient
+from fastmcp.server.auth.auth import OAuthProvider, TokenVerifier
 from starlette.applications import Starlette
 from starlette.routing import Route
-from fastmcp.server.auth.auth import OAuthProvider, TokenVerifier
+from starlette.testclient import TestClient
 
-from app.routes.api.auth import register, OAUTH_PROVIDER_MAP
+from app.routes.api.auth import OAUTH_PROVIDER_MAP, register
 
 
 class MockFastMCP:
@@ -69,7 +68,6 @@ class StaticTokenVerifier(TokenVerifier):
 
 class IntrospectionProvider:
     """Fake introspection provider for testing"""
-    pass
 
 
 # ============================================

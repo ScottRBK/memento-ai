@@ -13,13 +13,13 @@ import logging.config
 import logging.handlers
 import re
 import sys
+from datetime import UTC, date, datetime
 from queue import Queue
-from datetime import datetime, timezone, date
 from uuid import UUID
 
+
 class ConsoleFormatter(logging.Formatter):
-    """
-    Console formatter with Pretty ANSI colour codes for development.
+    """Console formatter with Pretty ANSI colour codes for development.
 
     Colours log levels for easy visual scanning:
     - DEBUG: Cyan
@@ -34,13 +34,12 @@ class ConsoleFormatter(logging.Formatter):
         "INFO": "\033[32m",    # Green
         "WARNING": "\033[33m", # Yellow
         "ERROR": "\033[31m",   # Red
-        "CRITICAL": "\033[35m" # Magenta
+        "CRITICAL": "\033[35m", # Magenta
      }
-    RESET = '\033[0m'
-    
+    RESET = "\033[0m"
+
     def format(self, record: logging.LogRecord) -> str:
         """Format a log record with coloured level name."""
-
         colour = self.COLOURS.get(record.levelname, self.RESET)
 
         levelname_coloured = f"{colour}{record.levelname}{self.RESET}"
@@ -52,11 +51,10 @@ class ConsoleFormatter(logging.Formatter):
 
         record.levelname = original_levelname
 
-        return formatted 
-    
+        return formatted
+
 class SensitiveDataFilter(logging.Filter):
-    """
-    Filter to mask sensitive data in log messages.
+    """Filter to mask sensitive data in log messages.
 
     Patterns masked:
     - Passwords (password=xxx, "password": "xxx")
@@ -66,26 +64,24 @@ class SensitiveDataFilter(logging.Filter):
 
     SENSITIVE_PATTERNS = [
         # password=something or password="something" or "password":"something"
-        (re.compile(r'password["\s:=]+["\']?([^"\s,}]+)["\']?', re.I), 'password=***'),
+        (re.compile(r'password["\s:=]+["\']?([^"\s,}]+)["\']?', re.IGNORECASE), "password=***"),
         # token=something or "token":"something"
-        (re.compile(r'token["\s:=]+["\']?([^"\s,}]+)["\']?', re.I), 'token=***'),
+        (re.compile(r'token["\s:=]+["\']?([^"\s,}]+)["\']?', re.IGNORECASE), "token=***"),
         # bearer xxx
-        (re.compile(r'bearer\s+([^\s,}]+)', re.I), 'bearer ***'),
+        (re.compile(r"bearer\s+([^\s,}]+)", re.IGNORECASE), "bearer ***"),
         # Generic database connection string: scheme://user:password@host
-        (re.compile(r'://[^:/@]+:[^@]+@', re.I), '://***:***@'),
+        (re.compile(r"://[^:/@]+:[^@]+@", re.IGNORECASE), "://***:***@"),
     ]
-    
+
     def filter(self, record: logging.LogRecord) -> bool:
-        """
-        Mask sensitive data in log message.
+        """Mask sensitive data in log message.
 
         Returns True to allow the log through (after modification).
         """
-
         if isinstance(record.msg, str):
             for pattern, replacement in self.SENSITIVE_PATTERNS:
                 record.msg = pattern.sub(replacement, record.msg)
-        
+
         # Also mask args if it's present in there as well innit
         if record.args:
             if isinstance(record.args, dict):
@@ -94,9 +90,9 @@ class SensitiveDataFilter(logging.Filter):
                 }
             elif isinstance(record.args, tuple):
                 record.args = tuple(self._mask_value(arg) for arg in record.args)
-        
+
         return True
-    
+
     def _mask_value(self, value):
         """Mask a value if it's a string that matches patterns"""
         if isinstance(value, str):
@@ -106,8 +102,7 @@ class SensitiveDataFilter(logging.Filter):
 
 
 class JSONFormatter(logging.Formatter):
-    """
-    JSON formatter for structured logging.
+    """JSON formatter for structured logging.
 
     Outputs each log record as a single line of JSON with fields:
     - timestamp: ISO 8601 UTC timestamp
@@ -123,7 +118,7 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format a log record as JSON."""
         log_data = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -139,10 +134,10 @@ class JSONFormatter(logging.Formatter):
         # Add extra fields from logger.info(..., extra={...})
         # Standard LogRecord attributes to skip
         standard_attrs = {
-            'name', 'msg', 'args', 'created', 'filename', 'funcName', 'levelname',
-            'levelno', 'lineno', 'module', 'msecs', 'message', 'pathname', 'process',
-            'processName', 'relativeCreated', 'thread', 'threadName', 'exc_info',
-            'exc_text', 'stack_info', 'getMessage'
+            "name", "msg", "args", "created", "filename", "funcName", "levelname",
+            "levelno", "lineno", "module", "msecs", "message", "pathname", "process",
+            "processName", "relativeCreated", "thread", "threadName", "exc_info",
+            "exc_text", "stack_info", "getMessage",
         }
 
         for key, value in record.__dict__.items():
@@ -160,9 +155,9 @@ class JSONFormatter(logging.Formatter):
         except ImportError:
             # Middleware not yet created, skip contextvar injection
             pass
-        
+
         return json.dumps(log_data, default=_serialise_log_value)
-    
+
 def _serialise_log_value(obj):
     """Handle non-JSON-serialisable types"""
     if isinstance(obj, UUID):
@@ -178,10 +173,9 @@ _queue_listener: logging.handlers.QueueListener | None = None
 
 def configure_logging(
     log_level: str = "INFO",
-    log_format: str = "console"
+    log_format: str = "console",
 ) -> logging.handlers.QueueListener:
-    """
-    Configure centralized logging with QueueHandler for asyncio.
+    """Configure centralized logging with QueueHandler for asyncio.
 
     This function sets up:
     1. QueueHandler (non-blocking, asyncio-safe)
@@ -212,8 +206,8 @@ def configure_logging(
         formatter = JSONFormatter()
     else:
         formatter = ConsoleFormatter(
-            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
 
     # Create console handler (writes to stderr to avoid interfering with stdio transport)
@@ -226,7 +220,7 @@ def configure_logging(
     _queue_listener = logging.handlers.QueueListener(
         log_queue,
         console_handler,
-        respect_handler_level=True
+        respect_handler_level=True,
     )
 
     # Start the listener thread
@@ -254,8 +248,7 @@ def configure_logging(
 
 
 def shutdown_logging():
-    """
-    Shutdown the QueueListener gracefully.
+    """Shutdown the QueueListener gracefully.
 
     Call this during application shutdown to ensure all queued
     log records are flushed before exit.

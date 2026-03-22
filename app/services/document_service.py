@@ -1,5 +1,4 @@
-"""
-Document Service - Business logic for document operations
+"""Document Service - Business logic for document operations
 
 This service implements functionality for managing documents:
     - CRUD operations (create, read, update, delete)
@@ -7,25 +6,25 @@ This service implements functionality for managing documents:
     - Project association
     - Memory linking (via memory service)
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
 from app.config.settings import settings
+from app.exceptions import NotFoundError
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
-from app.protocols.document_protocol import DocumentRepository
 from app.models.document_models import (
     Document,
     DocumentCreate,
+    DocumentSummary,
     DocumentUpdate,
-    DocumentSummary
 )
-from app.exceptions import NotFoundError
+from app.protocols.document_protocol import DocumentRepository
 from app.utils.pydantic_helper import get_changed_fields
 
 if TYPE_CHECKING:
@@ -66,8 +65,7 @@ class DocumentService:
         changes: dict | None = None,
         metadata: dict | None = None,
     ) -> None:
-        """
-        Emit an activity event to the event bus.
+        """Emit an activity event to the event bus.
 
         This is a no-op if no event bus is configured.
 
@@ -99,7 +97,7 @@ class DocumentService:
     async def create_document(
         self,
         user_id: UUID,
-        document_data: DocumentCreate
+        document_data: DocumentCreate,
     ) -> Document:
         """Create new document
 
@@ -115,21 +113,21 @@ class DocumentService:
             extra={
                 "title": document_data.title[:50],
                 "document_type": document_data.document_type,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         document = await self.document_repo.create_document(
             user_id=user_id,
-            document_data=document_data
+            document_data=document_data,
         )
 
         logger.info(
             "document created",
             extra={
                 "document_id": document.id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit created event
@@ -146,7 +144,7 @@ class DocumentService:
     async def get_document(
         self,
         user_id: UUID,
-        document_id: int
+        document_id: int,
     ) -> Document:
         """Get document by ID with ownership verification
 
@@ -164,13 +162,13 @@ class DocumentService:
             "getting document",
             extra={
                 "document_id": document_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         document = await self.document_repo.get_document_by_id(
             user_id=user_id,
-            document_id=document_id
+            document_id=document_id,
         )
 
         if not document:
@@ -180,8 +178,8 @@ class DocumentService:
             "document retrieved",
             extra={
                 "document_id": document_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit read event (opt-in via ACTIVITY_TRACK_READS)
@@ -201,7 +199,7 @@ class DocumentService:
         user_id: UUID,
         project_id: int | None = None,
         document_type: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[DocumentSummary]:
         """List documents with optional filtering
 
@@ -220,23 +218,23 @@ class DocumentService:
                 "user_id": str(user_id),
                 "project_id": project_id,
                 "document_type": document_type,
-                "tags": tags
-            }
+                "tags": tags,
+            },
         )
 
         documents = await self.document_repo.list_documents(
             user_id=user_id,
             project_id=project_id,
             document_type=document_type,
-            tags=tags
+            tags=tags,
         )
 
         logger.info(
             "documents retrieved",
             extra={
                 "count": len(documents),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
@@ -263,7 +261,7 @@ class DocumentService:
         self,
         user_id: UUID,
         document_id: int,
-        document_data: DocumentUpdate
+        document_data: DocumentUpdate,
     ) -> Document:
         """Update existing document (PATCH semantics)
 
@@ -284,14 +282,14 @@ class DocumentService:
             "updating document",
             extra={
                 "document_id": document_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Get existing document for change detection
         existing_document = await self.document_repo.get_document_by_id(
             user_id=user_id,
-            document_id=document_id
+            document_id=document_id,
         )
 
         if not existing_document:
@@ -299,21 +297,21 @@ class DocumentService:
 
         # Detect changes
         changed_fields = get_changed_fields(
-            input_model=document_data, existing_model=existing_document
+            input_model=document_data, existing_model=existing_document,
         )
 
         document = await self.document_repo.update_document(
             user_id=user_id,
             document_id=document_id,
-            document_data=document_data
+            document_data=document_data,
         )
 
         logger.info(
             "document updated",
             extra={
                 "document_id": document_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit updated event with changes
@@ -336,7 +334,7 @@ class DocumentService:
     async def delete_document(
         self,
         user_id: UUID,
-        document_id: int
+        document_id: int,
     ) -> bool:
         """Delete document (cascade removes memory associations)
 
@@ -351,19 +349,19 @@ class DocumentService:
             "deleting document",
             extra={
                 "document_id": document_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Fetch document before deletion for snapshot
         existing_document = await self.document_repo.get_document_by_id(
             user_id=user_id,
-            document_id=document_id
+            document_id=document_id,
         )
 
         success = await self.document_repo.delete_document(
             user_id=user_id,
-            document_id=document_id
+            document_id=document_id,
         )
 
         if success:
@@ -371,8 +369,8 @@ class DocumentService:
                 "document deleted",
                 extra={
                     "document_id": document_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit deleted event with pre-deletion snapshot
@@ -389,8 +387,8 @@ class DocumentService:
                 "document not found for deletion",
                 extra={
                     "document_id": document_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success

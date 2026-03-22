@@ -1,5 +1,4 @@
-"""
-E2E tests for re-embedding with real PostgreSQL and real embedding adapters.
+"""E2E tests for re-embedding with real PostgreSQL and real embedding adapters.
 
 Tests the full stack: ReEmbeddingService -> PostgresMemoryRepository -> pgvector
 
@@ -8,15 +7,16 @@ the re-embedding workflow end-to-end. Cross-dimension migration is not tested he
 because it requires a fresh process (the ORM bakes in Vector(N) at import time and
 SQLAlchemy caches compiled statements with the original type processor).
 """
-import pytest
-import pytest_asyncio
+from datetime import UTC
 from uuid import uuid4
 
+import pytest
+import pytest_asyncio
 from sqlalchemy import text
 
+from app.models.memory_models import MemoryCreate
 from app.repositories.postgres.memory_repository import PostgresMemoryRepository
 from app.services.re_embedding_service import ReEmbeddingService
-from app.models.memory_models import MemoryCreate
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -34,13 +34,13 @@ async def memory_repo(db_adapter, embedding_adapter):
 
 async def _create_user(db_adapter, user_id):
     """Create a user row in the database (required for FK constraints)."""
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc)
+    from datetime import datetime
+    now = datetime.now(UTC)
     async with db_adapter.system_session() as session:
         await session.execute(
             text(
                 "INSERT INTO users (id, external_id, name, email, created_at, updated_at) "
-                "VALUES (:id, :external_id, :name, :email, :created_at, :updated_at)"
+                "VALUES (:id, :external_id, :name, :email, :created_at, :updated_at)",
             ),
             {
                 "id": str(user_id),

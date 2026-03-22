@@ -1,10 +1,8 @@
-"""
-E2E tests for plan MCP tools with in-memory SQLite backend
+"""E2E tests for plan MCP tools with in-memory SQLite backend
 """
 
 import pytest
 from fastmcp.exceptions import ToolError
-
 
 # ---- Helper to create a project (plans require a project_id) ----
 

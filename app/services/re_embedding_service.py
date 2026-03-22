@@ -1,17 +1,15 @@
-"""
-Re-embedding service for batch migration of memory embeddings.
+"""Re-embedding service for batch migration of memory embeddings.
 
 Orchestrates the workflow of re-embedding all memories with the currently
 configured embedding provider. Knows nothing about SQLite/PostgreSQL specifics.
 """
-from typing import Callable, List, Tuple
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.protocols.memory_protocol import MemoryRepository, ValidationResult
 from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
 from app.repositories.helpers import build_embedding_text
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +39,7 @@ class ReEmbeddingService:
         self,
         progress_callback: Callable[[int, int], None] | None = None,
     ) -> ReEmbedResult:
-        """
-        Orchestrate: count -> reset schema -> batch re-embed -> validate
+        """Orchestrate: count -> reset schema -> batch re-embed -> validate
 
         Args:
             progress_callback: Optional callback(processed, total) called after each batch
@@ -67,7 +64,7 @@ class ReEmbeddingService:
         processed = 0
         for offset in range(0, total, self.batch_size):
             memories = await self.memory_repository.get_memories_for_reembedding(
-                limit=self.batch_size, offset=offset
+                limit=self.batch_size, offset=offset,
             )
 
             if not memories:

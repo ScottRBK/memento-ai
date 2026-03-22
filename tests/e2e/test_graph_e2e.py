@@ -1,5 +1,4 @@
-"""
-End-to-end tests for Graph REST API endpoints with PostgreSQL backend.
+"""End-to-end tests for Graph REST API endpoints with PostgreSQL backend.
 
 Tests the /api/v1/graph endpoints with real PostgreSQL database and pgvector
 to validate CTE traversal, all 5 node types, and 8 edge types.
@@ -32,7 +31,7 @@ async def test_graph_with_all_node_types(http_client):
     project_resp = await http_client.post("/api/v1/projects", json={
         "name": "E2E Test Project",
         "description": "Project for PostgreSQL E2E graph test",
-        "project_type": "development"
+        "project_type": "development",
     })
     assert project_resp.status_code in [200, 201]
     project_id = project_resp.json()["id"]
@@ -44,7 +43,7 @@ async def test_graph_with_all_node_types(http_client):
         "content": "This is test document content for PostgreSQL graph E2E testing.",
         "document_type": "text",
         "tags": ["e2e-test"],
-        "project_id": project_id
+        "project_id": project_id,
     })
     assert doc_resp.status_code in [200, 201]
     document_id = doc_resp.json()["id"]
@@ -56,7 +55,7 @@ async def test_graph_with_all_node_types(http_client):
         "code": "def e2e_test(): return 'PostgreSQL'",
         "language": "python",
         "tags": ["e2e-test"],
-        "project_id": project_id
+        "project_id": project_id,
     })
     assert artifact_resp.status_code in [200, 201]
     artifact_id = artifact_resp.json()["id"]
@@ -71,7 +70,7 @@ async def test_graph_with_all_node_types(http_client):
         "importance": 8,
         "project_ids": [project_id],
         "document_ids": [document_id],
-        "code_artifact_ids": [artifact_id]
+        "code_artifact_ids": [artifact_id],
     })
     assert mem_resp.status_code in [200, 201]
     memory_id = mem_resp.json()["id"]
@@ -80,14 +79,14 @@ async def test_graph_with_all_node_types(http_client):
     entity_resp = await http_client.post("/api/v1/entities", json={
         "name": "E2E Test Entity",
         "entity_type": "Organization",
-        "notes": "Entity for PostgreSQL E2E graph test"
+        "notes": "Entity for PostgreSQL E2E graph test",
     })
     assert entity_resp.status_code in [200, 201]
     entity_id = entity_resp.json()["id"]
 
     # Link entity to memory
     await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-        "memory_id": memory_id
+        "memory_id": memory_id,
     })
 
     # Get full graph
@@ -128,7 +127,7 @@ async def test_graph_node_types_filter(http_client):
     await http_client.post("/api/v1/projects", json={
         "name": "Filtered Project",
         "description": "Should be excluded",
-        "project_type": "development"
+        "project_type": "development",
     })
 
     # Create a memory
@@ -138,7 +137,7 @@ async def test_graph_node_types_filter(http_client):
         "context": "Testing filter",
         "keywords": ["filter"],
         "tags": ["test"],
-        "importance": 7
+        "importance": 7,
     })
 
     # Get graph with filter
@@ -161,7 +160,7 @@ async def test_subgraph_from_memory_center(http_client):
         "context": "Testing PostgreSQL CTE subgraph",
         "keywords": ["subgraph", "postgresql"],
         "tags": ["e2e-test"],
-        "importance": 8
+        "importance": 8,
     })
     assert mem_resp.status_code in [200, 201]
     memory_id = mem_resp.json()["id"]
@@ -191,7 +190,7 @@ async def test_subgraph_from_project_center(http_client):
     project_resp = await http_client.post("/api/v1/projects", json={
         "name": "Subgraph Center Project",
         "description": "Project at center of subgraph",
-        "project_type": "development"
+        "project_type": "development",
     })
     assert project_resp.status_code in [200, 201]
     project_id = project_resp.json()["id"]
@@ -204,7 +203,7 @@ async def test_subgraph_from_project_center(http_client):
         "keywords": ["project", "subgraph"],
         "tags": ["e2e-test"],
         "importance": 7,
-        "project_ids": [project_id]
+        "project_ids": [project_id],
     })
 
     # Get subgraph centered on project
@@ -229,7 +228,7 @@ async def test_subgraph_from_document_center(http_client):
         "description": "Document at center of subgraph",
         "content": "Document content for PostgreSQL subgraph test",
         "document_type": "text",
-        "tags": ["e2e-test"]
+        "tags": ["e2e-test"],
     })
     assert doc_resp.status_code in [200, 201]
     document_id = doc_resp.json()["id"]
@@ -242,7 +241,7 @@ async def test_subgraph_from_document_center(http_client):
         "keywords": ["document", "subgraph"],
         "tags": ["e2e-test"],
         "importance": 7,
-        "document_ids": [document_id]
+        "document_ids": [document_id],
     })
 
     # Get subgraph centered on document
@@ -267,7 +266,7 @@ async def test_subgraph_from_code_artifact_center(http_client):
         "description": "Artifact at center of subgraph",
         "code": "print('PostgreSQL E2E')",
         "language": "python",
-        "tags": ["e2e-test"]
+        "tags": ["e2e-test"],
     })
     assert artifact_resp.status_code in [200, 201]
     artifact_id = artifact_resp.json()["id"]
@@ -280,7 +279,7 @@ async def test_subgraph_from_code_artifact_center(http_client):
         "keywords": ["artifact", "subgraph"],
         "tags": ["e2e-test"],
         "importance": 7,
-        "code_artifact_ids": [artifact_id]
+        "code_artifact_ids": [artifact_id],
     })
 
     # Get subgraph centered on artifact
@@ -306,7 +305,7 @@ async def test_subgraph_cycle_detection_postgresql(http_client):
         "context": "Testing PostgreSQL cycle detection",
         "keywords": ["cycle_a_pg"],
         "tags": ["cycle-test"],
-        "importance": 7
+        "importance": 7,
     })
     mem_a_id = mem_a_resp.json()["id"]
 
@@ -316,7 +315,7 @@ async def test_subgraph_cycle_detection_postgresql(http_client):
         "context": "Testing PostgreSQL cycle detection",
         "keywords": ["cycle_b_pg"],
         "tags": ["cycle-test"],
-        "importance": 7
+        "importance": 7,
     })
     mem_b_id = mem_b_resp.json()["id"]
 
@@ -326,19 +325,19 @@ async def test_subgraph_cycle_detection_postgresql(http_client):
         "context": "Testing PostgreSQL cycle detection",
         "keywords": ["cycle_c_pg"],
         "tags": ["cycle-test"],
-        "importance": 7
+        "importance": 7,
     })
     mem_c_id = mem_c_resp.json()["id"]
 
     # Create cycle: A -> B -> C -> A
     await http_client.post(f"/api/v1/memories/{mem_a_id}/links", json={
-        "related_ids": [mem_b_id]
+        "related_ids": [mem_b_id],
     })
     await http_client.post(f"/api/v1/memories/{mem_b_id}/links", json={
-        "related_ids": [mem_c_id]
+        "related_ids": [mem_c_id],
     })
     await http_client.post(f"/api/v1/memories/{mem_c_id}/links", json={
-        "related_ids": [mem_a_id]
+        "related_ids": [mem_a_id],
     })
 
     # Should complete without infinite loop, even with depth=3
@@ -368,7 +367,7 @@ async def test_subgraph_multi_hop_traversal(http_client):
     project_resp = await http_client.post("/api/v1/projects", json={
         "name": "Multi-Hop Project",
         "description": "Project for multi-hop traversal test",
-        "project_type": "development"
+        "project_type": "development",
     })
     project_id = project_resp.json()["id"]
 
@@ -380,7 +379,7 @@ async def test_subgraph_multi_hop_traversal(http_client):
         "keywords": ["multi-hop"],
         "tags": ["e2e-test"],
         "importance": 7,
-        "project_ids": [project_id]
+        "project_ids": [project_id],
     })
     memory_id = mem_resp.json()["id"]
 
@@ -388,17 +387,17 @@ async def test_subgraph_multi_hop_traversal(http_client):
     entity_resp = await http_client.post("/api/v1/entities", json={
         "name": "Multi-Hop Entity",
         "entity_type": "Individual",
-        "notes": "Entity for multi-hop test"
+        "notes": "Entity for multi-hop test",
     })
     entity_id = entity_resp.json()["id"]
 
     await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-        "memory_id": memory_id
+        "memory_id": memory_id,
     })
 
     # Start from project, should reach entity via project -> memory -> entity
     response = await http_client.get(
-        f"/api/v1/graph/subgraph?node_id=project_{project_id}&depth=2"
+        f"/api/v1/graph/subgraph?node_id=project_{project_id}&depth=2",
     )
     assert response.status_code == 200
     data = response.json()
@@ -424,7 +423,7 @@ async def test_subgraph_meta_includes_all_new_counts(http_client):
         "context": "Testing meta fields",
         "keywords": ["meta"],
         "tags": ["e2e-test"],
-        "importance": 7
+        "importance": 7,
     })
     memory_id = mem_resp.json()["id"]
 
@@ -467,7 +466,7 @@ async def test_subgraph_node_types_filter_postgresql(http_client):
     project_resp = await http_client.post("/api/v1/projects", json={
         "name": "Filter Test Project PG",
         "description": "Project for filter test",
-        "project_type": "development"
+        "project_type": "development",
     })
     project_id = project_resp.json()["id"]
 
@@ -478,13 +477,13 @@ async def test_subgraph_node_types_filter_postgresql(http_client):
         "keywords": ["filter"],
         "tags": ["e2e-test"],
         "importance": 7,
-        "project_ids": [project_id]
+        "project_ids": [project_id],
     })
     memory_id = mem_resp.json()["id"]
 
     # With node_types=memory only - should not traverse to project
     response = await http_client.get(
-        f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory"
+        f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory",
     )
     assert response.status_code == 200
     data = response.json()
@@ -495,7 +494,7 @@ async def test_subgraph_node_types_filter_postgresql(http_client):
 
     # With node_types=memory,project - should traverse to project
     response = await http_client.get(
-        f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory,project"
+        f"/api/v1/graph/subgraph?node_id=memory_{memory_id}&node_types=memory,project",
     )
     assert response.status_code == 200
     data = response.json()
@@ -515,7 +514,7 @@ async def test_graph_pagination_with_offset(http_client):
             "context": "Testing pagination offset",
             "keywords": [f"pagination_e2e_{i}"],
             "tags": ["pagination-e2e"],
-            "importance": 7
+            "importance": 7,
         })
 
     # Get first 2 memories
@@ -545,7 +544,7 @@ async def test_graph_pagination_metadata(http_client):
             "context": "Testing pagination metadata",
             "keywords": [f"meta_e2e_{i}"],
             "tags": ["meta-e2e"],
-            "importance": 7
+            "importance": 7,
         })
 
     # Get first page
@@ -576,7 +575,7 @@ async def test_graph_sort_by_importance(http_client):
         "context": "Testing sort by importance",
         "keywords": ["low_importance_e2e"],
         "tags": ["sort-e2e"],
-        "importance": 3
+        "importance": 3,
     })
     await http_client.post("/api/v1/memories", json={
         "title": "High Importance E2E",
@@ -584,7 +583,7 @@ async def test_graph_sort_by_importance(http_client):
         "context": "Testing sort by importance",
         "keywords": ["high_importance_e2e"],
         "tags": ["sort-e2e"],
-        "importance": 10
+        "importance": 10,
     })
 
     # Sort by importance descending

@@ -1,5 +1,4 @@
-"""
-E2E tests for Memory REST API endpoints.
+"""E2E tests for Memory REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/memories endpoints.
@@ -31,7 +30,7 @@ class TestMemoryAPIList:
             "context": "Testing the list API",
             "keywords": ["test", "api"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         assert create_response.status_code == 201
@@ -54,7 +53,7 @@ class TestMemoryAPIList:
                 "context": "Pagination test",
                 "keywords": ["pagination"],
                 "tags": ["test"],
-                "importance": 7
+                "importance": 7,
             }
             await http_client.post("/api/v1/memories", json=payload)
 
@@ -83,7 +82,7 @@ class TestMemoryAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 3
+            "importance": 3,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "High importance memory",
@@ -91,7 +90,7 @@ class TestMemoryAPIList:
             "context": "Filter test",
             "keywords": ["filter"],
             "tags": ["test"],
-            "importance": 9
+            "importance": 9,
         })
 
         # Filter by importance >= 8
@@ -114,7 +113,7 @@ class TestMemoryAPICreate:
             "context": "Testing memory creation via API",
             "keywords": ["create", "test"],
             "tags": ["api"],
-            "importance": 7
+            "importance": 7,
         }
         response = await http_client.post("/api/v1/memories", json=payload)
         assert response.status_code == 201
@@ -133,7 +132,7 @@ class TestMemoryAPICreate:
             "keywords": ["project"],
             "tags": ["test"],
             "importance": 7,
-            "project_ids": []  # Empty list is valid
+            "project_ids": [],  # Empty list is valid
         }
         response = await http_client.post("/api/v1/memories", json=payload)
         assert response.status_code == 201
@@ -162,7 +161,7 @@ class TestMemoryAPIGet:
             "context": "Testing get endpoint",
             "keywords": ["get"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         memory_id = create_response.json()["id"]
@@ -194,7 +193,7 @@ class TestMemoryAPIUpdate:
             "context": "Testing update",
             "keywords": ["update"],
             "tags": ["test"],
-            "importance": 5
+            "importance": 5,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         memory_id = create_response.json()["id"]
@@ -203,7 +202,7 @@ class TestMemoryAPIUpdate:
         update_payload = {"title": "Updated Title", "importance": 9}
         response = await http_client.put(
             f"/api/v1/memories/{memory_id}",
-            json=update_payload
+            json=update_payload,
         )
         assert response.status_code == 200
         data = response.json()
@@ -215,7 +214,7 @@ class TestMemoryAPIUpdate:
         """PUT /api/v1/memories/{id} returns 404 for missing memory."""
         response = await http_client.put(
             "/api/v1/memories/99999",
-            json={"title": "Updated"}
+            json={"title": "Updated"},
         )
         assert response.status_code == 404
 
@@ -233,7 +232,7 @@ class TestMemoryAPIDelete:
             "context": "Testing delete",
             "keywords": ["delete"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         memory_id = create_response.json()["id"]
@@ -242,7 +241,7 @@ class TestMemoryAPIDelete:
         response = await http_client.request(
             "DELETE",
             f"/api/v1/memories/{memory_id}",
-            json={"reason": "Test deletion"}
+            json={"reason": "Test deletion"},
         )
         assert response.status_code == 200
         assert response.json()["success"] is True
@@ -272,7 +271,7 @@ class TestMemoryAPISearch:
             "context": "Documenting Python logging patterns",
             "keywords": ["python", "logging", "async"],
             "tags": ["pattern"],
-            "importance": 8
+            "importance": 8,
         }
         await http_client.post("/api/v1/memories", json=payload)
 
@@ -280,7 +279,7 @@ class TestMemoryAPISearch:
         search_payload = {
             "query": "python logging async",
             "query_context": "Looking for logging best practices",
-            "k": 5
+            "k": 5,
         }
         response = await http_client.post("/api/v1/memories/search", json=search_payload)
         assert response.status_code == 200
@@ -295,7 +294,7 @@ class TestMemoryAPISearch:
         # Missing required query_context
         response = await http_client.post(
             "/api/v1/memories/search",
-            json={"query": "test"}
+            json={"query": "test"},
         )
         assert response.status_code == 400
 
@@ -313,7 +312,7 @@ class TestMemoryAPILinks:
             "context": "Hobby related to space",
             "keywords": ["astronomy", "stars"],
             "tags": ["hobby"],
-            "importance": 7
+            "importance": 7,
         })
         m2 = await http_client.post("/api/v1/memories", json={
             "title": "Baking Bread Recipe",
@@ -321,7 +320,7 @@ class TestMemoryAPILinks:
             "context": "Cooking techniques",
             "keywords": ["baking", "bread"],
             "tags": ["cooking"],
-            "importance": 7
+            "importance": 7,
         })
 
         m1_id = m1.json()["id"]
@@ -330,7 +329,7 @@ class TestMemoryAPILinks:
         # Link them - response indicates newly created links
         response = await http_client.post(
             f"/api/v1/memories/{m1_id}/links",
-            json={"related_ids": [m2_id]}
+            json={"related_ids": [m2_id]},
         )
         assert response.status_code == 200
 
@@ -349,7 +348,7 @@ class TestMemoryAPILinks:
             "context": "Testing get links",
             "keywords": ["link"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         m2 = await http_client.post("/api/v1/memories", json={
             "title": "Linked Memory",
@@ -357,7 +356,7 @@ class TestMemoryAPILinks:
             "context": "Testing get links",
             "keywords": ["link"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
 
         m1_id = m1.json()["id"]
@@ -366,7 +365,7 @@ class TestMemoryAPILinks:
         # Create link
         await http_client.post(
             f"/api/v1/memories/{m1_id}/links",
-            json={"related_ids": [m2_id]}
+            json={"related_ids": [m2_id]},
         )
 
         # Get links
@@ -387,13 +386,13 @@ class TestMemoryAPILinks:
             "context": "Test",
             "keywords": ["test"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         m_id = m.json()["id"]
 
         response = await http_client.post(
             f"/api/v1/memories/{m_id}/links",
-            json={}
+            json={},
         )
         assert response.status_code == 400
 
@@ -407,7 +406,7 @@ class TestMemoryAPILinks:
             "context": "Outdoor adventure hobby",
             "keywords": ["hiking", "mountains"],
             "tags": ["outdoor"],
-            "importance": 7
+            "importance": 7,
         })
         m2 = await http_client.post("/api/v1/memories", json={
             "title": "Pasta Carbonara Recipe",
@@ -415,7 +414,7 @@ class TestMemoryAPILinks:
             "context": "Italian cooking",
             "keywords": ["cooking", "pasta"],
             "tags": ["food"],
-            "importance": 7
+            "importance": 7,
         })
 
         m1_id = m1.json()["id"]
@@ -424,7 +423,7 @@ class TestMemoryAPILinks:
         # Create link
         await http_client.post(
             f"/api/v1/memories/{m1_id}/links",
-            json={"related_ids": [m2_id]}
+            json={"related_ids": [m2_id]},
         )
 
         # Verify link exists
@@ -452,7 +451,7 @@ class TestMemoryAPILinks:
             "context": "Testing unlink not found",
             "keywords": ["solo"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         m1_id = m1.json()["id"]
 
@@ -538,7 +537,7 @@ class TestMemoryAPIIncludeObsolete:
             "context": "Testing include_obsolete",
             "keywords": ["obsolete"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         }
         create_response = await http_client.post("/api/v1/memories", json=payload)
         assert create_response.status_code == 201
@@ -548,7 +547,7 @@ class TestMemoryAPIIncludeObsolete:
         await http_client.request(
             "DELETE",
             f"/api/v1/memories/{memory_id}",
-            json={"reason": "Testing obsolete"}
+            json={"reason": "Testing obsolete"},
         )
 
         # Without include_obsolete, should NOT see the memory
@@ -576,7 +575,7 @@ class TestMemoryAPIPagination:
                 "context": "Pagination total test",
                 "keywords": ["pagination"],
                 "tags": ["pagination-test"],
-                "importance": 7
+                "importance": 7,
             }
             await http_client.post("/api/v1/memories", json=payload)
 
@@ -601,7 +600,7 @@ class TestMemoryAPIPagination:
                 "context": "Offset pagination test",
                 "keywords": ["offset-test"],
                 "tags": ["offset-test"],
-                "importance": 7
+                "importance": 7,
             }
             resp = await http_client.post("/api/v1/memories", json=payload)
             created_ids.append(resp.json()["id"])
@@ -634,13 +633,13 @@ class TestMemoryAPISorting:
                 "context": "Sort by importance test",
                 "keywords": ["sort"],
                 "tags": ["sort-importance"],
-                "importance": importance
+                "importance": importance,
             }
             await http_client.post("/api/v1/memories", json=payload)
 
         # Sort by importance descending
         response = await http_client.get(
-            "/api/v1/memories?sort_by=importance&sort_order=desc&tags=sort-importance"
+            "/api/v1/memories?sort_by=importance&sort_order=desc&tags=sort-importance",
         )
         memories = response.json()["memories"]
 
@@ -660,13 +659,13 @@ class TestMemoryAPISorting:
                 "context": "Sort by importance asc test",
                 "keywords": ["sort"],
                 "tags": ["sort-importance-asc"],
-                "importance": importance
+                "importance": importance,
             }
             await http_client.post("/api/v1/memories", json=payload)
 
         # Sort by importance ascending
         response = await http_client.get(
-            "/api/v1/memories?sort_by=importance&sort_order=asc&tags=sort-importance-asc"
+            "/api/v1/memories?sort_by=importance&sort_order=asc&tags=sort-importance-asc",
         )
         memories = response.json()["memories"]
 
@@ -689,7 +688,7 @@ class TestMemoryAPITagFilter:
             "context": "Tag filter test",
             "keywords": ["tag"],
             "tags": ["alpha", "unique-tag-test"],
-            "importance": 7
+            "importance": 7,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "Beta Only",
@@ -697,7 +696,7 @@ class TestMemoryAPITagFilter:
             "context": "Tag filter test",
             "keywords": ["tag"],
             "tags": ["beta", "unique-tag-test"],
-            "importance": 7
+            "importance": 7,
         })
 
         # Filter by alpha tag
@@ -719,7 +718,7 @@ class TestMemoryAPITagFilter:
             "context": "Multi-tag filter test",
             "keywords": ["multi"],
             "tags": ["tagA", "multi-tag-test"],
-            "importance": 7
+            "importance": 7,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "Has TagB",
@@ -727,7 +726,7 @@ class TestMemoryAPITagFilter:
             "context": "Multi-tag filter test",
             "keywords": ["multi"],
             "tags": ["tagB", "multi-tag-test"],
-            "importance": 7
+            "importance": 7,
         })
         await http_client.post("/api/v1/memories", json={
             "title": "Has TagC",
@@ -735,7 +734,7 @@ class TestMemoryAPITagFilter:
             "context": "Multi-tag filter test",
             "keywords": ["multi"],
             "tags": ["tagC", "multi-tag-test"],
-            "importance": 7
+            "importance": 7,
         })
 
         # Filter by tagA,tagB (OR logic)

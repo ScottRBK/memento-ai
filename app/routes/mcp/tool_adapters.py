@@ -1,11 +1,10 @@
-"""
-Tool Adapters - Bridge between services and tool registry
+"""Tool Adapters - Bridge between services and tool registry
 
 This module provides adapter classes that wrap service methods as registry-compatible
 callables, ensuring user context is properly extracted and preserved.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastmcp import Context
 
@@ -118,16 +117,16 @@ class MemoryToolAdapters:
         tags: list[str],
         importance: int,
         ctx: Context,
-        project_ids: Optional[list[int]] = None,
-        code_artifact_ids: Optional[list[int]] = None,
-        document_ids: Optional[list[int]] = None,
+        project_ids: list[int] | None = None,
+        code_artifact_ids: list[int] | None = None,
+        document_ids: list[int] | None = None,
         # Provenance tracking fields
-        source_repo: Optional[str] = None,
-        source_files: Optional[list[str]] = None,
-        source_url: Optional[str] = None,
-        confidence: Optional[float] = None,
-        encoding_agent: Optional[str] = None,
-        encoding_version: Optional[str] = None,
+        source_repo: str | None = None,
+        source_files: list[str] | None = None,
+        source_url: str | None = None,
+        confidence: float | None = None,
+        encoding_agent: str | None = None,
+        encoding_version: str | None = None,
     ) -> MemoryCreateResponse:
         """Adapter for create_memory tool"""
         logger.info("MCP Tool Called -> create memory", extra={"title": title})
@@ -153,7 +152,7 @@ class MemoryToolAdapters:
         )
 
         memory, similar_memories = await self.memory_service.create_memory(
-            user_id=user.id, memory_data=memory_data
+            user_id=user.id, memory_data=memory_data,
         )
 
         logger.info(
@@ -185,8 +184,8 @@ class MemoryToolAdapters:
         k: int = 3,
         include_links: bool = True,
         max_links_per_primary: int = 5,
-        importance_threshold: Optional[int] = None,
-        project_ids: Optional[list[int]] = None,
+        importance_threshold: int | None = None,
+        project_ids: list[int] | None = None,
         strict_project_filter: bool = False,
     ) -> MemoryQueryResult:
         """Adapter for query_memory tool"""
@@ -231,22 +230,22 @@ class MemoryToolAdapters:
         self,
         memory_id: int,
         ctx: Context,
-        title: Optional[str] = None,
-        content: Optional[str] = None,
-        context: Optional[str] = None,
-        keywords: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
-        importance: Optional[int] = None,
-        project_ids: Optional[list[int]] = None,
-        code_artifact_ids: Optional[list[int]] = None,
-        document_ids: Optional[list[int]] = None,
+        title: str | None = None,
+        content: str | None = None,
+        context: str | None = None,
+        keywords: list[str] | None = None,
+        tags: list[str] | None = None,
+        importance: int | None = None,
+        project_ids: list[int] | None = None,
+        code_artifact_ids: list[int] | None = None,
+        document_ids: list[int] | None = None,
         # Provenance tracking fields
-        source_repo: Optional[str] = None,
-        source_files: Optional[list[str]] = None,
-        source_url: Optional[str] = None,
-        confidence: Optional[float] = None,
-        encoding_agent: Optional[str] = None,
-        encoding_version: Optional[str] = None,
+        source_repo: str | None = None,
+        source_files: list[str] | None = None,
+        source_url: str | None = None,
+        confidence: float | None = None,
+        encoding_agent: str | None = None,
+        encoding_version: str | None = None,
     ) -> Memory:
         """Adapter for update_memory tool"""
         logger.info("MCP Tool -> update_memory", extra={"memory_id": memory_id})
@@ -357,7 +356,7 @@ class MemoryToolAdapters:
         user = await get_user_from_auth(ctx)
 
         memory = await self.memory_service.get_memory(
-            user_id=user.id, memory_id=memory_id
+            user_id=user.id, memory_id=memory_id,
         )
 
         logger.info(
@@ -372,7 +371,7 @@ class MemoryToolAdapters:
         memory_id: int,
         reason: str,
         ctx: Context,
-        superseded_by: Optional[int] = None,
+        superseded_by: int | None = None,
     ) -> dict:
         """Adapter for mark_memory_obsolete tool"""
         logger.info("MCP Tool -> mark_memory_obsolete", extra={"memory_id": memory_id})
@@ -392,7 +391,7 @@ class MemoryToolAdapters:
         self,
         ctx: Context,
         limit: int = 10,
-        project_ids: Optional[list[int]] = None,
+        project_ids: list[int] | None = None,
     ) -> list[Memory]:
         """Adapter for get_recent_memories tool"""
         logger.info(
@@ -404,14 +403,14 @@ class MemoryToolAdapters:
 
         # Service returns (memories, total_count) tuple; MCP tool only needs memories
         memories, _ = await self.memory_service.get_recent_memories(
-            user_id=user.id, limit=limit, project_ids=project_ids
+            user_id=user.id, limit=limit, project_ids=project_ids,
         )
 
         return memories
 
 
 def create_memory_adapters(
-    memory_service: MemoryService, user_service: UserService
+    memory_service: MemoryService, user_service: UserService,
 ) -> dict[str, Any]:
     """Create all memory tool adapters and return as dict"""
     adapters = MemoryToolAdapters(memory_service, user_service)
@@ -446,8 +445,8 @@ class ProjectToolAdapters:
         project_type: ProjectType,
         ctx: Context,
         status: ProjectStatus = ProjectStatus.ACTIVE,
-        repo_name: Optional[str] = None,
-        notes: Optional[str] = None,
+        repo_name: str | None = None,
+        notes: str | None = None,
     ) -> Project:
         """Adapter for create_project tool"""
         user = await get_user_from_auth(ctx)
@@ -462,7 +461,7 @@ class ProjectToolAdapters:
         )
 
         project = await self.project_service.create_project(
-            user_id=user.id, project_data=project_data
+            user_id=user.id, project_data=project_data,
         )
 
         return project
@@ -471,12 +470,12 @@ class ProjectToolAdapters:
         self,
         project_id: int,
         ctx: Context,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        project_type: Optional[ProjectType] = None,
-        status: Optional[ProjectStatus] = None,
-        repo_name: Optional[str] = None,
-        notes: Optional[str] = None,
+        name: str | None = None,
+        description: str | None = None,
+        project_type: ProjectType | None = None,
+        status: ProjectStatus | None = None,
+        repo_name: str | None = None,
+        notes: str | None = None,
     ) -> Project:
         """Adapter for update_project tool"""
         user = await get_user_from_auth(ctx)
@@ -505,7 +504,7 @@ class ProjectToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.project_service.delete_project(
-            user_id=user.id, project_id=project_id
+            user_id=user.id, project_id=project_id,
         )
 
         return {"success": result, "project_id": project_id}
@@ -513,9 +512,9 @@ class ProjectToolAdapters:
     async def list_projects(
         self,
         ctx: Context,
-        status: Optional[str] = None,
-        repo_name: Optional[str] = None,
-        name: Optional[str] = None,
+        status: str | None = None,
+        repo_name: str | None = None,
+        name: str | None = None,
     ) -> dict:
         """Adapter for list_projects tool"""
         user = await get_user_from_auth(ctx)
@@ -543,14 +542,14 @@ class ProjectToolAdapters:
         user = await get_user_from_auth(ctx)
 
         project = await self.project_service.get_project(
-            user_id=user.id, project_id=project_id
+            user_id=user.id, project_id=project_id,
         )
 
         return project
 
 
 def create_project_adapters(
-    project_service: ProjectService, user_service: UserService
+    project_service: ProjectService, user_service: UserService,
 ) -> dict[str, Any]:
     """Create all project tool adapters and return as dict"""
     adapters = ProjectToolAdapters(project_service, user_service)
@@ -572,7 +571,7 @@ class CodeArtifactToolAdapters:
     """Wraps code artifact service methods as registry-compatible callables"""
 
     def __init__(
-        self, code_artifact_service: CodeArtifactService, user_service: UserService
+        self, code_artifact_service: CodeArtifactService, user_service: UserService,
     ):
         self.code_artifact_service = code_artifact_service
         self.user_service = user_service
@@ -584,8 +583,8 @@ class CodeArtifactToolAdapters:
         code: str,
         language: str,
         ctx: Context,
-        tags: Optional[list[str]] = None,
-        project_id: Optional[int] = None,
+        tags: list[str] | None = None,
+        project_id: int | None = None,
     ) -> CodeArtifact:
         """Adapter for create_code_artifact tool"""
         user = await get_user_from_auth(ctx)
@@ -600,7 +599,7 @@ class CodeArtifactToolAdapters:
         )
 
         artifact = await self.code_artifact_service.create_code_artifact(
-            user_id=user.id, artifact_data=artifact_data
+            user_id=user.id, artifact_data=artifact_data,
         )
 
         return artifact
@@ -610,7 +609,7 @@ class CodeArtifactToolAdapters:
         user = await get_user_from_auth(ctx)
 
         artifact = await self.code_artifact_service.get_code_artifact(
-            user_id=user.id, artifact_id=artifact_id
+            user_id=user.id, artifact_id=artifact_id,
         )
 
         return artifact
@@ -618,9 +617,9 @@ class CodeArtifactToolAdapters:
     async def list_code_artifacts(
         self,
         ctx: Context,
-        project_id: Optional[int] = None,
-        language: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        project_id: int | None = None,
+        language: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict:
         """Adapter for list_code_artifacts tool"""
         user = await get_user_from_auth(ctx)
@@ -638,12 +637,12 @@ class CodeArtifactToolAdapters:
         self,
         artifact_id: int,
         ctx: Context,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        code: Optional[str] = None,
-        language: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        project_id: Optional[int] = None,
+        title: str | None = None,
+        description: str | None = None,
+        code: str | None = None,
+        language: str | None = None,
+        tags: list[str] | None = None,
+        project_id: int | None = None,
     ) -> CodeArtifact:
         """Adapter for update_code_artifact tool"""
         user = await get_user_from_auth(ctx)
@@ -672,14 +671,14 @@ class CodeArtifactToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.code_artifact_service.delete_code_artifact(
-            user_id=user.id, artifact_id=artifact_id
+            user_id=user.id, artifact_id=artifact_id,
         )
 
         return {"success": result, "deleted_id": artifact_id}
 
 
 def create_code_artifact_adapters(
-    code_artifact_service: CodeArtifactService, user_service: UserService
+    code_artifact_service: CodeArtifactService, user_service: UserService,
 ) -> dict[str, Any]:
     """Create all code artifact tool adapters and return as dict"""
     adapters = CodeArtifactToolAdapters(code_artifact_service, user_service)
@@ -711,9 +710,9 @@ class DocumentToolAdapters:
         content: str,
         ctx: Context,
         document_type: str = "text",
-        filename: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        project_id: Optional[int] = None,
+        filename: str | None = None,
+        tags: list[str] | None = None,
+        project_id: int | None = None,
     ) -> Document:
         """Adapter for create_document tool"""
         user = await get_user_from_auth(ctx)
@@ -729,7 +728,7 @@ class DocumentToolAdapters:
         )
 
         document = await self.document_service.create_document(
-            user_id=user.id, document_data=document_data
+            user_id=user.id, document_data=document_data,
         )
 
         return document
@@ -739,7 +738,7 @@ class DocumentToolAdapters:
         user = await get_user_from_auth(ctx)
 
         document = await self.document_service.get_document(
-            user_id=user.id, document_id=document_id
+            user_id=user.id, document_id=document_id,
         )
 
         return document
@@ -747,9 +746,9 @@ class DocumentToolAdapters:
     async def list_documents(
         self,
         ctx: Context,
-        project_id: Optional[int] = None,
-        document_type: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        project_id: int | None = None,
+        document_type: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict:
         """Adapter for list_documents tool"""
         user = await get_user_from_auth(ctx)
@@ -767,13 +766,13 @@ class DocumentToolAdapters:
         self,
         document_id: int,
         ctx: Context,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        content: Optional[str] = None,
-        document_type: Optional[str] = None,
-        filename: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        project_id: Optional[int] = None,
+        title: str | None = None,
+        description: str | None = None,
+        content: str | None = None,
+        document_type: str | None = None,
+        filename: str | None = None,
+        tags: list[str] | None = None,
+        project_id: int | None = None,
     ) -> Document:
         """Adapter for update_document tool"""
         user = await get_user_from_auth(ctx)
@@ -803,14 +802,14 @@ class DocumentToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.document_service.delete_document(
-            user_id=user.id, document_id=document_id
+            user_id=user.id, document_id=document_id,
         )
 
         return {"success": result, "deleted_id": document_id}
 
 
 def create_document_adapters(
-    document_service: DocumentService, user_service: UserService
+    document_service: DocumentService, user_service: UserService,
 ) -> dict[str, Any]:
     """Create all document tool adapters and return as dict"""
     adapters = DocumentToolAdapters(document_service, user_service)
@@ -862,7 +861,7 @@ class EntityToolAdapters:
         entity_data = EntityCreate(**entity_dict)
 
         entity = await self.entity_service.create_entity(
-            user_id=user.id, entity_data=entity_data
+            user_id=user.id, entity_data=entity_data,
         )
 
         return entity
@@ -872,7 +871,7 @@ class EntityToolAdapters:
         user = await get_user_from_auth(ctx)
 
         entity = await self.entity_service.get_entity(
-            user_id=user.id, entity_id=entity_id
+            user_id=user.id, entity_id=entity_id,
         )
 
         return entity
@@ -880,9 +879,9 @@ class EntityToolAdapters:
     async def list_entities(
         self,
         ctx: Context,
-        project_ids: Optional[list[int]] = None,
-        entity_type: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        project_ids: list[int] | None = None,
+        entity_type: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict:
         """Adapter for list_entities tool"""
         user = await get_user_from_auth(ctx)
@@ -905,8 +904,8 @@ class EntityToolAdapters:
         self,
         query: str,
         ctx: Context,
-        entity_type: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        entity_type: str | None = None,
+        tags: list[str] | None = None,
         limit: int = 20,
     ) -> dict:
         """Adapter for search_entities tool"""
@@ -970,55 +969,55 @@ class EntityToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.delete_entity(
-            user_id=user.id, entity_id=entity_id
+            user_id=user.id, entity_id=entity_id,
         )
 
         return {"success": result, "deleted_id": entity_id}
 
     async def link_entity_to_memory(
-        self, entity_id: int, memory_id: int, ctx: Context
+        self, entity_id: int, memory_id: int, ctx: Context,
     ) -> dict:
         """Adapter for link_entity_to_memory tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.link_entity_to_memory(
-            user_id=user.id, entity_id=entity_id, memory_id=memory_id
+            user_id=user.id, entity_id=entity_id, memory_id=memory_id,
         )
 
         return {"success": result}
 
     async def unlink_entity_from_memory(
-        self, entity_id: int, memory_id: int, ctx: Context
+        self, entity_id: int, memory_id: int, ctx: Context,
     ) -> dict:
         """Adapter for unlink_entity_from_memory tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.unlink_entity_from_memory(
-            user_id=user.id, entity_id=entity_id, memory_id=memory_id
+            user_id=user.id, entity_id=entity_id, memory_id=memory_id,
         )
 
         return {"success": result}
 
     async def link_entity_to_project(
-        self, entity_id: int, project_id: int, ctx: Context
+        self, entity_id: int, project_id: int, ctx: Context,
     ) -> dict:
         """Adapter for link_entity_to_project tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.link_entity_to_project(
-            user_id=user.id, entity_id=entity_id, project_id=project_id
+            user_id=user.id, entity_id=entity_id, project_id=project_id,
         )
 
         return {"success": result}
 
     async def unlink_entity_from_project(
-        self, entity_id: int, project_id: int, ctx: Context
+        self, entity_id: int, project_id: int, ctx: Context,
     ) -> dict:
         """Adapter for unlink_entity_from_project tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.unlink_entity_from_project(
-            user_id=user.id, entity_id=entity_id, project_id=project_id
+            user_id=user.id, entity_id=entity_id, project_id=project_id,
         )
 
         return {"success": result}
@@ -1029,9 +1028,9 @@ class EntityToolAdapters:
         target_entity_id: int,
         relationship_type: str,
         ctx: Context,
-        strength: Optional[float] = None,
-        confidence: Optional[float] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        strength: float | None = None,
+        confidence: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> EntityRelationship:
         """Adapter for create_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
@@ -1046,7 +1045,7 @@ class EntityToolAdapters:
         )
 
         relationship = await self.entity_service.create_entity_relationship(
-            user_id=user.id, relationship_data=relationship_data
+            user_id=user.id, relationship_data=relationship_data,
         )
 
         return relationship
@@ -1055,8 +1054,8 @@ class EntityToolAdapters:
         self,
         entity_id: int,
         ctx: Context,
-        direction: Optional[str] = None,
-        relationship_type: Optional[str] = None,
+        direction: str | None = None,
+        relationship_type: str | None = None,
     ) -> dict:
         """Adapter for get_entity_relationships tool"""
         user = await get_user_from_auth(ctx)
@@ -1074,10 +1073,10 @@ class EntityToolAdapters:
         self,
         relationship_id: int,
         ctx: Context,
-        relationship_type: Optional[str] = None,
-        strength: Optional[float] = None,
-        confidence: Optional[float] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        relationship_type: str | None = None,
+        strength: float | None = None,
+        confidence: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> EntityRelationship:
         """Adapter for update_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
@@ -1100,13 +1099,13 @@ class EntityToolAdapters:
         return relationship
 
     async def delete_entity_relationship(
-        self, relationship_id: int, ctx: Context
+        self, relationship_id: int, ctx: Context,
     ) -> dict:
         """Adapter for delete_entity_relationship tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.entity_service.delete_entity_relationship(
-            user_id=user.id, relationship_id=relationship_id
+            user_id=user.id, relationship_id=relationship_id,
         )
 
         return {"success": result, "deleted_id": relationship_id}
@@ -1116,14 +1115,14 @@ class EntityToolAdapters:
         user = await get_user_from_auth(ctx)
 
         memory_ids, count = await self.entity_service.get_entity_memories(
-            user_id=user.id, entity_id=entity_id
+            user_id=user.id, entity_id=entity_id,
         )
 
         return {"memory_ids": memory_ids, "count": count}
 
 
 def create_entity_adapters(
-    entity_service: EntityService, user_service: UserService
+    entity_service: EntityService, user_service: UserService,
 ) -> dict[str, Any]:
     """Create all entity tool adapters and return as dict"""
     adapters = EntityToolAdapters(entity_service, user_service)
@@ -1163,8 +1162,8 @@ class PlanToolAdapters:
         title: str,
         project_id: int,
         ctx: Context,
-        goal: Optional[str] = None,
-        context: Optional[str] = None,
+        goal: str | None = None,
+        context: str | None = None,
         status: str = "draft",
     ):
         from app.models.plan_models import PlanCreate, PlanStatus
@@ -1182,12 +1181,12 @@ class PlanToolAdapters:
         self,
         plan_id: int,
         ctx: Context,
-        title: Optional[str] = None,
-        goal: Optional[str] = None,
-        context: Optional[str] = None,
-        status: Optional[str] = None,
+        title: str | None = None,
+        goal: str | None = None,
+        context: str | None = None,
+        status: str | None = None,
     ):
-        from app.models.plan_models import PlanUpdate, PlanStatus
+        from app.models.plan_models import PlanStatus, PlanUpdate
         user = await get_user_from_auth(ctx)
         updated_dict = filter_none_values(
             title=title, goal=goal, context=context,
@@ -1195,7 +1194,7 @@ class PlanToolAdapters:
         )
         plan_data = PlanUpdate(**updated_dict)
         plan = await self.plan_service.update_plan(
-            user_id=user.id, plan_id=plan_id, plan_data=plan_data
+            user_id=user.id, plan_id=plan_id, plan_data=plan_data,
         )
         return plan
 
@@ -1206,14 +1205,14 @@ class PlanToolAdapters:
     async def list_plans(
         self,
         ctx: Context,
-        project_id: Optional[int] = None,
-        status: Optional[str] = None,
+        project_id: int | None = None,
+        status: str | None = None,
     ):
         from app.models.plan_models import PlanStatus
         user = await get_user_from_auth(ctx)
         status_enum = PlanStatus(status) if status else None
         plans = await self.plan_service.list_plans(
-            user_id=user.id, project_id=project_id, status=status_enum
+            user_id=user.id, project_id=project_id, status=status_enum,
         )
         return {"plans": plans, "total_count": len(plans)}
 
@@ -1246,13 +1245,13 @@ class TaskToolAdapters:
         title: str,
         plan_id: int,
         ctx: Context,
-        description: Optional[str] = None,
+        description: str | None = None,
         priority: str = "P2",
-        assigned_agent: Optional[str] = None,
-        criteria: Optional[list[dict[str, Any]]] = None,
-        dependency_ids: Optional[list[int]] = None,
+        assigned_agent: str | None = None,
+        criteria: list[dict[str, Any]] | None = None,
+        dependency_ids: list[int] | None = None,
     ):
-        from app.models.plan_models import TaskCreate, TaskPriority, CriterionCreate
+        from app.models.plan_models import CriterionCreate, TaskCreate, TaskPriority
         user = await get_user_from_auth(ctx)
         criteria_models = None
         if criteria:
@@ -1272,11 +1271,11 @@ class TaskToolAdapters:
         self,
         task_id: int,
         ctx: Context,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        priority: Optional[str] = None,
+        title: str | None = None,
+        description: str | None = None,
+        priority: str | None = None,
     ):
-        from app.models.plan_models import TaskUpdate, TaskPriority
+        from app.models.plan_models import TaskPriority, TaskUpdate
         user = await get_user_from_auth(ctx)
         updated_dict = filter_none_values(
             title=title, description=description,
@@ -1284,7 +1283,7 @@ class TaskToolAdapters:
         )
         task_data = TaskUpdate(**updated_dict)
         return await self.task_service.update_task(
-            user_id=user.id, task_id=task_id, task_data=task_data
+            user_id=user.id, task_id=task_id, task_data=task_data,
         )
 
     async def get_task(self, task_id: int, ctx: Context):
@@ -1295,11 +1294,11 @@ class TaskToolAdapters:
         self,
         plan_id: int,
         ctx: Context,
-        state: Optional[str] = None,
-        priority: Optional[str] = None,
-        assigned_agent: Optional[str] = None,
+        state: str | None = None,
+        priority: str | None = None,
+        assigned_agent: str | None = None,
     ):
-        from app.models.plan_models import TaskState, TaskPriority
+        from app.models.plan_models import TaskPriority, TaskState
         user = await get_user_from_auth(ctx)
         state_enum = TaskState(state) if state else None
         priority_enum = TaskPriority(priority) if priority else None
@@ -1366,7 +1365,7 @@ class TaskToolAdapters:
     async def delete_criterion(self, criterion_id: int, ctx: Context):
         user = await get_user_from_auth(ctx)
         success = await self.task_service.delete_criterion(
-            user_id=user.id, criterion_id=criterion_id
+            user_id=user.id, criterion_id=criterion_id,
         )
         return {"success": success}
 
@@ -1433,8 +1432,8 @@ class FileToolAdapters:
         data: str,
         mime_type: str,
         ctx: Context,
-        tags: Optional[list[str]] = None,
-        project_id: Optional[int] = None,
+        tags: list[str] | None = None,
+        project_id: int | None = None,
     ):
         """Adapter for create_file tool"""
         from app.models.file_models import FileCreate
@@ -1451,7 +1450,7 @@ class FileToolAdapters:
         )
 
         file = await self.file_service.create_file(
-            user_id=user.id, file_data=file_data
+            user_id=user.id, file_data=file_data,
         )
 
         return file
@@ -1461,7 +1460,7 @@ class FileToolAdapters:
         user = await get_user_from_auth(ctx)
 
         file = await self.file_service.get_file(
-            user_id=user.id, file_id=file_id
+            user_id=user.id, file_id=file_id,
         )
 
         return file
@@ -1469,9 +1468,9 @@ class FileToolAdapters:
     async def list_files(
         self,
         ctx: Context,
-        project_id: Optional[int] = None,
-        mime_type: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        project_id: int | None = None,
+        mime_type: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict:
         """Adapter for list_files tool"""
         user = await get_user_from_auth(ctx)
@@ -1489,12 +1488,12 @@ class FileToolAdapters:
         self,
         file_id: int,
         ctx: Context,
-        filename: Optional[str] = None,
-        description: Optional[str] = None,
-        data: Optional[str] = None,
-        mime_type: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        project_id: Optional[int] = None,
+        filename: str | None = None,
+        description: str | None = None,
+        data: str | None = None,
+        mime_type: str | None = None,
+        tags: list[str] | None = None,
+        project_id: int | None = None,
     ):
         """Adapter for update_file tool"""
         from app.models.file_models import FileUpdate
@@ -1525,7 +1524,7 @@ class FileToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.file_service.delete_file(
-            user_id=user.id, file_id=file_id
+            user_id=user.id, file_id=file_id,
         )
 
         return {"success": result, "deleted_id": file_id}
@@ -1561,13 +1560,13 @@ class SkillToolAdapters:
         description: str,
         content: str,
         ctx: Context,
-        license: Optional[str] = None,
-        compatibility: Optional[str] = None,
-        allowed_tools: Optional[list[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        tags: Optional[list[str]] = None,
+        license: str | None = None,
+        compatibility: str | None = None,
+        allowed_tools: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        tags: list[str] | None = None,
         importance: int = 7,
-        project_id: Optional[int] = None,
+        project_id: int | None = None,
     ):
         """Adapter for create_skill tool"""
         from app.models.skill_models import SkillCreate
@@ -1588,7 +1587,7 @@ class SkillToolAdapters:
         )
 
         skill = await self.skill_service.create_skill(
-            user_id=user.id, skill_data=skill_data
+            user_id=user.id, skill_data=skill_data,
         )
 
         return skill
@@ -1598,7 +1597,7 @@ class SkillToolAdapters:
         user = await get_user_from_auth(ctx)
 
         skill = await self.skill_service.get_skill(
-            user_id=user.id, skill_id=skill_id
+            user_id=user.id, skill_id=skill_id,
         )
 
         return skill
@@ -1606,9 +1605,9 @@ class SkillToolAdapters:
     async def list_skills(
         self,
         ctx: Context,
-        project_id: Optional[int] = None,
-        tags: Optional[list[str]] = None,
-        importance_threshold: Optional[int] = None,
+        project_id: int | None = None,
+        tags: list[str] | None = None,
+        importance_threshold: int | None = None,
     ) -> dict:
         """Adapter for list_skills tool"""
         user = await get_user_from_auth(ctx)
@@ -1626,16 +1625,16 @@ class SkillToolAdapters:
         self,
         skill_id: int,
         ctx: Context,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        content: Optional[str] = None,
-        license: Optional[str] = None,
-        compatibility: Optional[str] = None,
-        allowed_tools: Optional[list[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        tags: Optional[list[str]] = None,
-        importance: Optional[int] = None,
-        project_id: Optional[int] = None,
+        name: str | None = None,
+        description: str | None = None,
+        content: str | None = None,
+        license: str | None = None,
+        compatibility: str | None = None,
+        allowed_tools: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        tags: list[str] | None = None,
+        importance: int | None = None,
+        project_id: int | None = None,
     ):
         """Adapter for update_skill tool"""
         from app.models.skill_models import SkillUpdate
@@ -1670,7 +1669,7 @@ class SkillToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.skill_service.delete_skill(
-            user_id=user.id, skill_id=skill_id
+            user_id=user.id, skill_id=skill_id,
         )
 
         return {"success": result, "deleted_id": skill_id}
@@ -1680,7 +1679,7 @@ class SkillToolAdapters:
         query: str,
         ctx: Context,
         k: int = 5,
-        project_id: Optional[int] = None,
+        project_id: int | None = None,
     ) -> dict:
         """Adapter for search_skills tool"""
         user = await get_user_from_auth(ctx)
@@ -1702,7 +1701,7 @@ class SkillToolAdapters:
         self,
         skill_md_content: str,
         ctx: Context,
-        project_id: Optional[int] = None,
+        project_id: int | None = None,
         importance: int = 7,
     ):
         """Adapter for import_skill tool"""
@@ -1722,31 +1721,31 @@ class SkillToolAdapters:
         user = await get_user_from_auth(ctx)
 
         result = await self.skill_service.export_skill(
-            user_id=user.id, skill_id=skill_id
+            user_id=user.id, skill_id=skill_id,
         )
 
         return result
 
     async def link_skill_to_memory(
-        self, skill_id: int, memory_id: int, ctx: Context
+        self, skill_id: int, memory_id: int, ctx: Context,
     ) -> dict:
         """Adapter for link_skill_to_memory tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.skill_service.link_skill_to_memory(
-            user_id=user.id, skill_id=skill_id, memory_id=memory_id
+            user_id=user.id, skill_id=skill_id, memory_id=memory_id,
         )
 
         return result
 
     async def unlink_skill_from_memory(
-        self, skill_id: int, memory_id: int, ctx: Context
+        self, skill_id: int, memory_id: int, ctx: Context,
     ) -> dict:
         """Adapter for unlink_skill_from_memory tool"""
         user = await get_user_from_auth(ctx)
 
         result = await self.skill_service.unlink_skill_from_memory(
-            user_id=user.id, skill_id=skill_id, memory_id=memory_id
+            user_id=user.id, skill_id=skill_id, memory_id=memory_id,
         )
 
         return result

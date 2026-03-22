@@ -1,5 +1,4 @@
-"""
-End-to-end test for health endpoint
+"""End-to-end test for health endpoint
 
 Tests the /health endpoint via HTTP to validate the complete stack is operational.
 """

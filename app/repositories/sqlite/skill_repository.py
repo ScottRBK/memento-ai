@@ -1,5 +1,5 @@
 """SQLite repository for Skill data access operations with sqlite-vec."""
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import sqlite_vec
@@ -97,7 +97,7 @@ class SqliteSkillRepository:
                     text(
                         "INSERT INTO vec_skills "
                         "(skill_id, embedding) "
-                        "VALUES (:skill_id, :embedding)"
+                        "VALUES (:skill_id, :embedding)",
                     ),
                     {
                         "skill_id": str(skill_table.id),
@@ -290,7 +290,7 @@ class SqliteSkillRepository:
                         text(
                             "UPDATE vec_skills "
                             "SET embedding = :embedding "
-                            "WHERE skill_id = :skill_id"
+                            "WHERE skill_id = :skill_id",
                         ),
                         {
                             "embedding": embedding_bytes,
@@ -302,7 +302,7 @@ class SqliteSkillRepository:
                     setattr(skill_table, field, value)
 
                 skill_table.updated_at = datetime.now(
-                    timezone.utc,
+                    UTC,
                 )
 
                 await session.commit()
@@ -354,7 +354,7 @@ class SqliteSkillRepository:
                 await session.execute(
                     text(
                         "DELETE FROM vec_skills "
-                        "WHERE skill_id = :skill_id"
+                        "WHERE skill_id = :skill_id",
                     ),
                     {"skill_id": str(skill_id)},
                 )

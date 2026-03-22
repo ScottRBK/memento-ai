@@ -1,12 +1,11 @@
-"""
-Pydantic models for Document entities
+"""Pydantic models for Document entities
 
 Documents store long-form text content, documentation, reports, and analysis
 that can be referenced by memories for knowledge management.
 """
-from datetime import datetime, timezone
-from typing import List
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import UTC, datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
 
@@ -26,43 +25,43 @@ class DocumentCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.DOCUMENT_TITLE_MAX_LENGTH,
-        description="Document title - searchable identifier (e.g., 'API Architecture Overview', 'Sprint Retrospective Notes')"
+        description="Document title - searchable identifier (e.g., 'API Architecture Overview', 'Sprint Retrospective Notes')",
     )
     description: str = Field(
         ...,
         min_length=1,
         max_length=settings.DOCUMENT_DESCRIPTION_MAX_LENGTH,
-        description="Document's purpose and summary. What does this document contain?"
+        description="Document's purpose and summary. What does this document contain?",
     )
     content: str = Field(
         ...,
         min_length=1,
         max_length=settings.DOCUMENT_CONTENT_MAX_LENGTH,
-        description="Complete document text content (markdown, plain text, etc.)"
+        description="Complete document text content (markdown, plain text, etc.)",
     )
     document_type: str | None = Field(
         default="text",
         max_length=100,
-        description="Document format type (e.g., 'markdown', 'text', 'report', 'notes', 'analysis')"
+        description="Document format type (e.g., 'markdown', 'text', 'report', 'notes', 'analysis')",
     )
     filename: str | None = Field(
         default=None,
         max_length=500,
-        description="Original filename if imported (metadata only)"
+        description="Original filename if imported (metadata only)",
     )
     size_bytes: int | None = Field(
         default=None,
         ge=0,
-        description="Document size in bytes (metadata only, auto-calculated if not provided)"
+        description="Document size in bytes (metadata only, auto-calculated if not provided)",
     )
     tags: list[str] = Field(
         default_factory=list,
         max_length=settings.DOCUMENT_TAGS_MAX_COUNT,
-        description="Tags for categorization and discovery (e.g., ['architecture', 'design', 'api'])"
+        description="Tags for categorization and discovery (e.g., ['architecture', 'design', 'api'])",
     )
     project_id: int | None = Field(
         default=None,
-        description="Optional project ID for immediate association with a project"
+        description="Optional project ID for immediate association with a project",
     )
 
     @field_validator("title", "description", "content", "document_type", "filename")
@@ -78,7 +77,7 @@ class DocumentCreate(BaseModel):
         if info.field_name in ["title", "description", "content"] and not stripped:
             raise ValueError(f"{info.field_name} cannot be empty or whitespace only")
 
-        return stripped if stripped else None
+        return stripped or None
 
     @field_validator("tags")
     @classmethod
@@ -105,7 +104,7 @@ class DocumentCreate(BaseModel):
         # Access content from values if available
         content = info.data.get("content", "")
         if content:
-            return len(content.encode('utf-8'))
+            return len(content.encode("utf-8"))
 
         return None
 
@@ -125,43 +124,43 @@ class DocumentUpdate(BaseModel):
         default=None,
         min_length=1,
         max_length=settings.DOCUMENT_TITLE_MAX_LENGTH,
-        description="New title. Unchanged if null."
+        description="New title. Unchanged if null.",
     )
     description: str | None = Field(
         default=None,
         min_length=1,
         max_length=settings.DOCUMENT_DESCRIPTION_MAX_LENGTH,
-        description="New description. Unchanged if null."
+        description="New description. Unchanged if null.",
     )
     content: str | None = Field(
         default=None,
         min_length=1,
         max_length=settings.DOCUMENT_CONTENT_MAX_LENGTH,
-        description="New content. Unchanged if null."
+        description="New content. Unchanged if null.",
     )
     document_type: str | None = Field(
         default=None,
         max_length=100,
-        description="New document type. Unchanged if null."
+        description="New document type. Unchanged if null.",
     )
     filename: str | None = Field(
         default=None,
         max_length=500,
-        description="New filename. Unchanged if null. Empty string clears."
+        description="New filename. Unchanged if null. Empty string clears.",
     )
     size_bytes: int | None = Field(
         default=None,
         ge=0,
-        description="New size. Unchanged if null. Auto-calculated from content if content provided."
+        description="New size. Unchanged if null. Auto-calculated from content if content provided.",
     )
     tags: list[str] | None = Field(
         default=None,
         max_length=settings.DOCUMENT_TAGS_MAX_COUNT,
-        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
+        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags.",
     )
     project_id: int | None = Field(
         default=None,
-        description="New project association. Unchanged if null."
+        description="New project association. Unchanged if null.",
     )
 
     @field_validator("title", "description", "content", "document_type", "filename")
@@ -178,7 +177,7 @@ class DocumentUpdate(BaseModel):
             raise ValueError(f"{info.field_name} cannot be empty or whitespace only")
 
         # For optional fields, empty string means "clear field"
-        return stripped if stripped else None
+        return stripped or None
 
     @field_validator("tags")
     @classmethod
@@ -213,19 +212,19 @@ class Document(DocumentCreate):
     """
     id: int = Field(
         ...,
-        description="Unique document identifier (auto-generated)"
+        description="Unique document identifier (auto-generated)",
     )
     project_id: int | None = Field(
         default=None,
-        description="Associated project ID. Null if not linked to a project."
+        description="Associated project ID. Null if not linked to a project.",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the document was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the document was created (UTC)",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the document was last updated (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the document was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -242,43 +241,43 @@ class DocumentSummary(BaseModel):
     """
     id: int = Field(
         ...,
-        description="Unique document identifier"
+        description="Unique document identifier",
     )
     title: str = Field(
         ...,
-        description="Document title"
+        description="Document title",
     )
     description: str = Field(
         ...,
-        description="Document description"
+        description="Document description",
     )
     document_type: str | None = Field(
         default=None,
-        description="Document format type"
+        description="Document format type",
     )
     filename: str | None = Field(
         default=None,
-        description="Original filename if imported"
+        description="Original filename if imported",
     )
     size_bytes: int = Field(
         ...,
-        description="Document size in bytes"
+        description="Document size in bytes",
     )
     tags: list[str] = Field(
         ...,
-        description="Tags for categorization"
+        description="Tags for categorization",
     )
     project_id: int | None = Field(
         default=None,
-        description="Associated project ID"
+        description="Associated project ID",
     )
     created_at: datetime = Field(
         ...,
-        description="When the document was created (UTC)"
+        description="When the document was created (UTC)",
     )
     updated_at: datetime = Field(
         ...,
-        description="When the document was last updated (UTC)"
+        description="When the document was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)

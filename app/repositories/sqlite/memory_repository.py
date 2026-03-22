@@ -1,38 +1,40 @@
+"""Memory repository for SQLite data access operations with sqlite-vec integration
 """
-Memory repository for SQLite data access operations with sqlite-vec integration
-"""
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Tuple
+
 import sqlite_vec
-
-from sqlalchemy import select, update, or_, text
-from sqlalchemy.orm import selectinload
+from sqlalchemy import or_, select, text, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.orm import selectinload
 
+from app.config.logging_config import logging
+from app.config.settings import settings
+from app.exceptions import NotFoundError
+from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
+from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
+from app.repositories.embeddings.reranker_adapter import RerankAdapter
+from app.repositories.helpers import (
+    build_contextual_query,
+    build_embedding_text,
+    build_memory_text,
+)
+from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.repositories.sqlite.sqlite_tables import (
-    MemoryTable,
-    MemoryLinkTable,
-    ProjectsTable,
     CodeArtifactsTable,
     DocumentsTable,
     FilesTable,
+    MemoryLinkTable,
+    MemoryTable,
+    ProjectsTable,
 )
-from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
-from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
-from app.repositories.embeddings.reranker_adapter import RerankAdapter
-from app.repositories.helpers import build_embedding_text, build_memory_text, build_contextual_query
-from app.config.settings import settings
-from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
 
 logger = logging.getLogger(__name__)
 
 
 class SqliteMemoryRepository:
-    """
-    Repository for Memory entity operations in SQLite with sqlite-vec integration
+    """Repository for Memory entity operations in SQLite with sqlite-vec integration
 
     Key differences from Postgres:
     - Embeddings stored in separate vec_memories virtual table
@@ -61,8 +63,7 @@ class SqliteMemoryRepository:
         project_ids: list[int] | None,
         exclude_ids: list[int] | None,
     ) -> list[Memory]:
-        """
-        Performs four stage memory retrieval
+        """Performs four stage memory retrieval
         1 -> performs a dense search for a list of candidate memories based on the query
         2 -> performs a sparse search for a list of candidate memories based on the query
         3 -> combines the candidates and provides a final list using reciprocal ranked fusion
@@ -81,7 +82,6 @@ class SqliteMemoryRepository:
         Returns:
             List of Memories objects
         """
-
         if settings.RERANKING_ENABLED:
             candidates_to_return = settings.DENSE_SEARCH_CANDIDATES
         else:
@@ -110,9 +110,9 @@ class SqliteMemoryRepository:
             rerank_query = query
 
         ranked = await self.rerank_adapter.rerank(query=rerank_query, documents=documents)
-        
+
         top_k_memories = [dense_candidates[idx] for idx, score in ranked[:k]]
-        
+
         return top_k_memories
 
     async def semantic_search(
@@ -124,8 +124,7 @@ class SqliteMemoryRepository:
         project_ids: list[int] | None,
         exclude_ids: list[int] | None,
     ) -> list[Memory]:
-        """
-        Perform semantic search using vector similarity with sqlite-vec
+        """Perform semantic search using vector similarity with sqlite-vec
 
         Args:
             user_id: User ID (for isolation)
@@ -156,7 +155,7 @@ class SqliteMemoryRepository:
                 FROM memories m
                 INNER JOIN vec_memories vm ON m.id = vm.memory_id
                 WHERE m.user_id = :user_id AND m.is_obsolete = 0
-                """
+                """,
             ]
 
             # Build parameters
@@ -176,7 +175,7 @@ class SqliteMemoryRepository:
                         WHERE mpa.memory_id = m.id
                         AND mpa.project_id IN ({})
                     )
-                    """.format(",".join(f":project_{i}" for i in range(len(project_ids))))
+                    """.format(",".join(f":project_{i}" for i in range(len(project_ids)))),
                 )
                 for i, proj_id in enumerate(project_ids):
                     params[f"project_{i}"] = proj_id
@@ -184,7 +183,7 @@ class SqliteMemoryRepository:
             # Apply exclude filter
             if exclude_ids:
                 sql_parts.append(
-                    " AND m.id NOT IN ({})".format(",".join(f":exclude_{i}" for i in range(len(exclude_ids))))
+                    " AND m.id NOT IN ({})".format(",".join(f":exclude_{i}" for i in range(len(exclude_ids)))),
                 )
                 for i, excl_id in enumerate(exclude_ids):
                     params[f"exclude_{i}"] = excl_id
@@ -194,7 +193,7 @@ class SqliteMemoryRepository:
                 """
                 ORDER BY vec_distance_cosine(vm.embedding, :query_embedding)
                 LIMIT :k
-                """
+                """,
             )
 
             # Execute raw SQL query
@@ -232,8 +231,7 @@ class SqliteMemoryRepository:
             return [Memory.model_validate(memory) for memory in ordered_memories]
 
     async def create_memory(self, user_id: UUID, memory: MemoryCreate) -> Memory:
-        """
-        Create a new memory in SQLite with vector storage
+        """Create a new memory in SQLite with vector storage
 
         Args:
             user_id: User ID,
@@ -243,7 +241,6 @@ class SqliteMemoryRepository:
         Returns:
             Created Memory Object
         """
-
         embeddings_text = build_embedding_text(memory_data=memory)
         embeddings = await self._generate_embeddings(text=embeddings_text)
 
@@ -296,8 +293,7 @@ class SqliteMemoryRepository:
         existing_memory: Memory,
         search_fields_changed: bool,
     ) -> Memory:
-        """
-        Update a memory
+        """Update a memory
 
         Args:
             user_id: User ID
@@ -315,10 +311,10 @@ class SqliteMemoryRepository:
         async with self.db_adapter.session(user_id) as session:
 
             update_data = updated_memory.model_dump(
-                exclude_unset=True, exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"}
+                exclude_unset=True, exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"},
             )
 
-            update_data["updated_at"] = datetime.now(timezone.utc)
+            update_data["updated_at"] = datetime.now(UTC)
 
             # Update embedding if search fields changed
             if search_fields_changed:
@@ -391,8 +387,7 @@ class SqliteMemoryRepository:
                 raise NotFoundError(f"Memory with id {memory_id} not found")
 
     async def get_memory_by_id(self, user_id: UUID, memory_id: int) -> Memory:
-        """
-        Retrieves memory by ID
+        """Retrieves memory by ID
 
         Args:
             user_id: User ID
@@ -405,12 +400,10 @@ class SqliteMemoryRepository:
 
         if memory_orm:
             return Memory.model_validate(memory_orm)
-        else:
-            raise NotFoundError(f"Memory with id {memory_id} not found")
+        raise NotFoundError(f"Memory with id {memory_id} not found")
 
     async def get_memory_table_by_id(self, user_id: UUID, memory_id: int) -> MemoryTable:
-        """
-        Retrieves memory by ID
+        """Retrieves memory by ID
 
         Args:
             user_id: User ID
@@ -438,12 +431,10 @@ class SqliteMemoryRepository:
 
             if memory_orm:
                 return memory_orm
-            else:
-                raise NotFoundError(f"Memory with id {memory_id} not found")
+            raise NotFoundError(f"Memory with id {memory_id} not found")
 
     async def mark_obsolete(self, user_id: UUID, memory_id: int, reason: str, superseded_by: int | None = None) -> bool:
-        """
-        Mark a memory as obsolete (soft delete)
+        """Mark a memory as obsolete (soft delete)
 
         Args:
             user_id: User ID
@@ -461,7 +452,7 @@ class SqliteMemoryRepository:
         async with self.db_adapter.session(user_id) as session:
             if superseded_by:
                 superseding_stmt = select(MemoryTable).where(
-                    MemoryTable.user_id == str(user_id), MemoryTable.id == superseded_by
+                    MemoryTable.user_id == str(user_id), MemoryTable.id == superseded_by,
                 )
                 superseding_result = await session.execute(superseding_stmt)
                 if not superseding_result.scalar_one_or_none():
@@ -474,7 +465,7 @@ class SqliteMemoryRepository:
                     is_obsolete=True,
                     obsolete_reason=reason,
                     superseded_by=superseded_by,
-                    obsoleted_at=datetime.now(timezone.utc),
+                    obsoleted_at=datetime.now(UTC),
                 )
                 .returning(MemoryTable)
             )
@@ -488,15 +479,13 @@ class SqliteMemoryRepository:
             return True
 
     async def find_similar_memories(self, user_id: UUID, memory_id: int, max_links: int) -> list[Memory]:
-        """
-        Finds similar memories for a given memory using vector similarity
+        """Finds similar memories for a given memory using vector similarity
 
         Args:
             user_id: User ID
             memory_id: Memory ID to find similar memories for
             max_links: Maximum number of similar memories to find
         """
-
         # Get the source memory's embedding from vec_memories
         async with self.db_adapter.session(user_id) as session:
             # Get the embedding for the source memory
@@ -567,8 +556,7 @@ class SqliteMemoryRepository:
         project_ids: list[int] | None,
         max_links: int = 5,
     ) -> list[Memory]:
-        """
-        Get memories linked to a specific memory (1-hop neighbors)
+        """Get memories linked to a specific memory (1-hop neighbors)
 
         Args:
             user_id: User ID,
@@ -579,7 +567,6 @@ class SqliteMemoryRepository:
         Returns:
             List of linked Memory objects
         """
-
         stmt = (
             select(MemoryTable)
             .join(
@@ -625,8 +612,7 @@ class SqliteMemoryRepository:
         source_id: int,
         target_id: int,
     ) -> MemoryLinkTable:
-        """
-        Creates a bidirectional link between two memories
+        """Creates a bidirectional link between two memories
 
         Args:
             user_id: User ID,
@@ -685,8 +671,7 @@ class SqliteMemoryRepository:
                 raise
 
     async def create_links_batch(self, user_id: UUID, source_id: int, target_ids: list[int]) -> list[int]:
-        """
-        Create multiple links from one memory to many others
+        """Create multiple links from one memory to many others
 
         Args:
             user_id: User ID
@@ -721,8 +706,7 @@ class SqliteMemoryRepository:
             source_id: int,
             target_id: int,
     ) -> bool:
-        """
-        Remove bidirectional link between two memories.
+        """Remove bidirectional link between two memories.
 
         Args:
             user_id: User ID for isolation
@@ -732,7 +716,7 @@ class SqliteMemoryRepository:
         Returns:
             True if link was removed, False if link didn't exist
         """
-        from sqlalchemy import delete, or_, and_
+        from sqlalchemy import and_, delete, or_
 
         async with self.db_adapter.session(user_id) as session:
             # Delete both directions (source→target and target→source)
@@ -741,13 +725,13 @@ class SqliteMemoryRepository:
                 or_(
                     and_(
                         MemoryLinkTable.source_id == source_id,
-                        MemoryLinkTable.target_id == target_id
+                        MemoryLinkTable.target_id == target_id,
                     ),
                     and_(
                         MemoryLinkTable.source_id == target_id,
-                        MemoryLinkTable.target_id == source_id
-                    )
-                )
+                        MemoryLinkTable.target_id == source_id,
+                    ),
+                ),
             )
             result = await session.execute(stmt)
             await session.commit()
@@ -757,7 +741,7 @@ class SqliteMemoryRepository:
                 "user_id": str(user_id),
                 "source_id": source_id,
                 "target_id": target_id,
-                "deleted": deleted
+                "deleted": deleted,
             })
 
             return deleted
@@ -773,8 +757,7 @@ class SqliteMemoryRepository:
             sort_order: str = "desc",
             tags: list[str] | None = None,
     ) -> tuple[list[Memory], int]:
-        """
-        Get memories with pagination, sorting, and filtering.
+        """Get memories with pagination, sorting, and filtering.
 
         Args:
             user_id: User ID for ownership filtering
@@ -812,7 +795,7 @@ class SqliteMemoryRepository:
         if project_ids:
             project_filter = select(memory_project_association.c.memory_id).where(
                 memory_project_association.c.memory_id == MemoryTable.id,
-                memory_project_association.c.project_id.in_(project_ids)
+                memory_project_association.c.project_id.in_(project_ids),
             ).exists()
             stmt = stmt.where(project_filter)
 
@@ -820,7 +803,7 @@ class SqliteMemoryRepository:
         sort_column_map = {
             "created_at": MemoryTable.created_at,
             "updated_at": MemoryTable.updated_at,
-            "importance": MemoryTable.importance
+            "importance": MemoryTable.importance,
         }
         sort_column = sort_column_map.get(sort_by, MemoryTable.created_at)
         order = sort_column.desc() if sort_order == "desc" else sort_column.asc()
@@ -857,7 +840,7 @@ class SqliteMemoryRepository:
                 "include_obsolete": include_obsolete,
                 "sort_by": sort_by,
                 "sort_order": sort_order,
-                "tags_filter": tags
+                "tags_filter": tags,
             })
 
             return [Memory.model_validate(m) for m in paginated_memories], total
@@ -865,7 +848,7 @@ class SqliteMemoryRepository:
     async def _link_projects(self, session, memory: MemoryTable, project_ids: list[int], user_id: UUID) -> None:
         """Link memory to projects"""
         stmt = select(ProjectsTable).where(
-            ProjectsTable.id.in_(project_ids), ProjectsTable.user_id == str(user_id)
+            ProjectsTable.id.in_(project_ids), ProjectsTable.user_id == str(user_id),
         )
         result = await session.execute(stmt)
         projects = result.scalars().all()
@@ -880,7 +863,7 @@ class SqliteMemoryRepository:
     async def _link_code_artifacts(self, session, memory: MemoryTable, code_artifact_ids: list[int], user_id: UUID) -> None:
         """Link memory to code artifacts"""
         stmt = select(CodeArtifactsTable).where(
-            CodeArtifactsTable.id.in_(code_artifact_ids), CodeArtifactsTable.user_id == str(user_id)
+            CodeArtifactsTable.id.in_(code_artifact_ids), CodeArtifactsTable.user_id == str(user_id),
         )
         result = await session.execute(stmt)
         artifacts = result.scalars().all()
@@ -895,7 +878,7 @@ class SqliteMemoryRepository:
     async def _link_documents(self, session, memory: MemoryTable, document_ids: list[int], user_id: UUID) -> None:
         """Link memory to documents"""
         stmt = select(DocumentsTable).where(
-            DocumentsTable.id.in_(document_ids), DocumentsTable.user_id == str(user_id)
+            DocumentsTable.id.in_(document_ids), DocumentsTable.user_id == str(user_id),
         )
         result = await session.execute(stmt)
         documents = result.scalars().all()
@@ -910,7 +893,7 @@ class SqliteMemoryRepository:
     async def _link_files(self, session, memory: MemoryTable, file_ids: list[int], user_id: UUID) -> None:
         """Link memory to files"""
         stmt = select(FilesTable).where(
-            FilesTable.id.in_(file_ids), FilesTable.user_id == str(user_id)
+            FilesTable.id.in_(file_ids), FilesTable.user_id == str(user_id),
         )
         result = await session.execute(stmt)
         files = result.scalars().all()
@@ -928,7 +911,7 @@ class SqliteMemoryRepository:
         """Count all non-obsolete memories across all users"""
         async with self.db_adapter.system_session() as session:
             result = await session.execute(
-                text("SELECT COUNT(*) FROM memories WHERE is_obsolete = 0")
+                text("SELECT COUNT(*) FROM memories WHERE is_obsolete = 0"),
             )
             return result.scalar()
 
@@ -964,10 +947,10 @@ class SqliteMemoryRepository:
                         memory_id TEXT PRIMARY KEY,
                         embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
                     )
-                """)
+                """),
             )
             logger.info("Recreated vec_memories table", extra={
-                "dimensions": settings.EMBEDDING_DIMENSIONS
+                "dimensions": settings.EMBEDDING_DIMENSIONS,
             })
 
     async def bulk_update_embeddings(self, updates: list[tuple[int, list[float]]]) -> None:
@@ -984,12 +967,12 @@ class SqliteMemoryRepository:
         """Check embedding count matches non-obsolete memory count"""
         async with self.db_adapter.system_session() as session:
             mem_result = await session.execute(
-                text("SELECT COUNT(*) FROM memories WHERE is_obsolete = 0")
+                text("SELECT COUNT(*) FROM memories WHERE is_obsolete = 0"),
             )
             memory_count = mem_result.scalar()
 
             vec_result = await session.execute(
-                text("SELECT COUNT(*) FROM vec_memories")
+                text("SELECT COUNT(*) FROM vec_memories"),
             )
             vec_count = vec_result.scalar()
 
@@ -999,7 +982,7 @@ class SqliteMemoryRepository:
         """Sample embeddings and verify correct dimensions"""
         async with self.db_adapter.system_session() as session:
             result = await session.execute(
-                text("SELECT embedding FROM vec_memories LIMIT 5")
+                text("SELECT embedding FROM vec_memories LIMIT 5"),
             )
             rows = result.fetchall()
             if not rows:
@@ -1012,7 +995,7 @@ class SqliteMemoryRepository:
                 if num_dims != settings.EMBEDDING_DIMENSIONS:
                     logger.error("Dimension mismatch", extra={
                         "expected": settings.EMBEDDING_DIMENSIONS,
-                        "actual": num_dims
+                        "actual": num_dims,
                     })
                     return False
             return True
@@ -1022,7 +1005,7 @@ class SqliteMemoryRepository:
         async with self.db_adapter.system_session() as session:
             # Pick a random memory title
             title_result = await session.execute(
-                text("SELECT title FROM memories WHERE is_obsolete = 0 LIMIT 1")
+                text("SELECT title FROM memories WHERE is_obsolete = 0 LIMIT 1"),
             )
             row = title_result.fetchone()
             if not row:
@@ -1061,8 +1044,7 @@ class SqliteMemoryRepository:
         include_skills: bool = False,
         max_nodes: int = 50,
     ) -> tuple[list[dict[str, Any]], bool]:
-        """
-        Traverse graph using recursive CTE from center node.
+        """Traverse graph using recursive CTE from center node.
 
         Uses a single recursive CTE query to traverse all edge types:
         - memory_links (memory <-> memory)

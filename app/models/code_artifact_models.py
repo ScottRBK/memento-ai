@@ -1,12 +1,11 @@
-"""
-Pydantic models for Code Artifact entities
+"""Pydantic models for Code Artifact entities
 
 Code artifacts store reusable code snippets, patterns, and implementations
 that can be referenced by memories for documentation and knowledge sharing.
 """
-from datetime import datetime, timezone
-from typing import List
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import UTC, datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
 
@@ -27,34 +26,34 @@ class CodeArtifactCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.CODE_ARTIFACT_TITLE_MAX_LENGTH,
-        description="Artifact title - searchable identifier (e.g., 'FastAPI JWT middleware', 'useDebounce hook')"
+        description="Artifact title - searchable identifier (e.g., 'FastAPI JWT middleware', 'useDebounce hook')",
     )
     description: str = Field(
         ...,
         min_length=1,
         max_length=settings.CODE_ARTIFACT_DESCRIPTION_MAX_LENGTH,
-        description="Purpose and use case. What does this code do? When should it be used?"
+        description="Purpose and use case. What does this code do? When should it be used?",
     )
     code: str = Field(
         ...,
         min_length=1,
         max_length=settings.CODE_ARTIFACT_CODE_MAX_LENGTH,
-        description="Complete code snippet or implementation"
+        description="Complete code snippet or implementation",
     )
     language: str = Field(
         ...,
         min_length=1,
         max_length=100,
-        description="Programming language. Use full names not abbreviations (e.g., 'python' not 'py', 'javascript' not 'js', 'typescript' not 'ts'). Will be stored as lowercase."
+        description="Programming language. Use full names not abbreviations (e.g., 'python' not 'py', 'javascript' not 'js', 'typescript' not 'ts'). Will be stored as lowercase.",
     )
     tags: list[str] = Field(
         default_factory=list,
         max_length=settings.CODE_ARTIFACT_TAGS_MAX_COUNT,
-        description="Tags for categorization and discovery (e.g., ['auth', 'fastapi', 'middleware'])"
+        description="Tags for categorization and discovery (e.g., ['auth', 'fastapi', 'middleware'])",
     )
     project_id: int | None = Field(
         default=None,
-        description="Optional project ID for immediate association with a project"
+        description="Optional project ID for immediate association with a project",
     )
 
     @field_validator("title", "description", "code", "language")
@@ -111,34 +110,34 @@ class CodeArtifactUpdate(BaseModel):
         default=None,
         min_length=1,
         max_length=settings.CODE_ARTIFACT_TITLE_MAX_LENGTH,
-        description="New title. Unchanged if null."
+        description="New title. Unchanged if null.",
     )
     description: str | None = Field(
         default=None,
         min_length=1,
         max_length=settings.CODE_ARTIFACT_DESCRIPTION_MAX_LENGTH,
-        description="New description. Unchanged if null."
+        description="New description. Unchanged if null.",
     )
     code: str | None = Field(
         default=None,
         min_length=1,
         max_length=settings.CODE_ARTIFACT_CODE_MAX_LENGTH,
-        description="New code content. Unchanged if null."
+        description="New code content. Unchanged if null.",
     )
     language: str | None = Field(
         default=None,
         min_length=1,
         max_length=100,
-        description="New language. Use full names (e.g., 'python' not 'py'). Unchanged if null."
+        description="New language. Use full names (e.g., 'python' not 'py'). Unchanged if null.",
     )
     tags: list[str] | None = Field(
         default=None,
         max_length=settings.CODE_ARTIFACT_TAGS_MAX_COUNT,
-        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
+        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags.",
     )
     project_id: int | None = Field(
         default=None,
-        description="New project association. Unchanged if null."
+        description="New project association. Unchanged if null.",
     )
 
     @field_validator("title", "description", "code", "language")
@@ -197,19 +196,19 @@ class CodeArtifact(CodeArtifactCreate):
     """
     id: int = Field(
         ...,
-        description="Unique artifact identifier (auto-generated)"
+        description="Unique artifact identifier (auto-generated)",
     )
     project_id: int | None = Field(
         default=None,
-        description="Associated project ID. Null if not linked to a project."
+        description="Associated project ID. Null if not linked to a project.",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the artifact was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the artifact was created (UTC)",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the artifact was last updated (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the artifact was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -226,35 +225,35 @@ class CodeArtifactSummary(BaseModel):
     """
     id: int = Field(
         ...,
-        description="Unique artifact identifier"
+        description="Unique artifact identifier",
     )
     title: str = Field(
         ...,
-        description="Artifact title"
+        description="Artifact title",
     )
     description: str = Field(
         ...,
-        description="Artifact description"
+        description="Artifact description",
     )
     language: str = Field(
         ...,
-        description="Programming language"
+        description="Programming language",
     )
     tags: list[str] = Field(
         ...,
-        description="Tags for categorization"
+        description="Tags for categorization",
     )
     project_id: int | None = Field(
         default=None,
-        description="Associated project ID"
+        description="Associated project ID",
     )
     created_at: datetime = Field(
         ...,
-        description="When the artifact was created (UTC)"
+        description="When the artifact was created (UTC)",
     )
     updated_at: datetime = Field(
         ...,
-        description="When the artifact was last updated (UTC)"
+        description="When the artifact was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)

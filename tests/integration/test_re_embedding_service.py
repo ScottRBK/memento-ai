@@ -1,15 +1,14 @@
-"""
-Integration tests for ReEmbeddingService.
+"""Integration tests for ReEmbeddingService.
 
 Uses mocked embedding adapter and in-memory stubs — no real database required.
 """
-import pytest
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
-from typing import List
 
-from app.services.re_embedding_service import ReEmbeddingService
+import pytest
+
 from app.models.memory_models import Memory
-from datetime import datetime, timezone
+from app.services.re_embedding_service import ReEmbeddingService
 
 
 def _make_memory(memory_id: int, title: str = "Test", content: str = "Content") -> Memory:
@@ -22,8 +21,8 @@ def _make_memory(memory_id: int, title: str = "Test", content: str = "Content") 
         keywords=["test"],
         tags=["test"],
         importance=7,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
 

@@ -1,15 +1,15 @@
+"""REST API endpoints for Plan operations.
 """
-REST API endpoints for Plan operations.
-"""
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 
-from app.models.plan_models import PlanCreate, PlanUpdate, PlanStatus
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import InvalidStateTransitionError, NotFoundError
 from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError, InvalidStateTransitionError
+from app.models.plan_models import PlanCreate, PlanStatus, PlanUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ def register(mcp: FastMCP):
                 )
 
         plans = await mcp.plan_service.list_plans(
-            user_id=user.id, project_id=project_id, status=status
+            user_id=user.id, project_id=project_id, status=status,
         )
         return JSONResponse({
             "plans": [p.model_dump(mode="json") for p in plans],
@@ -97,7 +97,7 @@ def register(mcp: FastMCP):
 
         try:
             plan = await mcp.plan_service.update_plan(
-                user_id=user.id, plan_id=plan_id, plan_data=update_data
+                user_id=user.id, plan_id=plan_id, plan_data=update_data,
             )
         except InvalidStateTransitionError as e:
             return JSONResponse({"error": str(e)}, status_code=422)

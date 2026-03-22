@@ -10,18 +10,17 @@ This migration delegates to database-specific helper modules:
 
 Each helper contains database-specific type implementations.
 """
-from typing import Sequence, Union
 import importlib.util
+from collections.abc import Sequence
 from pathlib import Path
 
 from app.config.settings import settings
 
-
 # revision identifiers, used by Alembic.
-revision: str = '0c7b964dd1e7'
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "0c7b964dd1e7"
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _load_helper_module(module_name: str):

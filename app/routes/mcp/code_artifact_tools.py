@@ -1,20 +1,18 @@
+"""MCP Code Artifact tools - FastMCP tool definitions for code artifact operations
 """
-MCP Code Artifact tools - FastMCP tool definitions for code artifact operations
-"""
-from typing import List
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
 from app.models.code_artifact_models import (
     CodeArtifact,
     CodeArtifactCreate,
-    CodeArtifactUpdate
+    CodeArtifactUpdate,
 )
-from app.middleware.auth import get_user_from_auth
-from app.config.logging_config import logging
-from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 
 logger = logging.getLogger(__name__)
@@ -33,8 +31,7 @@ def register(mcp: FastMCP):
         tags: list[str] = None,
         project_id: int = None,
     ) -> CodeArtifact:
-        """
-        Create code artifact for storing reusable code snippets and patterns.
+        """Create code artifact for storing reusable code snippets and patterns.
 
         WHAT: Stores code implementations, examples, and patterns with metadata.
         Projects and memories can reference these for documentation and knowledge sharing.
@@ -54,7 +51,7 @@ def register(mcp: FastMCP):
         NOT-USE: For inline code examples in memories (use memory content directly),
         temporary snippets, or code that doesn't represent reusable patterns.
 
-        EXAMPLES:
+        Examples:
         create_code_artifact(
             title="FastAPI JWT Middleware",
             description="Async-safe JWT validation for FastMCP tools",
@@ -83,10 +80,9 @@ def register(mcp: FastMCP):
         Returns:
             Complete CodeArtifact with ID, timestamps, and metadata
         """
-
         logger.info("MCP Tool Called -> create_code_artifact", extra={
             "title": title[:50],
-            "language": language
+            "language": language,
         })
 
         user = await get_user_from_auth(ctx)
@@ -98,7 +94,7 @@ def register(mcp: FastMCP):
                 code=code,
                 language=language,
                 tags=tags or [],
-                project_id=project_id
+                project_id=project_id,
             )
         except ValidationError as e:
             raise ToolError(f"Invalid code artifact data: {e}")
@@ -107,22 +103,21 @@ def register(mcp: FastMCP):
             artifact_service = ctx.fastmcp.code_artifact_service
             artifact = await artifact_service.create_code_artifact(
                 user_id=user.id,
-                artifact_data=artifact_data
+                artifact_data=artifact_data,
             )
 
             return artifact
 
         except Exception as e:
             logger.error("Failed to create code artifact", exc_info=True)
-            raise ToolError(f"Failed to create code artifact: {str(e)}")
+            raise ToolError(f"Failed to create code artifact: {e!s}")
 
     @mcp.tool()
     async def get_code_artifact(
         artifact_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> CodeArtifact:
-        """
-        Retrieve code artifact by ID with complete details.
+        """Retrieve code artifact by ID with complete details.
 
         WHEN: You need the full code implementation and metadata for a specific artifact.
         Common after listing artifacts or when a memory references an artifact ID.
@@ -142,9 +137,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if artifact not found or access denied
         """
-
         logger.info("MCP Tool Called -> get_code_artifact", extra={
-            "artifact_id": artifact_id
+            "artifact_id": artifact_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -153,7 +147,7 @@ def register(mcp: FastMCP):
             artifact_service = ctx.fastmcp.code_artifact_service
             artifact = await artifact_service.get_code_artifact(
                 user_id=user.id,
-                artifact_id=artifact_id
+                artifact_id=artifact_id,
             )
 
             return artifact
@@ -162,7 +156,7 @@ def register(mcp: FastMCP):
             raise ToolError(f"Code artifact {artifact_id} not found")
         except Exception as e:
             logger.error("Failed to get code artifact", exc_info=True)
-            raise ToolError(f"Failed to retrieve code artifact: {str(e)}")
+            raise ToolError(f"Failed to retrieve code artifact: {e!s}")
 
     @mcp.tool()
     async def list_code_artifacts(
@@ -171,8 +165,7 @@ def register(mcp: FastMCP):
         language: str = None,
         tags: list[str] = None,
     ) -> dict:
-        """
-        List code artifacts with optional filtering.
+        """List code artifacts with optional filtering.
 
         WHEN: Browsing available code artifacts, searching for specific patterns,
         or discovering artifacts by technology/category.
@@ -185,7 +178,7 @@ def register(mcp: FastMCP):
 
         NOT-USE: When you already have an artifact ID and need full code (use get_code_artifact).
 
-        EXAMPLES:
+        Examples:
         - All Python artifacts: list_code_artifacts(language="python")
         - Auth-related in project: list_code_artifacts(project_id=5, tags=["auth"])
         - SQL queries: list_code_artifacts(language="sql")
@@ -207,11 +200,10 @@ def register(mcp: FastMCP):
                 }
             }
         """
-
         logger.info("MCP Tool Called -> list_code_artifacts", extra={
             "project_id": project_id,
             "language": language,
-            "tags": tags
+            "tags": tags,
         })
 
         user = await get_user_from_auth(ctx)
@@ -222,7 +214,7 @@ def register(mcp: FastMCP):
                 user_id=user.id,
                 project_id=project_id,
                 language=language,
-                tags=tags
+                tags=tags,
             )
 
             return {
@@ -231,13 +223,13 @@ def register(mcp: FastMCP):
                 "filters": {
                     "project_id": project_id,
                     "language": language,
-                    "tags": tags
-                }
+                    "tags": tags,
+                },
             }
 
         except Exception as e:
             logger.error("Failed to list code artifacts", exc_info=True)
-            raise ToolError(f"Failed to list code artifacts: {str(e)}")
+            raise ToolError(f"Failed to list code artifacts: {e!s}")
 
     @mcp.tool()
     async def update_code_artifact(
@@ -250,8 +242,7 @@ def register(mcp: FastMCP):
         tags: list[str] = None,
         project_id: int = None,
     ) -> CodeArtifact:
-        """
-        Update code artifact (PATCH semantics - only provided fields changed).
+        """Update code artifact (PATCH semantics - only provided fields changed).
 
         WHEN: Refining code implementations, correcting errors, updating descriptions,
         changing categorization, or associating with different project.
@@ -263,7 +254,7 @@ def register(mcp: FastMCP):
 
         NOT-USE: Creating new artifacts (use create_code_artifact).
 
-        EXAMPLES:
+        Examples:
         - Fix typo: update_code_artifact(artifact_id=5, description="Corrected description")
         - Update code: update_code_artifact(artifact_id=5, code="new implementation...")
         - Add tags: update_code_artifact(artifact_id=5, tags=["tag1", "tag2", "tag3"])
@@ -284,9 +275,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if artifact not found or update fails
         """
-
         logger.info("MCP Tool Called -> update_code_artifact", extra={
-            "artifact_id": artifact_id
+            "artifact_id": artifact_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -299,7 +289,7 @@ def register(mcp: FastMCP):
                 code=code,
                 language=language,
                 tags=tags,
-                project_id=project_id
+                project_id=project_id,
             )
 
             # Build update model with only provided fields
@@ -312,7 +302,7 @@ def register(mcp: FastMCP):
             artifact = await artifact_service.update_code_artifact(
                 user_id=user.id,
                 artifact_id=artifact_id,
-                artifact_data=update_data
+                artifact_data=update_data,
             )
 
             return artifact
@@ -321,15 +311,14 @@ def register(mcp: FastMCP):
             raise ToolError(f"Code artifact {artifact_id} not found")
         except Exception as e:
             logger.error("Failed to update code artifact", exc_info=True)
-            raise ToolError(f"Failed to update code artifact: {str(e)}")
+            raise ToolError(f"Failed to update code artifact: {e!s}")
 
     @mcp.tool()
     async def delete_code_artifact(
         artifact_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Delete code artifact (cascades memory associations).
+        """Delete code artifact (cascades memory associations).
 
         WHEN: Removing obsolete, incorrect, or no-longer-relevant code artifacts.
 
@@ -348,9 +337,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if artifact not found
         """
-
         logger.info("MCP Tool Called -> delete_code_artifact", extra={
-            "artifact_id": artifact_id
+            "artifact_id": artifact_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -359,7 +347,7 @@ def register(mcp: FastMCP):
             artifact_service = ctx.fastmcp.code_artifact_service
             success = await artifact_service.delete_code_artifact(
                 user_id=user.id,
-                artifact_id=artifact_id
+                artifact_id=artifact_id,
             )
 
             if not success:
@@ -369,4 +357,4 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to delete code artifact", exc_info=True)
-            raise ToolError(f"Failed to delete code artifact: {str(e)}")
+            raise ToolError(f"Failed to delete code artifact: {e!s}")

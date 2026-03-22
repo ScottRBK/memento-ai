@@ -1,20 +1,20 @@
-"""
-REST API endpoints for Activity operations.
+"""REST API endpoints for Activity operations.
 
 Provides read access to the activity log for event-driven architecture (Issue #7).
 Includes SSE streaming endpoint for real-time event updates.
 """
 
-from datetime import datetime
 import json
+import logging
+from datetime import datetime
+
+from fastmcp import FastMCP
+from sse_starlette.sse import EventSourceResponse
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from sse_starlette.sse import EventSourceResponse
-from fastmcp import FastMCP
-import logging
 
 from app.middleware.auth import get_user_from_request
-from app.models.activity_models import EntityType, ActionType, ActorType
+from app.models.activity_models import ActionType, ActorType, EntityType
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +47,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/activity", methods=["GET"])
     async def list_activity(request: Request) -> JSONResponse:
-        """
-        List activity events with filtering and pagination.
+        """List activity events with filtering and pagination.
 
         Query params:
             entity_type: Filter by entity type (memory, project, document, etc.)
@@ -89,14 +88,14 @@ def register(mcp: FastMCP):
         if limit < 1 or limit > 100:
             return JSONResponse(
                 {"error": "limit must be between 1 and 100"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate offset
         if offset < 0:
             return JSONResponse(
                 {"error": "offset must be >= 0"},
-                status_code=400
+                status_code=400,
             )
 
         # Parse entity_id if provided
@@ -107,7 +106,7 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": "entity_id must be an integer"},
-                    status_code=400
+                    status_code=400,
                 )
 
         # Convert and validate action if provided
@@ -119,7 +118,7 @@ def register(mcp: FastMCP):
                 valid = ", ".join(a.value for a in ActionType)
                 return JSONResponse(
                     {"error": f"Invalid action: {action}. Valid values: {valid}"},
-                    status_code=400
+                    status_code=400,
                 )
 
         # Convert and validate entity_type if provided
@@ -131,7 +130,7 @@ def register(mcp: FastMCP):
                 valid = ", ".join(e.value for e in EntityType)
                 return JSONResponse(
                     {"error": f"Invalid entity_type: {entity_type}. Valid values: {valid}"},
-                    status_code=400
+                    status_code=400,
                 )
 
         # Convert and validate actor if provided
@@ -143,7 +142,7 @@ def register(mcp: FastMCP):
                 valid = ", ".join(a.value for a in ActorType)
                 return JSONResponse(
                     {"error": f"Invalid actor: {actor}. Valid values: {valid}"},
-                    status_code=400
+                    status_code=400,
                 )
 
         response = await mcp.activity_service.get_activity(
@@ -162,8 +161,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/activity/{entity_type}/{entity_id}", methods=["GET"])
     async def get_entity_history(request: Request) -> JSONResponse:
-        """
-        Get activity history for a specific entity.
+        """Get activity history for a specific entity.
 
         Path params:
             entity_type: Entity type (memory, project, document, code_artifact, entity)
@@ -200,7 +198,7 @@ def register(mcp: FastMCP):
             valid = ", ".join(e.value for e in valid_for_history)
             return JSONResponse(
                 {"error": f"Invalid entity_type: {entity_type_str}. Valid values: {valid}"},
-                status_code=400
+                status_code=400,
             )
 
         # Parse entity_id
@@ -209,7 +207,7 @@ def register(mcp: FastMCP):
         except ValueError:
             return JSONResponse(
                 {"error": "entity_id must be an integer"},
-                status_code=400
+                status_code=400,
             )
 
         params = request.query_params
@@ -220,7 +218,7 @@ def register(mcp: FastMCP):
         if limit < 1 or limit > 100:
             return JSONResponse(
                 {"error": "limit must be between 1 and 100"},
-                status_code=400
+                status_code=400,
             )
 
         response = await mcp.activity_service.get_entity_history(
@@ -235,8 +233,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/activity/stream", methods=["GET"])
     async def stream_activity(request: Request) -> EventSourceResponse:
-        """
-        Stream activity events via Server-Sent Events (SSE).
+        """Stream activity events via Server-Sent Events (SSE).
 
         Events are filtered to only those belonging to the authenticated user.
         Each event includes a sequence number for gap detection.
@@ -266,7 +263,7 @@ def register(mcp: FastMCP):
         if event_bus is None:
             return JSONResponse(
                 {"error": "Activity streaming not enabled (ACTIVITY_ENABLED=false)"},
-                status_code=503
+                status_code=503,
             )
 
         # Optional query param filters
@@ -282,7 +279,7 @@ def register(mcp: FastMCP):
                 valid = ", ".join(e.value for e in EntityType)
                 return JSONResponse(
                     {"error": f"Invalid entity_type: {entity_type_filter}. Valid values: {valid}"},
-                    status_code=400
+                    status_code=400,
                 )
 
         if action_filter:
@@ -292,7 +289,7 @@ def register(mcp: FastMCP):
                 valid = ", ".join(a.value for a in ActionType)
                 return JSONResponse(
                     {"error": f"Invalid action: {action_filter}. Valid values: {valid}"},
-                    status_code=400
+                    status_code=400,
                 )
 
         logger.info(
@@ -301,7 +298,7 @@ def register(mcp: FastMCP):
                 "user_id": str(user.id),
                 "entity_type_filter": entity_type_filter,
                 "action_filter": action_filter,
-            }
+            },
         )
 
         async def event_generator():

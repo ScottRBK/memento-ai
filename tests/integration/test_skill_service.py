@@ -1,11 +1,11 @@
+"""Integration tests for SkillService with in-memory stubs
 """
-Integration tests for SkillService with in-memory stubs
-"""
-import pytest
 from uuid import uuid4
 
-from app.models.skill_models import SkillCreate, SkillUpdate
+import pytest
+
 from app.exceptions import NotFoundError
+from app.models.skill_models import SkillCreate, SkillUpdate
 
 
 @pytest.mark.asyncio
@@ -139,7 +139,7 @@ async def test_list_skills_filter_by_tags(test_skill_service):
     )
 
     frontend_skills = await test_skill_service.list_skills(
-        user_id, tags=["frontend"]
+        user_id, tags=["frontend"],
     )
 
     assert len(frontend_skills) == 1
@@ -171,7 +171,7 @@ async def test_list_skills_filter_by_importance(test_skill_service):
     )
 
     high_skills = await test_skill_service.list_skills(
-        user_id, importance_threshold=7
+        user_id, importance_threshold=7,
     )
 
     assert len(high_skills) == 1
@@ -196,7 +196,7 @@ async def test_update_skill(test_skill_service):
         importance=9,
     )
     updated = await test_skill_service.update_skill(
-        user_id, created.id, update_data
+        user_id, created.id, update_data,
     )
 
     assert updated.description == "Updated description"
@@ -281,7 +281,7 @@ metadata:
 """
 
     skill = await test_skill_service.import_skill(
-        user_id, skill_md, project_id=1, importance=8
+        user_id, skill_md, project_id=1, importance=8,
     )
 
     assert skill.name == "git-workflow"

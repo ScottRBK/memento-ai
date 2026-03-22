@@ -1,20 +1,24 @@
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, AsyncEngine
-from sqlalchemy import text, event
+import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 from uuid import UUID
+
 import sqlite_vec
+from sqlalchemy import event, text
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.config.settings import settings
-
-import logging
 
 logger = logging.getLogger(__name__)
 
 
 def _sqlite_connection_creator():
-    """
-    Create a SQLite connection with sqlite-vec extension loaded.
+    """Create a SQLite connection with sqlite-vec extension loaded.
     This is used as a creator function for SQLAlchemy's engine.
     """
     import sqlite3
@@ -40,8 +44,7 @@ def _sqlite_connection_creator():
 
 
 class SqliteDatabaseAdapter:
-    """
-    SQLite database adapter for async operations.
+    """SQLite database adapter for async operations.
 
     Key differences from Postgres:
     - No Row-Level Security (RLS) - user isolation via application-level filtering
@@ -51,13 +54,13 @@ class SqliteDatabaseAdapter:
     """
 
     def __init__(self):
-        
+
         if not settings.SQLITE_MEMORY:
             from pathlib import Path
             db_path = Path(settings.SQLITE_PATH)
             db_path.parent.mkdir(parents=True, exist_ok=True)
             logger.info("Validated DB directory exists", extra={
-                "SQL Lite Path": settings.SQLITE_PATH
+                "SQL Lite Path": settings.SQLITE_PATH,
             })
         # Construct connection string
         connection_string = self._construct_connection_string()
@@ -98,13 +101,12 @@ class SqliteDatabaseAdapter:
                     logger.debug("sqlite-vec extension loaded on connection")
 
         self._session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
-            bind=self._engine, expire_on_commit=False, autoflush=False
+            bind=self._engine, expire_on_commit=False, autoflush=False,
         )
 
     @asynccontextmanager
     async def session(self, user_id: UUID) -> AsyncIterator[AsyncSession]:
-        """
-        Create a user-scoped session.
+        """Create a user-scoped session.
 
         Note: Unlike Postgres, SQLite doesn't have RLS.
         User isolation MUST be enforced at the application level
@@ -117,7 +119,7 @@ class SqliteDatabaseAdapter:
             await session.commit()
         except Exception as e:
             logger.exception(
-                msg="Database session initialization failed", extra={"error": str(e)}
+                msg="Database session initialization failed", extra={"error": str(e)},
             )
             await session.rollback()
             raise
@@ -164,7 +166,7 @@ class SqliteDatabaseAdapter:
                     memory_id TEXT PRIMARY KEY,
                     embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
                 )
-            """)
+            """),
             )
 
             await conn.execute(
@@ -173,15 +175,17 @@ class SqliteDatabaseAdapter:
                     skill_id TEXT PRIMARY KEY,
                     embedding FLOAT[{settings.EMBEDDING_DIMENSIONS}]
                 )
-            """)
+            """),
             )
             logger.info("sqlite-vec virtual tables created for vector storage")
 
     def _run_migrations(self, connection) -> None:
         """Run pending Alembic migrations synchronously (called via run_sync)."""
-        from alembic.config import Config
-        from alembic import command
         from pathlib import Path
+
+        from alembic.config import Config
+
+        from alembic import command
 
         # Find alembic.ini relative to package root
         package_root = Path(__file__).parent.parent.parent.parent
@@ -193,11 +197,11 @@ class SqliteDatabaseAdapter:
         # Override database URL in config
         alembic_cfg.set_main_option(
             "sqlalchemy.url",
-            self._construct_connection_string()
+            self._construct_connection_string(),
         )
 
         # Configure to use existing connection
-        alembic_cfg.attributes['connection'] = connection
+        alembic_cfg.attributes["connection"] = connection
 
         try:
             command.upgrade(alembic_cfg, "head")
@@ -215,6 +219,5 @@ class SqliteDatabaseAdapter:
         if settings.SQLITE_MEMORY:
             # In-memory database (for testing)
             return "sqlite+aiosqlite:///:memory:"
-        else:
-            # File-based database
-            return f"sqlite+aiosqlite:///{settings.SQLITE_PATH}"
+        # File-based database
+        return f"sqlite+aiosqlite:///{settings.SQLITE_PATH}"

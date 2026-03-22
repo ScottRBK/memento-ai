@@ -1,22 +1,20 @@
+"""PostgreSQL repository for Code Artifact data access operations
 """
-PostgreSQL repository for Code Artifact data access operations
-"""
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from typing import List
 
 from sqlalchemy import select
 
-from app.repositories.postgres.postgres_tables import CodeArtifactsTable
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
 from app.models.code_artifact_models import (
     CodeArtifact,
     CodeArtifactCreate,
+    CodeArtifactSummary,
     CodeArtifactUpdate,
-    CodeArtifactSummary
 )
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.repositories.postgres.postgres_tables import CodeArtifactsTable
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,7 @@ class PostgresCodeArtifactRepository:
     async def create_code_artifact(
         self,
         user_id: UUID,
-        artifact_data: CodeArtifactCreate
+        artifact_data: CodeArtifactCreate,
     ) -> CodeArtifact:
         """Create new code artifact
 
@@ -57,7 +55,7 @@ class PostgresCodeArtifactRepository:
                     code=artifact_data.code,
                     language=artifact_data.language.lower(),  # Ensure lowercase
                     tags=artifact_data.tags,
-                    project_id=artifact_data.project_id
+                    project_id=artifact_data.project_id,
                 )
 
                 session.add(artifact_table)
@@ -73,15 +71,15 @@ class PostgresCodeArtifactRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_code_artifact_by_id(
         self,
         user_id: UUID,
-        artifact_id: int
+        artifact_id: int,
     ) -> CodeArtifact | None:
         """Get artifact by ID with ownership check
 
@@ -97,7 +95,7 @@ class PostgresCodeArtifactRepository:
                 # Query with ownership check
                 stmt = select(CodeArtifactsTable).where(
                     CodeArtifactsTable.id == artifact_id,
-                    CodeArtifactsTable.user_id == user_id
+                    CodeArtifactsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -115,8 +113,8 @@ class PostgresCodeArtifactRepository:
                 extra={
                     "user_id": str(user_id),
                     "artifact_id": artifact_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -125,7 +123,7 @@ class PostgresCodeArtifactRepository:
         user_id: UUID,
         project_id: int | None = None,
         language: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[CodeArtifactSummary]:
         """List artifacts with optional filtering
 
@@ -142,7 +140,7 @@ class PostgresCodeArtifactRepository:
             async with self.db_adapter.session(user_id) as session:
                 # Build query with filters
                 stmt = select(CodeArtifactsTable).where(
-                    CodeArtifactsTable.user_id == user_id
+                    CodeArtifactsTable.user_id == user_id,
                 )
 
                 if project_id is not None:
@@ -170,8 +168,8 @@ class PostgresCodeArtifactRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -179,7 +177,7 @@ class PostgresCodeArtifactRepository:
         self,
         user_id: UUID,
         artifact_id: int,
-        artifact_data: CodeArtifactUpdate
+        artifact_data: CodeArtifactUpdate,
     ) -> CodeArtifact:
         """Update artifact (PATCH semantics)
 
@@ -201,7 +199,7 @@ class PostgresCodeArtifactRepository:
                 # Fetch existing artifact
                 stmt = select(CodeArtifactsTable).where(
                     CodeArtifactsTable.id == artifact_id,
-                    CodeArtifactsTable.user_id == user_id
+                    CodeArtifactsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -214,14 +212,14 @@ class PostgresCodeArtifactRepository:
                 update_data = artifact_data.model_dump(exclude_unset=True)
 
                 # Ensure language is lowercase if being updated
-                if "language" in update_data and update_data["language"]:
+                if update_data.get("language"):
                     update_data["language"] = update_data["language"].lower()
 
                 for field, value in update_data.items():
                     setattr(artifact_table, field, value)
 
                 # Update timestamp
-                artifact_table.updated_at = datetime.now(timezone.utc)
+                artifact_table.updated_at = datetime.now(UTC)
 
                 await session.commit()
                 await session.refresh(artifact_table)
@@ -237,15 +235,15 @@ class PostgresCodeArtifactRepository:
                 extra={
                     "user_id": str(user_id),
                     "artifact_id": artifact_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def delete_code_artifact(
         self,
         user_id: UUID,
-        artifact_id: int
+        artifact_id: int,
     ) -> bool:
         """Delete artifact (cascade removes associations)
 
@@ -261,7 +259,7 @@ class PostgresCodeArtifactRepository:
                 # Check ownership and get artifact
                 stmt = select(CodeArtifactsTable).where(
                     CodeArtifactsTable.id == artifact_id,
-                    CodeArtifactsTable.user_id == user_id
+                    CodeArtifactsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -282,7 +280,7 @@ class PostgresCodeArtifactRepository:
                 extra={
                     "user_id": str(user_id),
                     "artifact_id": artifact_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise

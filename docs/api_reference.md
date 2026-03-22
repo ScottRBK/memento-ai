@@ -609,6 +609,112 @@ Delete a code artifact.
 
 ---
 
+## Skills
+
+**Requires:** `SKILLS_ENABLED=true`
+
+### GET /api/v1/skills
+
+List all skills.
+
+**Query Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project_id` | int | Filter by project |
+| `tags` | string | Comma-separated tags (OR logic) |
+| `importance_threshold` | int | Minimum importance level |
+
+**Response:**
+```json
+{
+  "skills": [
+    {
+      "id": 1,
+      "name": "code-review",
+      "description": "Systematic code review process",
+      "license": "MIT",
+      "tags": ["development", "review"],
+      "importance": 8,
+      "project_id": null,
+      "created_at": "2024-12-05T10:00:00Z",
+      "updated_at": "2024-12-05T10:00:00Z"
+    }
+  ],
+  "total": 5
+}
+```
+
+### GET /api/v1/skills/search
+
+Semantic search for skills by description similarity.
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | (required) | Search query |
+| `k` | int | 5 | Number of results |
+| `project_id` | int | - | Filter by project |
+
+### GET /api/v1/skills/{id}
+
+Get a single skill by ID (includes full content).
+
+### POST /api/v1/skills
+
+Create a new skill.
+
+**Request Body:**
+```json
+{
+  "name": "code-review",
+  "description": "Systematic code review process",
+  "content": "# Code Review\n\n## Steps\n1. Check for...",
+  "license": "MIT",
+  "compatibility": "Requires Python 3.12+",
+  "allowed_tools": ["Read", "Grep"],
+  "metadata": {"author": "team"},
+  "tags": ["development", "review"],
+  "importance": 8,
+  "project_id": 1
+}
+```
+
+### PUT /api/v1/skills/{id}
+
+Update an existing skill (PATCH semantics).
+
+### DELETE /api/v1/skills/{id}
+
+Delete a skill.
+
+### POST /api/v1/skills/import
+
+Import a skill from Agent Skills markdown format.
+
+**Request Body:**
+```json
+{
+  "skill_md": "---\nname: code-review\ndescription: ...\n---\n\n# Content...",
+  "project_id": 1,
+  "importance": 8
+}
+```
+
+### GET /api/v1/skills/{id}/export
+
+Export a skill to Agent Skills markdown format (SKILL.md).
+
+**Response:**
+```json
+{
+  "skill_md": "---\nname: code-review\ndescription: ...\n---\n\n# Content..."
+}
+```
+
+---
+
 ## Graph
 
 ### GET /api/v1/graph

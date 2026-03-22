@@ -1,5 +1,4 @@
-"""
-Activity service for event-driven architecture.
+"""Activity service for event-driven architecture.
 
 Handles activity event persistence and querying with lazy retention cleanup.
 Subscribes to the event bus to persist all events to the activity log.
@@ -11,11 +10,11 @@ from uuid import UUID
 
 from app.config.settings import settings
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActivityListResponse,
-    EntityType,
-    ActionType,
     ActorType,
+    EntityType,
 )
 from app.protocols.activity_protocol import ActivityRepository
 
@@ -46,8 +45,7 @@ class ActivityService:
         logger.info("Activity service initialised")
 
     async def handle_event(self, event: ActivityEvent) -> None:
-        """
-        Event handler for the event bus.
+        """Event handler for the event bus.
 
         This method is subscribed to "*.*" to persist all events.
         Called asynchronously by the event bus (fire-and-forget).
@@ -57,7 +55,7 @@ class ActivityService:
         """
         if event.user_id is None:
             logger.warning(
-                f"Received event without user_id: {event.entity_type}.{event.action}"
+                f"Received event without user_id: {event.entity_type}.{event.action}",
             )
             return
 
@@ -74,7 +72,7 @@ class ActivityService:
             )
         except Exception:
             logger.exception(
-                f"Failed to persist activity event: {event.entity_type}.{event.action}"
+                f"Failed to persist activity event: {event.entity_type}.{event.action}",
             )
 
     async def get_activity(
@@ -89,8 +87,7 @@ class ActivityService:
         limit: int = 50,
         offset: int = 0,
     ) -> ActivityListResponse:
-        """
-        Query activity events with filtering and pagination.
+        """Query activity events with filtering and pagination.
 
         Performs lazy retention cleanup before querying if ACTIVITY_RETENTION_DAYS
         is configured.
@@ -162,8 +159,7 @@ class ActivityService:
         limit: int = 50,
         offset: int = 0,
     ) -> ActivityListResponse:
-        """
-        Get activity history for a specific entity.
+        """Get activity history for a specific entity.
 
         Convenience method for querying all events for a single entity.
 
@@ -191,8 +187,7 @@ class ActivityService:
         entity_type: EntityType | None = None,
         action: ActionType | None = None,
     ) -> int:
-        """
-        Count activity events matching filters.
+        """Count activity events matching filters.
 
         Args:
             user_id: User ID for ownership filtering
@@ -209,8 +204,7 @@ class ActivityService:
         )
 
     async def _cleanup_if_configured(self, user_id: UUID) -> None:
-        """
-        Perform lazy retention cleanup if configured.
+        """Perform lazy retention cleanup if configured.
 
         Only runs if ACTIVITY_RETENTION_DAYS is set to a positive value.
         This is called on every query to ensure expired events are cleaned up.

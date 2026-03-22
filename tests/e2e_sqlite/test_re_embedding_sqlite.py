@@ -1,19 +1,19 @@
-"""
-E2E tests for re-embedding with real in-memory SQLite and real embedding adapters.
+"""E2E tests for re-embedding with real in-memory SQLite and real embedding adapters.
 
 Tests the full stack: ReEmbeddingService -> SqliteMemoryRepository -> sqlite-vec
 """
-import pytest
+from datetime import UTC
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import text
 
 from app.config.settings import settings
-from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
-from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
-from app.services.re_embedding_service import ReEmbeddingService
 from app.models.memory_models import MemoryCreate
+from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter
+from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
+from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
+from app.services.re_embedding_service import ReEmbeddingService
 
 
 @pytest.fixture(scope="module")
@@ -74,13 +74,13 @@ async def sqlite_repo(embedding_adapter):
 
 async def _create_user(db_adapter, user_id):
     """Create a user row in the database (required for FK constraints)"""
-    from datetime import datetime, timezone
-    now = datetime.now(timezone.utc).isoformat()
+    from datetime import datetime
+    now = datetime.now(UTC).isoformat()
     async with db_adapter.system_session() as session:
         await session.execute(
             text(
                 "INSERT INTO users (id, external_id, name, email, created_at, updated_at) "
-                "VALUES (:id, :external_id, :name, :email, :created_at, :updated_at)"
+                "VALUES (:id, :external_id, :name, :email, :created_at, :updated_at)",
             ),
             {
                 "id": str(user_id),

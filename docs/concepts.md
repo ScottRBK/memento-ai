@@ -1,6 +1,6 @@
 # Core Concepts
 
-Forgetful organizes knowledge into eight building blocks. Understanding when to use each one makes the difference between a cluttered knowledge dump and a useful, searchable knowledge graph.
+Forgetful organizes knowledge into nine building blocks. Understanding when to use each one makes the difference between a cluttered knowledge dump and a useful, searchable knowledge graph.
 
 ---
 
@@ -126,6 +126,21 @@ Attach working code to memories so agents can retrieve not just the concept but 
 - FastAPI dependency injection pattern
 - React form validation hook
 
+### Skills
+
+**Procedural knowledge** - step-by-step instructions and agent capabilities.
+
+Skills bridge the gap between knowledge (memories) and action. While memories capture WHAT you know, skills capture HOW to do things. Each skill follows the [Agent Skills](https://agentskills.io) open standard with a kebab-case name, description, and markdown instructions.
+
+Skills have semantic search via embedded descriptions, making them discoverable by capability rather than exact name. They can be imported/exported as SKILL.md files for portability across 30+ agent platforms (Claude Code, Cursor, Gemini CLI, etc.).
+
+**Examples:**
+- "code-review" - Systematic code review process for pull requests
+- "deploy-staging" - Deploy application to staging environment
+- "data-pipeline-etl" - Extract, transform, and load data from external sources
+
+**Fields:** kebab-case name (max 64), description (max 1024), content (markdown, max 100KB), license, compatibility, allowed_tools, metadata, tags, importance
+
 ### Projects
 
 **Organizational scope** - groups memories by context.
@@ -147,6 +162,7 @@ Projects help you filter queries to relevant knowledge. When working on the e-co
 | Is it a goal that decomposes into steps? | **Plan** |
 | Is it a concrete piece of work to be done? | **Task** |
 | Is it a verifiable condition for "done"? | **Acceptance Criterion** |
+| Is it step-by-step procedural knowledge? | **Skill** |
 | Is it detailed analysis or a guide (>300 words)? | **Document** |
 | Is it a single fact, decision, or preference? | **Memory** |
 | Is it reusable code? | **Code Artifact** |
@@ -185,6 +201,16 @@ Ask: "Am I recording what happened, or describing what should happen?" Past/pres
 
 - "Chose Stripe for lower fees" - Memory (a decision already made)
 - "Migrate payment provider from PayPal to Stripe" - Plan (work to be done)
+
+### Skill vs Memory
+
+**Skill** = how to do something (procedural, reusable steps)
+**Memory** = knowledge about something (declarative fact or decision)
+
+Ask: "Is this a procedure someone would follow, or a fact someone would recall?" Steps to follow = skill. Facts to know = memory.
+
+- "How to review pull requests in this project" - Skill
+- "We use conventional commits for all PRs" - Memory
 
 ### Task vs Memory
 
@@ -282,6 +308,7 @@ You're developing a coding assistant agent. Here's the breakdown:
 | Acceptance Criterion | N/A | Boolean condition | Task |
 | Document | >300 words | Multiple concepts | Memories |
 | Code Artifact | Variable | Working code | Memories |
+| Skill | Variable | Procedural instructions | Memories, Projects |
 | Project | N/A | Scope/context | Memories, Plans |
 
-The knowledge graph emerges from these connections. Memories are the atoms; entities, documents, and projects provide structure and context. Plans, tasks, and acceptance criteria layer *intent* on top of *knowledge*, letting agents coordinate structured work.
+The knowledge graph emerges from these connections. Memories are the atoms; entities, documents, skills, and projects provide structure and context. Plans, tasks, and acceptance criteria layer *intent* on top of *knowledge*, letting agents coordinate structured work.

@@ -1,5 +1,4 @@
-"""
-End-to-end tests for MCP user tools via HTTP
+"""End-to-end tests for MCP user tools via HTTP
 
 Requires:
 - PostgreSQL running in Docker
@@ -19,8 +18,8 @@ async def test_get_current_user_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     # Access attributes from Pydantic UserResponse
@@ -38,8 +37,8 @@ async def test_update_user_notes_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
     assert get_result.data is not None
     user_data = get_result.data
@@ -49,8 +48,8 @@ async def test_update_user_notes_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "update_user_notes",
-            "arguments": {"user_notes": "Test notes from E2E test"}
-        }
+            "arguments": {"user_notes": "Test notes from E2E test"},
+        },
     )
 
     assert update_result.data is not None
@@ -66,8 +65,8 @@ async def test_user_persistence_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
     assert result1.data is not None
     user1 = result1.data
@@ -77,8 +76,8 @@ async def test_user_persistence_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
     assert result2.data is not None
     user2 = result2.data

@@ -1,5 +1,4 @@
-"""
-E2E tests for project MCP tools with real PostgreSQL database
+"""E2E tests for project MCP tools with real PostgreSQL database
 """
 
 import pytest
@@ -85,7 +84,7 @@ async def test_list_projects_e2e(mcp_client):
             },
         )
     list_result = await mcp_client.call_tool(
-        "execute_forgetful_tool", {"tool_name": "list_projects", "arguments": {}}
+        "execute_forgetful_tool", {"tool_name": "list_projects", "arguments": {}},
     )
     assert list_result.data is not None
     assert "projects" in list_result.data
@@ -434,7 +433,7 @@ async def test_list_returns_summary_e2e(mcp_client):
     )
     assert create_result
     list_result = await mcp_client.call_tool(
-        "execute_forgetful_tool", {"tool_name": "list_projects", "arguments": {}}
+        "execute_forgetful_tool", {"tool_name": "list_projects", "arguments": {}},
     )
     projects = list_result.data["projects"]
     our_project = None

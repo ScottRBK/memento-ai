@@ -1,5 +1,4 @@
-"""
-End-to-end tests for scoped permissions via meta-tools.
+"""End-to-end tests for scoped permissions via meta-tools.
 
 Tests that FORGETFUL_SCOPES correctly restricts tool discovery and execution.
 Uses the scoped_mcp_client fixture from conftest.py which parameterizes over
@@ -8,7 +7,6 @@ different scope configurations.
 import pytest
 
 from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
-
 
 # ============================================================================
 # Default wildcard scope - regression (all tools accessible)
@@ -27,7 +25,7 @@ async def test_default_wildcard_execute_read_tool(mcp_client):
     """With default * scope, read tools should work."""
     result = await mcp_client.call_tool(
         "execute_forgetful_tool",
-        {"tool_name": "get_current_user", "arguments": {}}
+        {"tool_name": "get_current_user", "arguments": {}},
     )
     assert result.data is not None
 
@@ -45,9 +43,9 @@ async def test_default_wildcard_execute_write_tool(mcp_client):
                 "context": "E2E scope test",
                 "keywords": ["test"],
                 "tags": ["test"],
-                "importance": 5
-            }
-        }
+                "importance": 5,
+            },
+        },
     )
     assert result.data is not None
 
@@ -85,7 +83,7 @@ async def test_read_only_scope_execute_read_succeeds(mcp_client, sqlite_app):
 
     result = await mcp_client.call_tool(
         "execute_forgetful_tool",
-        {"tool_name": "get_current_user", "arguments": {}}
+        {"tool_name": "get_current_user", "arguments": {}},
     )
     assert result.data is not None
 
@@ -108,9 +106,9 @@ async def test_read_only_scope_execute_write_denied(mcp_client, sqlite_app):
                     "context": "Test",
                     "keywords": ["test"],
                     "tags": ["test"],
-                    "importance": 5
-                }
-            }
+                    "importance": 5,
+                },
+            },
         )
     assert "not permitted" in str(exc_info.value).lower()
 
@@ -125,7 +123,7 @@ async def test_read_only_scope_how_to_use_write_denied(mcp_client, sqlite_app):
     with pytest.raises(Exception) as exc_info:
         await mcp_client.call_tool(
             "how_to_use_forgetful_tool",
-            {"tool_name": "create_memory"}
+            {"tool_name": "create_memory"},
         )
     assert "not permitted" in str(exc_info.value).lower()
 
@@ -172,7 +170,7 @@ async def test_read_memories_scope_execute_memory_read(mcp_client, sqlite_app):
     # Result may be empty list (no memories exist), so we just check no exception
     result = await mcp_client.call_tool(
         "execute_forgetful_tool",
-        {"tool_name": "get_recent_memories", "arguments": {"limit": 5}}
+        {"tool_name": "get_recent_memories", "arguments": {"limit": 5}},
     )
     assert result.is_error is False
 
@@ -187,7 +185,7 @@ async def test_read_memories_scope_execute_user_denied(mcp_client, sqlite_app):
     with pytest.raises(Exception) as exc_info:
         await mcp_client.call_tool(
             "execute_forgetful_tool",
-            {"tool_name": "get_current_user", "arguments": {}}
+            {"tool_name": "get_current_user", "arguments": {}},
         )
     assert "not permitted" in str(exc_info.value).lower()
 
@@ -213,7 +211,7 @@ async def test_mixed_scopes_all_reads_plus_memory_writes(mcp_client, sqlite_app)
 
     # Check that memory category has both reads and writes
     memory_result = await mcp_client.call_tool(
-        "discover_forgetful_tools", {"category": "memory"}
+        "discover_forgetful_tools", {"category": "memory"},
     )
     memory_tools = memory_result.data["tools_by_category"]["memory"]
     memory_names = {t["name"] for t in memory_tools}
@@ -243,9 +241,9 @@ async def test_mixed_scopes_execute_memory_write(mcp_client, sqlite_app):
                 "context": "Scope test",
                 "keywords": ["test"],
                 "tags": ["test"],
-                "importance": 5
-            }
-        }
+                "importance": 5,
+            },
+        },
     )
     assert result.data is not None
 
@@ -265,9 +263,9 @@ async def test_mixed_scopes_non_memory_write_denied(mcp_client, sqlite_app):
                 "arguments": {
                     "name": "Should fail",
                     "description": "Denied",
-                    "project_type": "development"
-                }
-            }
+                    "project_type": "development",
+                },
+            },
         )
     assert "not permitted" in str(exc_info.value).lower()
 
@@ -281,7 +279,7 @@ async def test_discovery_includes_mutates_field(mcp_client):
     """Verify that tool discovery output includes the mutates field."""
     result = await mcp_client.call_tool(
         "discover_forgetful_tools",
-        {"category": "memory"}
+        {"category": "memory"},
     )
     assert result.data is not None
     memory_tools = result.data["tools_by_category"]["memory"]

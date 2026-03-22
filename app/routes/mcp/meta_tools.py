@@ -1,5 +1,4 @@
-"""
-MCP - Meta-Tools
+"""MCP - Meta-Tools
 This module implements the meta-tools pattern as an alternative to bloating the context window of an LLM with all the tools available
 within the MCP service. Instead of loading all tool definitions upfront, we only expose 3 meta-tools.
 
@@ -9,8 +8,9 @@ The three meta-tools:
 3. execute_forgetful_tool: Dynamically invoke any tool with arguments
 """
 
-from typing import Dict, Any, Optional
-from fastmcp import FastMCP, Context
+from typing import Any
+
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
 from app.config.logging_config import logging
@@ -25,11 +25,10 @@ def register(mcp: FastMCP):
 
     @mcp.tool()
     async def discover_forgetful_tools(
-        category: Optional[str] = None,
-        ctx: Context = None
+        category: str | None = None,
+        ctx: Context = None,
     ) -> dict[str, Any]:
-        """
-        Discover available tools, optionally filtered by category
+        """Discover available tools, optionally filtered by category
 
         Returns enough information for LLMs to call tools directly without needing how_to_use.
 
@@ -122,7 +121,7 @@ def register(mcp: FastMCP):
                     valid_categories = [c.value for c in ToolCategory]
                     raise ToolError(
                         f"Invalid category '{category}'. "
-                        f"Available categories: {', '.join(valid_categories)}"
+                        f"Available categories: {', '.join(valid_categories)}",
                     )
             else:
                 tools_metadata = registry.get_permitted_tools(permitted)
@@ -153,15 +152,14 @@ def register(mcp: FastMCP):
             raise
         except Exception as e:
             logger.error(f"discover_forgetful_tools failed: {e}", exc_info=True)
-            raise ToolError(f"Failed to discover tools: {str(e)}")
+            raise ToolError(f"Failed to discover tools: {e!s}")
 
     @mcp.tool()
     async def how_to_use_forgetful_tool(
         tool_name: str,
-        ctx: Context = None
+        ctx: Context = None,
     ) -> dict[str, Any]:
-        """
-        Get detailed documentation for a specific tool
+        """Get detailed documentation for a specific tool
 
         Returns complete documentation including JSON schema, multiple examples, and full parameter details.
 
@@ -182,14 +180,14 @@ def register(mcp: FastMCP):
                 available_tools = [m.name for m in registry.get_permitted_tools(permitted)[:10]]
                 raise ToolError(
                     f"Tool '{tool_name}' not found in registry. "
-                    f"Available tools (first 10): {', '.join(available_tools)}"
+                    f"Available tools (first 10): {', '.join(available_tools)}",
                 )
 
             if not registry.is_permitted(tool_name, permitted):
                 required_scope = get_required_scope(tool_name, registry)
                 raise ToolError(
                     f"Tool '{tool_name}' is not permitted under current scopes. "
-                    f"Required scope: '{required_scope}'"
+                    f"Required scope: '{required_scope}'",
                 )
 
             detailed_info = tool.metadata.to_detailed_dict()
@@ -200,16 +198,15 @@ def register(mcp: FastMCP):
             raise
         except Exception as e:
             logger.error(f"how_to_use_forgetful_tool failed for {tool_name}: {e}", exc_info=True)
-            raise ToolError(f"Failed to get documentation for '{tool_name}': {str(e)}")
+            raise ToolError(f"Failed to get documentation for '{tool_name}': {e!s}")
 
     @mcp.tool()
     async def execute_forgetful_tool(
         tool_name: str,
         arguments: dict[str, Any],
-        ctx: Context
+        ctx: Context,
     ) -> Any:
-        """
-        Execute any registered tool dynamically. Forgetful is a semantic memory system for LLMs.
+        """Execute any registered tool dynamically. Forgetful is a semantic memory system for LLMs.
 
         ## Quick Start - One-Shot Examples (all required params shown)
 
@@ -275,23 +272,23 @@ def register(mcp: FastMCP):
                 available_tools = [m.name for m in registry.get_permitted_tools(permitted)[:10]]
                 raise ToolError(
                     f"Tool '{tool_name}' not found in registry. "
-                    f"Available tools (first 10): {', '.join(available_tools)}"
+                    f"Available tools (first 10): {', '.join(available_tools)}",
                 )
 
             if tool_name not in permitted:
                 required_scope = get_required_scope(tool_name, registry)
                 raise ToolError(
                     f"Tool '{tool_name}' is not permitted under current scopes. "
-                    f"Required scope: '{required_scope}'"
+                    f"Required scope: '{required_scope}'",
                 )
 
             # Inject context into arguments for adapters to extract user
-            arguments['ctx'] = ctx
+            arguments["ctx"] = ctx
 
             # Execute through registry
             result = await registry.execute(
                 name=tool_name,
-                arguments=arguments
+                arguments=arguments,
             )
 
             logger.info(f"execute_forgetful_tool: {tool_name} executed successfully")
@@ -301,4 +298,4 @@ def register(mcp: FastMCP):
             raise
         except Exception as e:
             logger.error(f"execute_forgetful_tool failed for {tool_name}: {e}", exc_info=True)
-            raise ToolError(f"Failed to execute '{tool_name}': {str(e)}")
+            raise ToolError(f"Failed to execute '{tool_name}': {e!s}")

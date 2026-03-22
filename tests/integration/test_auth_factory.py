@@ -1,14 +1,13 @@
-"""
-Integration tests for auth provider factory (app/config/auth.py)
+"""Integration tests for auth provider factory (app/config/auth.py)
 
 Tests the build_auth_provider() factory and its helpers (_required, _scopes)
 that construct FastMCP v3 auth providers from settings.
 """
-import pytest
 from unittest.mock import patch
 
-from app.config.auth import build_auth_provider, _required, _scopes
+import pytest
 
+from app.config.auth import _required, _scopes, build_auth_provider
 
 # ============================================
 # _required() helper tests

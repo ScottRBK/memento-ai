@@ -1,9 +1,9 @@
-from typing import List
-from datetime import datetime, timezone
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from datetime import UTC, datetime
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
+
 
 class MemoryCreate(BaseModel):
     """Request model for creating a memory
@@ -21,86 +21,86 @@ class MemoryCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.MEMORY_TITLE_MAX_LENGTH,
-        description="Concise, scannable title (5-50 words). Examples: 'Python QueueHandler prevents asyncio blocking', 'TTS preference: XTTS-v2'"
+        description="Concise, scannable title (5-50 words). Examples: 'Python QueueHandler prevents asyncio blocking', 'TTS preference: XTTS-v2'",
     )
     content: str = Field(
         ...,
         min_length=1,
         max_length=settings.MEMORY_CONTENT_MAX_LENGTH,
-        description="ONE concept, self-contained (max ~400 words). If >300 words, use create_document and extract atomic memories instead."
+        description="ONE concept, self-contained (max ~400 words). If >300 words, use create_document and extract atomic memories instead.",
     )
     context: str = Field(
         ...,
         max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
-        description="WHY this matters, HOW it relates to other concepts, WHAT implications. Enables intelligent auto-linking and semantic retrieval."
+        description="WHY this matters, HOW it relates to other concepts, WHAT implications. Enables intelligent auto-linking and semantic retrieval.",
     )
     keywords: list[str] = Field(
         ...,
         max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
-        description="Search terms for semantic discovery (e.g., 'python', 'asyncio', 'logging'). Max 10."
+        description="Search terms for semantic discovery (e.g., 'python', 'asyncio', 'logging'). Max 10.",
     )
     tags: list[str] = Field(
         ...,
         max_length=settings.MEMORY_TAGS_MAX_COUNT,
-        description="Categories for grouping memories (e.g., 'pattern', 'decision', 'bug-fix'). Max 10."
+        description="Categories for grouping memories (e.g., 'pattern', 'decision', 'bug-fix'). Max 10.",
     )
     importance: int = Field(
         7,
         ge=1,
         le=10,
-        description="Importance 1-10 (default 7): 9-10=personal facts/foundational patterns, 8-9=critical solutions/decisions, 7-8=useful patterns/preferences, 6-7=milestones/solutions, <6=discourage."
+        description="Importance 1-10 (default 7): 9-10=personal facts/foundational patterns, 8-9=critical solutions/decisions, 7-8=useful patterns/preferences, 6-7=milestones/solutions, <6=discourage.",
     )
     project_ids: list[int] | None = Field(
         default=None,
-        description="Link to project(s) for scoped queries. Enables 'show memories for Project X' filtering."
+        description="Link to project(s) for scoped queries. Enables 'show memories for Project X' filtering.",
     )
     code_artifact_ids: list[int] | None = Field(
         default=None,
-        description="Code artifact IDs to link (create artifacts first). Links implementation examples to this memory."
+        description="Code artifact IDs to link (create artifacts first). Links implementation examples to this memory.",
     )
     document_ids: list[int] | None = Field(
         default=None,
-        description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory."
+        description="Document IDs to link (create documents first). Links detailed analysis/narrative to this atomic memory.",
     )
     file_ids: list[int] | None = Field(
         default=None,
-        description="File IDs to link (create files first). Links binary assets (images, PDFs, etc.) to this memory."
+        description="File IDs to link (create files first). Links binary assets (images, PDFs, etc.) to this memory.",
     )
     skill_ids: list[int] | None = Field(
         default=None,
-        description="Skill IDs to link (create skills first). Links procedural knowledge to this memory."
+        description="Skill IDs to link (create skills first). Links procedural knowledge to this memory.",
     )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
     source_repo: str | None = Field(
         default=None,
         max_length=200,
-        description="Repository/project source (e.g., 'owner/repo')"
+        description="Repository/project source (e.g., 'owner/repo')",
     )
     source_files: list[str] | None = Field(
         default=None,
-        description="Files that informed this memory (JSON list of paths)"
+        description="Files that informed this memory (JSON list of paths)",
     )
     source_url: str | None = Field(
         default=None,
         max_length=2048,
-        description="URL to original source material"
+        description="URL to original source material",
     )
     confidence: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
-        description="Encoding confidence score (0.0-1.0)"
+        description="Encoding confidence score (0.0-1.0)",
     )
     encoding_agent: str | None = Field(
         default=None,
         max_length=100,
-        description="Agent/process that created this memory"
+        description="Agent/process that created this memory",
     )
     encoding_version: str | None = Field(
         default=None,
         max_length=50,
-        description="Version of encoding process/prompt"
+        description="Version of encoding process/prompt",
     )
 
     @field_validator("keywords", "tags")
@@ -131,87 +131,87 @@ class MemoryUpdate(BaseModel):
         None,
         min_length=1,
         max_length=settings.MEMORY_TITLE_MAX_LENGTH,
-        description="New title (5-50 words, scannable). Unchanged if null."
+        description="New title (5-50 words, scannable). Unchanged if null.",
     )
     content: str | None = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_CONTENT_MAX_LENGTH,
-        description="New content (ONE concept, max ~400 words). Unchanged if null."
+        description="New content (ONE concept, max ~400 words). Unchanged if null.",
     )
     context: str | None = Field(
         None,
         min_length=1,
         max_length=settings.MEMORY_CONTEXT_MAX_LENGTH,
-        description="New context (WHY/HOW/WHAT for auto-linking). Unchanged if null."
+        description="New context (WHY/HOW/WHAT for auto-linking). Unchanged if null.",
     )
     keywords: list[str] | None = Field(
         None,
         max_length=settings.MEMORY_KEYWORDS_MAX_COUNT,
-        description="New search terms (max 10). Replaces existing if provided, unchanged if null."
+        description="New search terms (max 10). Replaces existing if provided, unchanged if null.",
     )
     tags: list[str] | None = Field(
         None,
         max_length=settings.MEMORY_TAGS_MAX_COUNT,
-        description="New categories (max 10). Replaces existing if provided, unchanged if null."
+        description="New categories (max 10). Replaces existing if provided, unchanged if null.",
     )
     importance: int | None = Field(
         None,
         ge=1,
         le=10,
-        description="New importance 1-10: 9-10=personal/foundational, 8-9=critical, 7-8=useful, 6-7=milestones, <6=discourage. Unchanged if null."
+        description="New importance 1-10: 9-10=personal/foundational, 8-9=critical, 7-8=useful, 6-7=milestones, <6=discourage. Unchanged if null.",
     )
     project_ids: list[int] | None = Field(
         None,
-        description="New project associations. Replaces existing if provided, unchanged if null."
+        description="New project associations. Replaces existing if provided, unchanged if null.",
     )
     code_artifact_ids: list[int] | None = Field(
         None,
-        description="New code artifact links. Replaces existing if provided, unchanged if null."
+        description="New code artifact links. Replaces existing if provided, unchanged if null.",
     )
     document_ids: list[int] | None = Field(
         None,
-        description="New document links. Replaces existing if provided, unchanged if null."
+        description="New document links. Replaces existing if provided, unchanged if null.",
     )
     file_ids: list[int] | None = Field(
         None,
-        description="New file links. Replaces existing if provided, unchanged if null."
+        description="New file links. Replaces existing if provided, unchanged if null.",
     )
     skill_ids: list[int] |None = Field(
-        None, 
-        description="New skill IDs to link (create sklls first) to this memory"
+        None,
+        description="New skill IDs to link (create sklls first) to this memory",
     )
 
     # Provenance tracking fields (optional) - for tracing AI-generated content
     source_repo: str | None = Field(
         None,
         max_length=200,
-        description="New repository/project source. Unchanged if null."
+        description="New repository/project source. Unchanged if null.",
     )
     source_files: list[str] | None = Field(
         None,
-        description="New source files list. Replaces existing if provided, unchanged if null."
+        description="New source files list. Replaces existing if provided, unchanged if null.",
     )
     source_url: str | None = Field(
         None,
         max_length=2048,
-        description="New URL to source material. Unchanged if null."
+        description="New URL to source material. Unchanged if null.",
     )
     confidence: float | None = Field(
         None,
         ge=0.0,
         le=1.0,
-        description="New encoding confidence score (0.0-1.0). Unchanged if null."
+        description="New encoding confidence score (0.0-1.0). Unchanged if null.",
     )
     encoding_agent: str | None = Field(
         None,
         max_length=100,
-        description="New agent/process identifier. Unchanged if null."
+        description="New agent/process identifier. Unchanged if null.",
     )
     encoding_version: str | None = Field(
         None,
         max_length=50,
-        description="New encoding process version. Unchanged if null."
+        description="New encoding process version. Unchanged if null.",
     )
 
     @field_validator("keywords", "tags")
@@ -241,8 +241,8 @@ class MemoryUpdate(BaseModel):
 
 class Memory(MemoryCreate):
     id: int
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC), frozen=True)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
     project_ids: list[int] = Field(default_factory=list)
     linked_memory_ids: list[int] = Field(default_factory=list)
     code_artifact_ids: list[int] = Field(default_factory=list, description="Linked code artifact IDs")
@@ -282,7 +282,7 @@ class MemoryCreateResponse(BaseModel):
     skill_ids: list[int] = Field(default_factory=list)
     similar_memories: list[MemorySummary] = Field(
         default_factory=list,
-        description="Summaries of similar memories that were auto-linked for review"
+        description="Summaries of similar memories that were auto-linked for review",
     )
 
 
@@ -292,65 +292,65 @@ class MemoryListResponse(BaseModel):
     total: int = Field(..., description="Total count of memories matching filters")
     limit: int = Field(..., description="Maximum results per page")
     offset: int = Field(..., description="Number of results skipped")
-    
+
 class MemoryQueryRequest(BaseModel):
     """Request model for querying memories"""
     query: str = Field(
         ...,
         min_length=1,
-        description="Natural language query for semantic search (e.g., 'Python logging best practices')"
+        description="Natural language query for semantic search (e.g., 'Python logging best practices')",
     )
     query_context: str = Field(
         ...,
         min_length=1,
-        description="Contextual reasoning behind why you are searching for this information"
+        description="Contextual reasoning behind why you are searching for this information",
     )
     k: int = Field(
         3,
         ge=1,
         le=20,
-        description="Number of top semantic matches to return (primary results)"
+        description="Number of top semantic matches to return (primary results)",
     )
     include_links: int = Field(
         1,
         ge=0,
         le=5,
-        description="Graph traversal depth (0=no links, 1=direct neighbors, 2+=exponential context bloat). Recommended: 0-1."
+        description="Graph traversal depth (0=no links, 1=direct neighbors, 2+=exponential context bloat). Recommended: 0-1.",
     )
     token_context_threshold: int = Field(
         8000,
         ge=4000,
         le=25000,
-        description="Max tokens before truncating results (8K default fits most LLM contexts)"
+        description="Max tokens before truncating results (8K default fits most LLM contexts)",
     )
     max_links_per_primary: int = Field(
         5,
         ge=0,
         le=10,
-        description="Max linked memories per primary result (controls context expansion)"
+        description="Max linked memories per primary result (controls context expansion)",
     )
     importance_threshold: int | None = Field(
         None,
         ge=1,
         le=10,
-        description="Filter out memories below this importance (e.g., 7=only important memories)"
+        description="Filter out memories below this importance (e.g., 7=only important memories)",
     )
     project_ids: list[int] | None = Field(
         None,
-        description="Filter results to specific projects (scoped search within project context)"
+        description="Filter results to specific projects (scoped search within project context)",
     )
     strict_project_filter: bool = Field(
         False,
-        description="Opt out flag to exlcude memories from being retrieved from outside of the project"
+        description="Opt out flag to exlcude memories from being retrieved from outside of the project",
     )
-    
+
 class LinkedMemory(BaseModel):
     """Memory with linked context"""
     memory: Memory
     link_source_id: int = Field(..., description="ID of memory this is linked from")
-    
+
     model_config = ConfigDict(from_attributes=True)
-    
+
 class MemoryQueryResult(BaseModel):
     """Response Model for memory query"""
     query: str
@@ -359,12 +359,12 @@ class MemoryQueryResult(BaseModel):
     total_count: int
     token_count: int
     truncated: bool = Field(False, description="Whether the results were truncated due to token budget")
-    
+
 class MemoryLinkRequest(BaseModel):
     """Request model for linking memories"""
     memory_id: int = Field(..., description="Source memory ID")
     related_ids: list[int] = Field(..., min_length=1, description="Target memory IDs to link")
-    
+
     @field_validator("related_ids")
     @classmethod
     def validate_related_ids(cls, v, info):
@@ -373,6 +373,5 @@ class MemoryLinkRequest(BaseModel):
             raise ValueError("Cannot link memory to itself")
         return v
 
-        
-        
-    
+
+

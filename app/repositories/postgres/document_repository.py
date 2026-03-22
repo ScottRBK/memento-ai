@@ -1,22 +1,20 @@
+"""PostgreSQL repository for Document data access operations
 """
-PostgreSQL repository for Document data access operations
-"""
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from typing import List
 
 from sqlalchemy import select
 
-from app.repositories.postgres.postgres_tables import DocumentsTable
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
 from app.models.document_models import (
     Document,
     DocumentCreate,
+    DocumentSummary,
     DocumentUpdate,
-    DocumentSummary
 )
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
+from app.repositories.postgres.postgres_tables import DocumentsTable
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,7 @@ class PostgresDocumentRepository:
     async def create_document(
         self,
         user_id: UUID,
-        document_data: DocumentCreate
+        document_data: DocumentCreate,
     ) -> Document:
         """Create new document
 
@@ -52,7 +50,7 @@ class PostgresDocumentRepository:
                 # Calculate size_bytes from content if not provided
                 size_bytes = document_data.size_bytes
                 if size_bytes is None:
-                    size_bytes = len(document_data.content.encode('utf-8'))
+                    size_bytes = len(document_data.content.encode("utf-8"))
 
                 # Create ORM model from Pydantic
                 document_table = DocumentsTable(
@@ -64,7 +62,7 @@ class PostgresDocumentRepository:
                     filename=document_data.filename,
                     size_bytes=size_bytes,
                     tags=document_data.tags,
-                    project_id=document_data.project_id
+                    project_id=document_data.project_id,
                 )
 
                 session.add(document_table)
@@ -80,15 +78,15 @@ class PostgresDocumentRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_document_by_id(
         self,
         user_id: UUID,
-        document_id: int
+        document_id: int,
     ) -> Document | None:
         """Get document by ID with ownership check
 
@@ -104,7 +102,7 @@ class PostgresDocumentRepository:
                 # Query with ownership check
                 stmt = select(DocumentsTable).where(
                     DocumentsTable.id == document_id,
-                    DocumentsTable.user_id == user_id
+                    DocumentsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -122,8 +120,8 @@ class PostgresDocumentRepository:
                 extra={
                     "user_id": str(user_id),
                     "document_id": document_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -132,7 +130,7 @@ class PostgresDocumentRepository:
         user_id: UUID,
         project_id: int | None = None,
         document_type: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[DocumentSummary]:
         """List documents with optional filtering
 
@@ -149,7 +147,7 @@ class PostgresDocumentRepository:
             async with self.db_adapter.session(user_id) as session:
                 # Build query with filters
                 stmt = select(DocumentsTable).where(
-                    DocumentsTable.user_id == user_id
+                    DocumentsTable.user_id == user_id,
                 )
 
                 if project_id is not None:
@@ -176,8 +174,8 @@ class PostgresDocumentRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -185,7 +183,7 @@ class PostgresDocumentRepository:
         self,
         user_id: UUID,
         document_id: int,
-        document_data: DocumentUpdate
+        document_data: DocumentUpdate,
     ) -> Document:
         """Update document (PATCH semantics)
 
@@ -207,7 +205,7 @@ class PostgresDocumentRepository:
                 # Fetch existing document
                 stmt = select(DocumentsTable).where(
                     DocumentsTable.id == document_id,
-                    DocumentsTable.user_id == user_id
+                    DocumentsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -220,14 +218,14 @@ class PostgresDocumentRepository:
                 update_data = document_data.model_dump(exclude_unset=True)
 
                 # Recalculate size_bytes if content is being updated
-                if "content" in update_data and update_data["content"]:
-                    update_data["size_bytes"] = len(update_data["content"].encode('utf-8'))
+                if update_data.get("content"):
+                    update_data["size_bytes"] = len(update_data["content"].encode("utf-8"))
 
                 for field, value in update_data.items():
                     setattr(document_table, field, value)
 
                 # Update timestamp
-                document_table.updated_at = datetime.now(timezone.utc)
+                document_table.updated_at = datetime.now(UTC)
 
                 await session.commit()
                 await session.refresh(document_table)
@@ -243,15 +241,15 @@ class PostgresDocumentRepository:
                 extra={
                     "user_id": str(user_id),
                     "document_id": document_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def delete_document(
         self,
         user_id: UUID,
-        document_id: int
+        document_id: int,
     ) -> bool:
         """Delete document (cascade removes associations)
 
@@ -267,7 +265,7 @@ class PostgresDocumentRepository:
                 # Check ownership and get document
                 stmt = select(DocumentsTable).where(
                     DocumentsTable.id == document_id,
-                    DocumentsTable.user_id == user_id
+                    DocumentsTable.user_id == user_id,
                 )
 
                 result = await session.execute(stmt)
@@ -288,7 +286,7 @@ class PostgresDocumentRepository:
                 extra={
                     "user_id": str(user_id),
                     "document_id": document_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise

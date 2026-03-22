@@ -1,22 +1,22 @@
-"""
-REST API endpoints for Project operations.
+"""REST API endpoints for Project operations.
 
 Phase 3a of the Web UI foundation (Issue #3).
 Provides CRUD operations for projects.
 """
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 from app.models.project_models import (
     ProjectCreate,
-    ProjectUpdate,
     ProjectStatus,
+    ProjectUpdate,
 )
-from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +26,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/projects", methods=["GET"])
     async def list_projects(request: Request) -> JSONResponse:
-        """
-        List projects with optional filtering.
+        """List projects with optional filtering.
 
         Query params:
             status: Filter by status (active, archived, completed)
@@ -50,18 +49,18 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid status: {status_str}. Valid values: active, archived, completed"},
-                    status_code=400
+                    status_code=400,
                 )
 
         projects = await mcp.project_service.list_projects(
             user_id=user.id,
             status=status,
-            repo_name=repo_name
+            repo_name=repo_name,
         )
 
         return JSONResponse({
             "projects": [p.model_dump(mode="json") for p in projects],
-            "total": len(projects)
+            "total": len(projects),
         })
 
     @mcp.custom_route("/api/v1/projects/{project_id}", methods=["GET"])
@@ -76,7 +75,7 @@ def register(mcp: FastMCP):
 
         project = await mcp.project_service.get_project(
             user_id=user.id,
-            project_id=project_id
+            project_id=project_id,
         )
 
         if not project:
@@ -100,7 +99,7 @@ def register(mcp: FastMCP):
 
         project = await mcp.project_service.create_project(
             user_id=user.id,
-            project_data=project_data
+            project_data=project_data,
         )
 
         return JSONResponse(project.model_dump(mode="json"), status_code=201)
@@ -125,7 +124,7 @@ def register(mcp: FastMCP):
             project = await mcp.project_service.update_project(
                 user_id=user.id,
                 project_id=project_id,
-                project_data=update_data
+                project_data=update_data,
             )
         except NotFoundError:
             return JSONResponse({"error": "Project not found"}, status_code=404)
@@ -148,7 +147,7 @@ def register(mcp: FastMCP):
         try:
             success = await mcp.project_service.delete_project(
                 user_id=user.id,
-                project_id=project_id
+                project_id=project_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Project not found"}, status_code=404)

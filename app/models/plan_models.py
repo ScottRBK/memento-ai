@@ -1,5 +1,4 @@
-"""
-Models for Plans, Tasks, Acceptance Criteria, and Task Dependencies.
+"""Models for Plans, Tasks, Acceptance Criteria, and Task Dependencies.
 
 These are tightly coupled aggregates forming the hierarchy:
     Project ← Plan ← Task ← Criterion
@@ -12,7 +11,6 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
-
 
 # ============================================================================
 # Enums

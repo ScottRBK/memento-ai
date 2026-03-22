@@ -1,22 +1,21 @@
+"""Authentication Middleware helpers for integrating with FastMCP and FastAPI
 """
-Authentication Middleware helpers for integrating with FastMCP and FastAPI
-"""
-import json
 import hashlib
+import json
+import logging
 import time
 from asyncio import Lock
 from collections import OrderedDict
 from dataclasses import dataclass
 
 from fastmcp import Context, FastMCP
-from fastmcp.server.dependencies import get_access_token, AccessToken
+from fastmcp.server.dependencies import AccessToken, get_access_token
 from starlette.requests import Request
 
-from app.services.user_service import UserService
-from app.models.user_models import User, UserCreate
 from app.config.settings import settings
+from app.models.user_models import User, UserCreate
+from app.services.user_service import UserService
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -28,8 +27,7 @@ class CacheEntry:
 
 
 class TokenCache:
-    """
-    LRU cache for validated OAuth tokens with TTL expiration.
+    """LRU cache for validated OAuth tokens with TTL expiration.
 
     Security considerations:
     - Stores SHA-256 hash of tokens, never raw tokens
@@ -101,13 +99,12 @@ class TokenCache:
             "hits": self._hits,
             "misses": self._misses,
             "size": len(self._cache),
-            "hit_rate": self._hits / total if total > 0 else 0
+            "hit_rate": self._hits / total if total > 0 else 0,
         }
 
 
 async def get_user_from_auth(ctx: Context) -> User:
-    """
-    Provides user context for MCP and API interaction.
+    """Provides user context for MCP and API interaction.
 
     Detects auth mode via ctx.fastmcp.auth (the auth provider passed to FastMCP)
     and provisions users accordingly:
@@ -127,7 +124,7 @@ async def get_user_from_auth(ctx: Context) -> User:
         default_user = UserCreate(
             external_id=settings.DEFAULT_USER_ID,
             name=settings.DEFAULT_USER_NAME,
-            email=settings.DEFAULT_USER_EMAIL
+            email=settings.DEFAULT_USER_EMAIL,
         )
         return await user_service.get_or_create_user(user=default_user)
 
@@ -152,14 +149,13 @@ async def get_user_from_auth(ctx: Context) -> User:
     user = UserCreate(
         external_id=sub,
         name=name,
-        email=email
+        email=email,
     )
     return await user_service.get_or_create_user(user=user)
 
 
 async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
-    """
-    Get user for HTTP routes (non-MCP endpoints).
+    """Get user for HTTP routes (non-MCP endpoints).
 
     This is the HTTP equivalent of get_user_from_auth() for MCP tools.
     Used by REST API endpoints that receive Starlette Request instead of FastMCP Context.
@@ -189,7 +185,7 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
         default_user = UserCreate(
             external_id=settings.DEFAULT_USER_ID,
             name=settings.DEFAULT_USER_NAME,
-            email=settings.DEFAULT_USER_EMAIL
+            email=settings.DEFAULT_USER_EMAIL,
         )
         return await user_service.get_or_create_user(user=default_user)
 
@@ -202,7 +198,7 @@ async def get_user_from_request(request: Request, mcp: FastMCP) -> User:
     token = auth_header[7:]  # Strip "Bearer " prefix (length is same regardless of case)
 
     # Check cache first (if enabled and cache exists)
-    cache: TokenCache | None = getattr(mcp, 'token_cache', None)
+    cache: TokenCache | None = getattr(mcp, "token_cache", None)
     if cache and settings.TOKEN_CACHE_ENABLED:
         cached_user = await cache.get(token)
         if cached_user:

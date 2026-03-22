@@ -1,5 +1,4 @@
-"""
-End-to-end test for health with SQLite backend
+"""End-to-end test for health with SQLite backend
 
 Validates that the FastMCP app initializes correctly with SQLite.
 """
@@ -15,8 +14,8 @@ async def test_health_endpoint_accessible(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     # If we get here without errors, the app is healthy

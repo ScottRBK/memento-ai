@@ -1,17 +1,16 @@
-"""
-Protocol (interface) for Code Artifact Repository
+"""Protocol (interface) for Code Artifact Repository
 
 Defines the contract for code artifact data access operations.
 Concrete implementations must provide all methods defined here.
 """
-from typing import Protocol, List
+from typing import Protocol
 from uuid import UUID
 
 from app.models.code_artifact_models import (
     CodeArtifact,
     CodeArtifactCreate,
+    CodeArtifactSummary,
     CodeArtifactUpdate,
-    CodeArtifactSummary
 )
 
 
@@ -25,7 +24,7 @@ class CodeArtifactRepository(Protocol):
     async def create_code_artifact(
         self,
         user_id: UUID,
-        artifact_data: CodeArtifactCreate
+        artifact_data: CodeArtifactCreate,
     ) -> CodeArtifact:
         """Create a new code artifact
 
@@ -44,7 +43,7 @@ class CodeArtifactRepository(Protocol):
     async def get_code_artifact_by_id(
         self,
         user_id: UUID,
-        artifact_id: int
+        artifact_id: int,
     ) -> CodeArtifact | None:
         """Get a single code artifact by ID
 
@@ -62,7 +61,7 @@ class CodeArtifactRepository(Protocol):
         user_id: UUID,
         project_id: int | None = None,
         language: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[CodeArtifactSummary]:
         """List code artifacts with optional filtering
 
@@ -82,7 +81,7 @@ class CodeArtifactRepository(Protocol):
         self,
         user_id: UUID,
         artifact_id: int,
-        artifact_data: CodeArtifactUpdate
+        artifact_data: CodeArtifactUpdate,
     ) -> CodeArtifact:
         """Update an existing code artifact (PATCH semantics)
 
@@ -105,7 +104,7 @@ class CodeArtifactRepository(Protocol):
     async def delete_code_artifact(
         self,
         user_id: UUID,
-        artifact_id: int
+        artifact_id: int,
     ) -> bool:
         """Delete a code artifact
 

@@ -1,34 +1,36 @@
-"""
-E2E tests for REST API authentication.
+"""E2E tests for REST API authentication.
 
 Tests that auth-enabled endpoints return proper 401 responses.
 Uses StaticTokenVerifier for realistic auth testing.
 """
-import pytest
 from contextlib import asynccontextmanager
+
+import pytest
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
+from app.repositories.sqlite.code_artifact_repository import (
+    SqliteCodeArtifactRepository,
+)
+from app.repositories.sqlite.document_repository import SqliteDocumentRepository
+from app.repositories.sqlite.entity_repository import SqliteEntityRepository
+from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
+from app.repositories.sqlite.project_repository import SqliteProjectRepository
 
 # Import from parent conftest setup
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
 from app.repositories.sqlite.user_repository import SqliteUserRepository
-from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
-from app.repositories.sqlite.project_repository import SqliteProjectRepository
-from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
-from app.repositories.sqlite.document_repository import SqliteDocumentRepository
-from app.repositories.sqlite.entity_repository import SqliteEntityRepository
-from app.services.user_service import UserService
-from app.services.memory_service import MemoryService
-from app.services.project_service import ProjectService
+from app.routes.api import auth, health, memories
+from app.routes.mcp import meta_tools
+from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
+from app.routes.mcp.tool_registry import ToolRegistry
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
-from app.routes.mcp import meta_tools
-from app.routes.mcp.tool_registry import ToolRegistry
-from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.api import health, auth, memories
-
+from app.services.memory_service import MemoryService
+from app.services.project_service import ProjectService
+from app.services.user_service import UserService
 
 # Test tokens for StaticTokenVerifier
 # Note: StaticTokenVerifier requires 'client_id' in each token
@@ -37,20 +39,19 @@ TEST_TOKENS = {
         "client_id": "test-client",
         "sub": "test-user-123",
         "name": "Test User",
-        "email": "test@example.com"
+        "email": "test@example.com",
     },
     "minimal-token": {
         "client_id": "test-client",
-        "sub": "minimal-user-456"
+        "sub": "minimal-user-456",
         # Only required claims (client_id + sub)
-    }
+    },
 }
 
 
 @pytest.fixture
 async def sqlite_app_with_auth(embedding_adapter):
-    """
-    Create FastMCP app with StaticTokenVerifier auth enabled.
+    """Create FastMCP app with StaticTokenVerifier auth enabled.
 
     This allows testing auth-enabled endpoints with controlled test tokens.
     """
@@ -143,8 +144,7 @@ async def sqlite_app_with_auth(embedding_adapter):
 
 @pytest.fixture
 async def auth_http_client(sqlite_app_with_auth):
-    """
-    HTTP client for testing auth-enabled REST API routes.
+    """HTTP client for testing auth-enabled REST API routes.
     """
     from fastmcp import Client
 
@@ -178,7 +178,7 @@ class TestAuthEnabled:
         """Request with invalid token returns 401."""
         response = await auth_http_client.get(
             "/api/v1/memories",
-            headers={"Authorization": "Bearer invalid-token-xyz"}
+            headers={"Authorization": "Bearer invalid-token-xyz"},
         )
 
         assert response.status_code == 401
@@ -189,7 +189,7 @@ class TestAuthEnabled:
         """Request with valid token succeeds."""
         response = await auth_http_client.get(
             "/api/v1/memories",
-            headers={"Authorization": "Bearer valid-token"}
+            headers={"Authorization": "Bearer valid-token"},
         )
 
         assert response.status_code == 200
@@ -206,12 +206,12 @@ class TestAuthEnabled:
             "context": "Testing auth flow",
             "keywords": ["auth", "test"],
             "tags": ["e2e"],
-            "importance": 7
+            "importance": 7,
         }
         response = await auth_http_client.post(
             "/api/v1/memories",
             json=payload,
-            headers={"Authorization": "Bearer valid-token"}
+            headers={"Authorization": "Bearer valid-token"},
         )
 
         assert response.status_code == 201
@@ -224,7 +224,7 @@ class TestAuthEnabled:
         """Token with only 'sub' claim works (uses fallbacks)."""
         response = await auth_http_client.get(
             "/api/v1/memories",
-            headers={"Authorization": "Bearer minimal-token"}
+            headers={"Authorization": "Bearer minimal-token"},
         )
 
         assert response.status_code == 200
@@ -234,7 +234,7 @@ class TestAuthEnabled:
         """Authorization header without 'Bearer ' prefix returns 401."""
         response = await auth_http_client.get(
             "/api/v1/memories",
-            headers={"Authorization": "Basic abc123"}
+            headers={"Authorization": "Basic abc123"},
         )
 
         assert response.status_code == 401

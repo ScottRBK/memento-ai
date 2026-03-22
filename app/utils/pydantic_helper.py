@@ -2,8 +2,7 @@ from pydantic import BaseModel
 
 
 def get_changed_fields(input_model: BaseModel, existing_model: BaseModel) -> dict[str, tuple]:
-    """
-    Compares two pydantic models and returns a list of fields the old and new values of the fields that are different.
+    """Compares two pydantic models and returns a list of fields the old and new values of the fields that are different.
 
     Args:
         input_model: BaseModel of the new incoming model
@@ -12,10 +11,9 @@ def get_changed_fields(input_model: BaseModel, existing_model: BaseModel) -> dic
     Returns:
         dict[str, tuple]
     """
-    
     input_data = input_model.model_dump(exclude_unset=True)
     existing_data = existing_model.model_dump()
-    
+
     changes = {}
 
     for field_name, new_value in input_data.items():
@@ -23,12 +21,11 @@ def get_changed_fields(input_model: BaseModel, existing_model: BaseModel) -> dic
             old_value = existing_data[field_name]
             if old_value != new_value:
                 changes[field_name] = (old_value, new_value)
-    
+
     return changes
 
 def filter_none_values(**kwargs):
-    """
-    Filters out None values from keyword arguments for PATCH operations.
+    """Filters out None values from keyword arguments for PATCH operations.
 
     This helper enables proper PATCH semantics by ensuring only explicitly
     set (non-None) values are included in update operations, preventing

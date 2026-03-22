@@ -1,23 +1,16 @@
-"""
-SQLite repository for File data access operations
+"""SQLite repository for File data access operations
 """
 import base64
+from datetime import UTC, datetime
 from uuid import UUID
-from datetime import datetime, timezone
-from typing import List
 
-from sqlalchemy import select, or_, func
+from sqlalchemy import func, or_, select
 
-from app.repositories.sqlite.sqlite_tables import FilesTable
-from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
-from app.models.file_models import (
-    File,
-    FileCreate,
-    FileUpdate,
-    FileSummary
-)
-from app.exceptions import NotFoundError
 from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.models.file_models import File, FileCreate, FileSummary, FileUpdate
+from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
+from app.repositories.sqlite.sqlite_tables import FilesTable
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +30,7 @@ class SqliteFileRepository:
     async def create_file(
         self,
         user_id: UUID,
-        file_data: FileCreate
+        file_data: FileCreate,
     ) -> File:
         """Create new file
 
@@ -62,7 +55,7 @@ class SqliteFileRepository:
                     mime_type=file_data.mime_type,
                     size_bytes=size_bytes,
                     tags=file_data.tags,
-                    project_id=file_data.project_id
+                    project_id=file_data.project_id,
                 )
 
                 session.add(file_table)
@@ -77,15 +70,15 @@ class SqliteFileRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def get_file_by_id(
         self,
         user_id: UUID,
-        file_id: int
+        file_id: int,
     ) -> File | None:
         """Get file by ID with ownership check (includes base64 data)
 
@@ -100,7 +93,7 @@ class SqliteFileRepository:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(FilesTable).where(
                     FilesTable.id == file_id,
-                    FilesTable.user_id == str(user_id)
+                    FilesTable.user_id == str(user_id),
                 )
 
                 result = await session.execute(stmt)
@@ -118,8 +111,8 @@ class SqliteFileRepository:
                 extra={
                     "user_id": str(user_id),
                     "file_id": file_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -128,7 +121,7 @@ class SqliteFileRepository:
         user_id: UUID,
         project_id: int | None = None,
         mime_type: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[FileSummary]:
         """List files with optional filtering (excludes binary data)
 
@@ -144,7 +137,7 @@ class SqliteFileRepository:
         try:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(FilesTable).where(
-                    FilesTable.user_id == str(user_id)
+                    FilesTable.user_id == str(user_id),
                 )
 
                 if project_id is not None:
@@ -156,7 +149,7 @@ class SqliteFileRepository:
                 if tags:
                     # SQLite JSON array search - finds files with ANY of the provided tags
                     tag_conditions = [
-                        func.json_extract(FilesTable.tags, '$').like(f'%"{tag}"%')
+                        func.json_extract(FilesTable.tags, "$").like(f'%"{tag}"%')
                         for tag in tags
                     ]
                     stmt = stmt.where(or_(*tag_conditions))
@@ -174,8 +167,8 @@ class SqliteFileRepository:
                 exc_info=True,
                 extra={
                     "user_id": str(user_id),
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
@@ -183,7 +176,7 @@ class SqliteFileRepository:
         self,
         user_id: UUID,
         file_id: int,
-        file_data: FileUpdate
+        file_data: FileUpdate,
     ) -> File:
         """Update file (PATCH semantics)
 
@@ -202,7 +195,7 @@ class SqliteFileRepository:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(FilesTable).where(
                     FilesTable.id == file_id,
-                    FilesTable.user_id == str(user_id)
+                    FilesTable.user_id == str(user_id),
                 )
 
                 result = await session.execute(stmt)
@@ -223,7 +216,7 @@ class SqliteFileRepository:
                 for field, value in update_data.items():
                     setattr(file_table, field, value)
 
-                file_table.updated_at = datetime.now(timezone.utc)
+                file_table.updated_at = datetime.now(UTC)
 
                 await session.commit()
                 await session.refresh(file_table)
@@ -239,15 +232,15 @@ class SqliteFileRepository:
                 extra={
                     "user_id": str(user_id),
                     "file_id": file_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 
     async def delete_file(
         self,
         user_id: UUID,
-        file_id: int
+        file_id: int,
     ) -> bool:
         """Delete file (cascade removes associations)
 
@@ -262,7 +255,7 @@ class SqliteFileRepository:
             async with self.db_adapter.session(user_id) as session:
                 stmt = select(FilesTable).where(
                     FilesTable.id == file_id,
-                    FilesTable.user_id == str(user_id)
+                    FilesTable.user_id == str(user_id),
                 )
 
                 result = await session.execute(stmt)
@@ -283,8 +276,8 @@ class SqliteFileRepository:
                 extra={
                     "user_id": str(user_id),
                     "file_id": file_id,
-                    "error": str(e)
-                }
+                    "error": str(e),
+                },
             )
             raise
 

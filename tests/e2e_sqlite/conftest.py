@@ -1,5 +1,4 @@
-"""
-E2E test fixtures with in-process SQLite (no Docker required)
+"""E2E test fixtures with in-process SQLite (no Docker required)
 
 Spins up FastMCP service with SQLite backend in-memory to validate
 end-to-end behavior without Docker orchestration.
@@ -10,50 +9,74 @@ Key differences from Docker E2E tests:
 - Uses FastMCP test client (no network calls)
 - Runs by default (no @pytest.mark.e2e required)
 """
-import pytest
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Set
+
+import pytest
 from fastmcp import FastMCP
+
+from app.events import EventBus
+
+# Shared imports
+from app.repositories.embeddings.embedding_adapter import (
+    AzureOpenAIAdapter,
+    FastEmbeddingAdapter,
+    GoogleEmbeddingsAdapter,
+    OllamaEmbeddingsAdapter,
+    OpenAIEmbeddingsAdapter,
+)
+from app.repositories.embeddings.reranker_adapter import (
+    FastEmbedCrossEncoderAdapter,
+    HttpRerankAdapter,
+)
+from app.repositories.sqlite.activity_repository import SqliteActivityRepository
+from app.repositories.sqlite.code_artifact_repository import (
+    SqliteCodeArtifactRepository,
+)
+from app.repositories.sqlite.document_repository import SqliteDocumentRepository
+from app.repositories.sqlite.entity_repository import SqliteEntityRepository
+from app.repositories.sqlite.file_repository import SqliteFileRepository
+from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
+from app.repositories.sqlite.plan_repository import SqlitePlanRepository
+from app.repositories.sqlite.project_repository import SqliteProjectRepository
+from app.repositories.sqlite.skill_repository import SqliteSkillRepository
 
 # SQLite repository imports
 from app.repositories.sqlite.sqlite_adapter import SqliteDatabaseAdapter
-from app.repositories.sqlite.user_repository import SqliteUserRepository
-from app.repositories.sqlite.memory_repository import SqliteMemoryRepository
-from app.repositories.sqlite.project_repository import SqliteProjectRepository
-from app.repositories.sqlite.code_artifact_repository import SqliteCodeArtifactRepository
-from app.repositories.sqlite.document_repository import SqliteDocumentRepository
-from app.repositories.sqlite.entity_repository import SqliteEntityRepository
-from app.repositories.sqlite.activity_repository import SqliteActivityRepository
-from app.repositories.sqlite.plan_repository import SqlitePlanRepository
 from app.repositories.sqlite.task_repository import SqliteTaskRepository
-from app.repositories.sqlite.file_repository import SqliteFileRepository
-from app.repositories.sqlite.skill_repository import SqliteSkillRepository
-
-# Shared imports
-from app.repositories.embeddings.embedding_adapter import FastEmbeddingAdapter, AzureOpenAIAdapter, GoogleEmbeddingsAdapter, OpenAIEmbeddingsAdapter, OllamaEmbeddingsAdapter
-from app.repositories.embeddings.reranker_adapter import FastEmbedCrossEncoderAdapter, HttpRerankAdapter
-from app.services.user_service import UserService
-from app.services.memory_service import MemoryService
-from app.services.project_service import ProjectService
+from app.repositories.sqlite.user_repository import SqliteUserRepository
+from app.routes.api import (
+    activity,
+    auth,
+    code_artifacts,
+    documents,
+    entities,
+    files,
+    graph,
+    health,
+    memories,
+    plans,
+    projects,
+    tasks,
+)
+from app.routes.api import skills as skills_api
+from app.routes.mcp import meta_tools
+from app.routes.mcp import skill_tools as skills
+from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
+from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
+from app.routes.mcp.tool_registry import ToolRegistry
+from app.services.activity_service import ActivityService
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
 from app.services.entity_service import EntityService
-from app.services.graph_service import GraphService
-from app.services.activity_service import ActivityService
-from app.services.plan_service import PlanService
-from app.services.task_service import TaskService
 from app.services.file_service import FileService
+from app.services.graph_service import GraphService
+from app.services.memory_service import MemoryService
+from app.services.plan_service import PlanService
+from app.services.project_service import ProjectService
 from app.services.skill_service import SkillService
-from app.events import EventBus
-from app.routes.mcp import meta_tools
-from app.routes.mcp.tool_registry import ToolRegistry
-from app.routes.mcp.tool_metadata_registry import register_all_tools_metadata
-from app.routes.mcp.scope_resolver import parse_scopes, resolve_permitted_tools
-from app.routes.mcp import skill_tools as skills
-from app.routes.api import health, auth, memories, entities, projects, documents, code_artifacts, graph, activity, plans, tasks, files
-from app.routes.api import skills as skills_api
-
+from app.services.task_service import TaskService
+from app.services.user_service import UserService
 
 # ============================================================================
 # Feature Flag Registry
@@ -98,8 +121,7 @@ FEATURE_FLAGS: dict[str, FeatureFlagDef] = {
 
 @pytest.fixture(scope="module")
 def embedding_adapter():
-    """
-    Module-scoped embedding adapter to avoid reloading model for each test.
+    """Module-scoped embedding adapter to avoid reloading model for each test.
 
     Dynamically selects adapter based on EMBEDDING_PROVIDER setting:
     - Azure: AzureOpenAIAdapter (requires AZURE_* env vars)
@@ -113,20 +135,18 @@ def embedding_adapter():
 
     if settings.EMBEDDING_PROVIDER == "Azure":
         return AzureOpenAIAdapter()
-    elif settings.EMBEDDING_PROVIDER == "Google":
+    if settings.EMBEDDING_PROVIDER == "Google":
         return GoogleEmbeddingsAdapter()
-    elif settings.EMBEDDING_PROVIDER == "OpenAI":
+    if settings.EMBEDDING_PROVIDER == "OpenAI":
         return OpenAIEmbeddingsAdapter()
-    elif settings.EMBEDDING_PROVIDER == "Ollama":
+    if settings.EMBEDDING_PROVIDER == "Ollama":
         return OllamaEmbeddingsAdapter()
-    else:
-        return FastEmbeddingAdapter()
+    return FastEmbeddingAdapter()
 
 
 @pytest.fixture(scope="module")
 def reranker_adapter():
-    """
-    Module-scoped reranker adapter to avoid reloading model for each test.
+    """Module-scoped reranker adapter to avoid reloading model for each test.
 
     Returns FastEmbedCrossEncoderAdapter if reranking is enabled, None otherwise.
     Cross-encoder model loading is expensive, so we share across tests.
@@ -137,8 +157,7 @@ def reranker_adapter():
         return None
     if settings.RERANKING_PROVIDER == "HTTP":
         return HttpRerankAdapter()
-    else:
-        return FastEmbedCrossEncoderAdapter()
+    return FastEmbedCrossEncoderAdapter()
 
 
 # ============================================================================
@@ -146,8 +165,7 @@ def reranker_adapter():
 # ============================================================================
 
 async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features: set[str] | None = None):
-    """
-    Build a fully-wired FastMCP app with in-memory SQLite.
+    """Build a fully-wired FastMCP app with in-memory SQLite.
 
     Args:
         embedding_adapter: Embedding adapter instance
@@ -325,8 +343,7 @@ async def build_sqlite_app(embedding_adapter, reranker_adapter, enabled_features
 
 @pytest.fixture
 async def sqlite_app(embedding_adapter, reranker_adapter):
-    """
-    Create and configure FastMCP application with in-memory SQLite backend.
+    """Create and configure FastMCP application with in-memory SQLite backend.
 
     All optional features are ENABLED. Function-scoped for test isolation.
     """
@@ -336,8 +353,7 @@ async def sqlite_app(embedding_adapter, reranker_adapter):
 
 @pytest.fixture
 async def mcp_client(sqlite_app):
-    """
-    Provide connected MCP client for testing
+    """Provide connected MCP client for testing
 
     This fixture creates a Client connected to the in-process
     FastMCP app via stdio transport. Tests can use this client to call tools directly
@@ -361,8 +377,7 @@ async def mcp_client(sqlite_app):
     pytest.param("read,write:memories", id="scope-read-all-write-memories"),
 ])
 async def scoped_mcp_client(request, sqlite_app):
-    """
-    Parameterized MCP client with different FORGETFUL_SCOPES settings.
+    """Parameterized MCP client with different FORGETFUL_SCOPES settings.
 
     Each parameterization creates a client where the instance-level scopes
     are overridden to test permission enforcement.
@@ -381,8 +396,7 @@ async def scoped_mcp_client(request, sqlite_app):
 
 @pytest.fixture
 async def http_client(sqlite_app):
-    """
-    Provide HTTP client for testing REST API routes.
+    """Provide HTTP client for testing REST API routes.
 
     This fixture creates an httpx.AsyncClient connected to the FastMCP app
     via ASGI transport, allowing direct HTTP requests to custom routes
@@ -393,8 +407,8 @@ async def http_client(sqlite_app):
             response = await http_client.get("/api/v1/memories")
             assert response.status_code == 200
     """
-    from httpx import AsyncClient, ASGITransport
     from fastmcp import Client
+    from httpx import ASGITransport, AsyncClient
 
     # First, initialize the app by creating MCP client (runs lifespan)
     async with Client(sqlite_app) as _:

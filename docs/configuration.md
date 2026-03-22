@@ -526,6 +526,54 @@ These settings control the atomic memory system's behavior and constraints.
 
 ---
 
+## Skill Configuration
+
+These settings control the procedural memory (skills) feature.
+
+### `SKILLS_ENABLED`
+- **Default**: `false`
+- **Description**: Master feature flag for the skills system
+- **Values**: `true`, `false`
+- **Behavior**: When disabled, no skill tools or API routes are registered
+- **Example**: `SKILLS_ENABLED=true`
+
+### `SKILL_NAME_MAX_LENGTH`
+- **Default**: `64`
+- **Description**: Maximum characters for skill names (kebab-case)
+- **Example**: `SKILL_NAME_MAX_LENGTH=64`
+
+### `SKILL_DESCRIPTION_MAX_LENGTH`
+- **Default**: `1024`
+- **Description**: Maximum characters for skill descriptions (embedded for semantic search)
+- **Example**: `SKILL_DESCRIPTION_MAX_LENGTH=1024`
+
+### `SKILL_CONTENT_MAX_LENGTH`
+- **Default**: `100000`
+- **Description**: Maximum characters for skill content (~100KB for detailed instructions)
+- **Example**: `SKILL_CONTENT_MAX_LENGTH=100000`
+
+### `SKILL_LICENSE_MAX_LENGTH`
+- **Default**: `100`
+- **Description**: Maximum characters for license identifiers (e.g., 'MIT', 'Apache-2.0')
+- **Example**: `SKILL_LICENSE_MAX_LENGTH=100`
+
+### `SKILL_COMPATIBILITY_MAX_LENGTH`
+- **Default**: `500`
+- **Description**: Maximum characters for compatibility/requirements description
+- **Example**: `SKILL_COMPATIBILITY_MAX_LENGTH=500`
+
+### `SKILL_ALLOWED_TOOLS_MAX_LENGTH`
+- **Default**: `2000`
+- **Description**: Maximum total characters for the allowed tools list
+- **Example**: `SKILL_ALLOWED_TOOLS_MAX_LENGTH=2000`
+
+### `SKILL_TAGS_MAX_COUNT`
+- **Default**: `10`
+- **Description**: Maximum number of tags per skill
+- **Example**: `SKILL_TAGS_MAX_COUNT=10`
+
+---
+
 ## Entity Configuration
 
 ### `ENTITY_NAME_MAX_LENGTH`

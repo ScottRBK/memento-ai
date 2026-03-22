@@ -1,25 +1,25 @@
-"""
-REST API endpoints for Memory operations.
+"""REST API endpoints for Memory operations.
 
 Phase 1 of the Web UI foundation (Issue #3).
 Provides CRUD operations for memories with pagination, filtering, and semantic search.
 """
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 from typing import Any
 
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 from app.models.memory_models import (
     MemoryCreate,
-    MemoryUpdate,
-    MemoryQueryRequest,
     MemoryCreateResponse,
     MemoryListResponse,
+    MemoryQueryRequest,
+    MemoryUpdate,
 )
-from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,7 @@ VALID_SORT_ORDER = {"asc", "desc"}
 
 
 def parse_int_param(params: Any, name: str, default: int | None = None) -> int | None:
-    """
-    Parse integer query parameter with strict validation.
+    """Parse integer query parameter with strict validation.
 
     Args:
         params: Query params object
@@ -57,8 +56,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/memories", methods=["GET"])
     async def list_memories(request: Request) -> JSONResponse:
-        """
-        List memories with pagination, sorting, and filtering.
+        """List memories with pagination, sorting, and filtering.
 
         Query params:
             limit: Max results per page (1-100, default 20)
@@ -90,14 +88,14 @@ def register(mcp: FastMCP):
         if limit < 1 or limit > 100:
             return JSONResponse(
                 {"error": "limit must be between 1 and 100"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate offset is non-negative
         if offset < 0:
             return JSONResponse(
                 {"error": "offset must be non-negative"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate sort_by
@@ -105,7 +103,7 @@ def register(mcp: FastMCP):
         if sort_by not in VALID_SORT_BY:
             return JSONResponse(
                 {"error": f"sort_by must be one of: {', '.join(VALID_SORT_BY)}"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate sort_order
@@ -113,7 +111,7 @@ def register(mcp: FastMCP):
         if sort_order not in VALID_SORT_ORDER:
             return JSONResponse(
                 {"error": f"sort_order must be one of: {', '.join(VALID_SORT_ORDER)}"},
-                status_code=400
+                status_code=400,
             )
 
         # Parse tags (comma-separated)
@@ -148,7 +146,7 @@ def register(mcp: FastMCP):
             memories=memories,
             total=total,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         return JSONResponse(response.model_dump(mode="json"))
@@ -166,7 +164,7 @@ def register(mcp: FastMCP):
         try:
             memory = await mcp.memory_service.get_memory(
                 user_id=user.id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
@@ -190,11 +188,11 @@ def register(mcp: FastMCP):
         except ValidationError as e:
             return JSONResponse({"error": e.errors()}, status_code=400)
         except Exception as e:
-            return JSONResponse({"error": f"Invalid request body: {str(e)}"}, status_code=400)
+            return JSONResponse({"error": f"Invalid request body: {e!s}"}, status_code=400)
 
         memory, similar_memories = await mcp.memory_service.create_memory(
             user_id=user.id,
-            memory_data=memory_data
+            memory_data=memory_data,
         )
 
         response = MemoryCreateResponse(
@@ -205,7 +203,7 @@ def register(mcp: FastMCP):
             code_artifact_ids=memory.code_artifact_ids,
             document_ids=memory.document_ids,
             file_ids=memory.file_ids,
-            similar_memories=similar_memories
+            similar_memories=similar_memories,
         )
 
         return JSONResponse(response.model_dump(mode="json"), status_code=201)
@@ -226,13 +224,13 @@ def register(mcp: FastMCP):
         except ValidationError as e:
             return JSONResponse({"error": e.errors()}, status_code=400)
         except Exception as e:
-            return JSONResponse({"error": f"Invalid request body: {str(e)}"}, status_code=400)
+            return JSONResponse({"error": f"Invalid request body: {e!s}"}, status_code=400)
 
         try:
             memory = await mcp.memory_service.update_memory(
                 user_id=user.id,
                 memory_id=memory_id,
-                updated_memory=update_data
+                updated_memory=update_data,
             )
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
@@ -264,7 +262,7 @@ def register(mcp: FastMCP):
             user_id=user.id,
             memory_id=memory_id,
             reason=reason,
-            superseded_by=superseded_by
+            superseded_by=superseded_by,
         )
 
         if not success:
@@ -286,11 +284,11 @@ def register(mcp: FastMCP):
         except ValidationError as e:
             return JSONResponse({"error": e.errors()}, status_code=400)
         except Exception as e:
-            return JSONResponse({"error": f"Invalid request body: {str(e)}"}, status_code=400)
+            return JSONResponse({"error": f"Invalid request body: {e!s}"}, status_code=400)
 
         result = await mcp.memory_service.query_memory(
             user_id=user.id,
-            memory_query=query_request
+            memory_query=query_request,
         )
 
         return JSONResponse(result.model_dump(mode="json"))
@@ -318,7 +316,7 @@ def register(mcp: FastMCP):
             linked_ids = await mcp.memory_service.link_memories(
                 user_id=user.id,
                 memory_id=memory_id,
-                related_ids=related_ids
+                related_ids=related_ids,
             )
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
@@ -342,7 +340,7 @@ def register(mcp: FastMCP):
         try:
             memory = await mcp.memory_service.get_memory(
                 user_id=user.id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
@@ -356,7 +354,7 @@ def register(mcp: FastMCP):
             try:
                 linked_memory = await mcp.memory_service.get_memory(
                     user_id=user.id,
-                    memory_id=linked_id
+                    memory_id=linked_id,
                 )
                 if linked_memory:
                     linked_memories.append(linked_memory)
@@ -366,7 +364,7 @@ def register(mcp: FastMCP):
 
         return JSONResponse({
             "memory_id": memory_id,
-            "linked_memories": [m.model_dump(mode="json") for m in linked_memories]
+            "linked_memories": [m.model_dump(mode="json") for m in linked_memories],
         })
 
     @mcp.custom_route("/api/v1/memories/{memory_id}/links/{target_id}", methods=["DELETE"])
@@ -384,7 +382,7 @@ def register(mcp: FastMCP):
             success = await mcp.memory_service.unlink_memories(
                 user_id=user.id,
                 memory_id=memory_id,
-                target_id=target_id
+                target_id=target_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)

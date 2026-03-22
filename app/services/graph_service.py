@@ -1,30 +1,29 @@
-"""
-Graph Service - Business logic for graph traversal and visualization
+"""Graph Service - Business logic for graph traversal and visualization
 
 This service implements functionality for efficient graph visualization:
     - Subgraph traversal using recursive CTEs
     - Fetching full node data for memory, entity, project, document, and code_artifact nodes
     - Building edges between nodes in the subgraph
 """
-from typing import List, Set, Tuple, Protocol, Any
-from uuid import UUID
 import re
+from typing import Any, Protocol
+from uuid import UUID
 
 from app.config.logging_config import logging
-from app.protocols.memory_protocol import MemoryRepository
-from app.protocols.entity_protocol import EntityRepository
+from app.exceptions import NotFoundError
 from app.models.graph_models import (
-    SubgraphNode,
     SubgraphEdge,
     SubgraphMeta,
+    SubgraphNode,
     SubgraphResponse,
 )
-from app.exceptions import NotFoundError
+from app.protocols.entity_protocol import EntityRepository
+from app.protocols.memory_protocol import MemoryRepository
 
 logger = logging.getLogger(__name__)
 
 # Regex pattern for parsing node IDs
-NODE_ID_PATTERN = re.compile(r'^(memory|entity|project|document|code_artifact|file|skill)_(\d+)$')
+NODE_ID_PATTERN = re.compile(r"^(memory|entity|project|document|code_artifact|file|skill)_(\d+)$")
 
 
 # Protocol for project service (to avoid circular imports)
@@ -110,7 +109,7 @@ class GraphService:
             raise ValueError(
                 f"Invalid node_id format: '{node_id}'. "
                 "Expected 'memory_{{id}}', 'entity_{{id}}', 'project_{{id}}', "
-                "'document_{{id}}', 'code_artifact_{{id}}', 'file_{{id}}', or 'skill_{{id}}'."
+                "'document_{{id}}', 'code_artifact_{{id}}', 'file_{{id}}', or 'skill_{{id}}'.",
             )
         return match.group(1), int(match.group(2))
 
@@ -120,7 +119,7 @@ class GraphService:
         center_node_id: str,
         depth: int = 2,
         node_types: list[str] | None = None,
-        max_nodes: int = 200
+        max_nodes: int = 200,
     ) -> SubgraphResponse:
         """Get subgraph centered on a node using recursive CTE traversal.
 
@@ -172,7 +171,7 @@ class GraphService:
                 "depth": depth,
                 "node_types": node_types,
                 "max_nodes": max_nodes,
-            }
+            },
         )
 
         # Execute CTE query to get node IDs with depths
@@ -208,12 +207,12 @@ class GraphService:
 
         # Fetch full node data
         nodes = await self._fetch_node_data(
-            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, skill_ids, depth_lookup
+            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, skill_ids, depth_lookup,
         )
 
         # Fetch edges between nodes in the subgraph
         edges = await self._fetch_edges(
-            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, skill_ids
+            user_id, memory_ids, entity_ids, project_ids, document_ids, code_artifact_ids, file_ids, skill_ids,
         )
 
         # Build metadata
@@ -283,7 +282,7 @@ class GraphService:
                 "nodes_count": len(nodes),
                 "edges_count": len(edges),
                 "truncated": truncated,
-            }
+            },
         )
 
         return SubgraphResponse(nodes=nodes, edges=edges, meta=meta)
@@ -292,7 +291,7 @@ class GraphService:
         self,
         user_id: UUID,
         center_type: str,
-        center_id: int
+        center_id: int,
     ) -> None:
         """Validate that the center node exists.
 
@@ -302,12 +301,12 @@ class GraphService:
         if center_type == "memory":
             await self.memory_repo.get_memory_by_id(
                 user_id=user_id,
-                memory_id=center_id
+                memory_id=center_id,
             )
         elif center_type == "entity":
             entity = await self.entity_repo.get_entity_by_id(
                 user_id=user_id,
-                entity_id=center_id
+                entity_id=center_id,
             )
             if entity is None:
                 raise NotFoundError(f"Entity {center_id} not found")
@@ -316,7 +315,7 @@ class GraphService:
                 raise NotFoundError("Project service not available")
             project = await self.project_service.get_project(
                 user_id=user_id,
-                project_id=center_id
+                project_id=center_id,
             )
             if project is None:
                 raise NotFoundError(f"Project {center_id} not found")
@@ -325,7 +324,7 @@ class GraphService:
                 raise NotFoundError("Document service not available")
             document = await self.document_service.get_document(
                 user_id=user_id,
-                document_id=center_id
+                document_id=center_id,
             )
             if document is None:
                 raise NotFoundError(f"Document {center_id} not found")
@@ -334,7 +333,7 @@ class GraphService:
                 raise NotFoundError("Code artifact service not available")
             artifact = await self.code_artifact_service.get_code_artifact(
                 user_id=user_id,
-                artifact_id=center_id
+                artifact_id=center_id,
             )
             if artifact is None:
                 raise NotFoundError(f"Code artifact {center_id} not found")
@@ -343,7 +342,7 @@ class GraphService:
                 raise NotFoundError("File service not available")
             file = await self.file_service.get_file(
                 user_id=user_id,
-                file_id=center_id
+                file_id=center_id,
             )
             if file is None:
                 raise NotFoundError(f"File {center_id} not found")
@@ -352,7 +351,7 @@ class GraphService:
                 raise NotFoundError("Skill service not available")
             skill = await self.skill_service.get_skill(
                 user_id=user_id,
-                skill_id=center_id
+                skill_id=center_id,
             )
             if skill is None:
                 raise NotFoundError(f"Skill {center_id} not found")
@@ -369,7 +368,7 @@ class GraphService:
         code_artifact_ids: list[int],
         file_ids: list[int],
         skill_ids: list[int],
-        depth_lookup: dict
+        depth_lookup: dict,
     ) -> list[SubgraphNode]:
         """Fetch full data for all node types.
 
@@ -394,7 +393,7 @@ class GraphService:
             try:
                 memory = await self.memory_repo.get_memory_by_id(
                     user_id=user_id,
-                    memory_id=memory_id
+                    memory_id=memory_id,
                 )
                 nodes.append(SubgraphNode(
                     id=f"memory_{memory.id}",
@@ -407,7 +406,7 @@ class GraphService:
                         "importance": memory.importance,
                         "tags": memory.tags,
                         "created_at": memory.created_at.isoformat() if memory.created_at else None,
-                    }
+                    },
                 ))
             except NotFoundError:
                 # Skip if memory was deleted during traversal
@@ -418,7 +417,7 @@ class GraphService:
         for entity_id in entity_ids:
             entity = await self.entity_repo.get_entity_by_id(
                 user_id=user_id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
             if entity is None:
                 # Skip if entity was deleted during traversal
@@ -432,9 +431,9 @@ class GraphService:
                 data={
                     "id": entity.id,
                     "name": entity.name,
-                    "entity_type": entity.entity_type.value if hasattr(entity.entity_type, 'value') else entity.entity_type,
+                    "entity_type": entity.entity_type.value if hasattr(entity.entity_type, "value") else entity.entity_type,
                     "created_at": entity.created_at.isoformat() if entity.created_at else None,
-                }
+                },
             ))
 
         # Fetch projects
@@ -443,7 +442,7 @@ class GraphService:
                 try:
                     project = await self.project_service.get_project(
                         user_id=user_id,
-                        project_id=project_id
+                        project_id=project_id,
                     )
                     if project is None:
                         logger.warning(f"Project {project_id} not found during fetch")
@@ -457,10 +456,10 @@ class GraphService:
                             "id": project.id,
                             "name": project.name,
                             "description": project.description,
-                            "project_type": project.project_type.value if hasattr(project.project_type, 'value') else project.project_type,
-                            "status": project.status.value if hasattr(project.status, 'value') else project.status,
+                            "project_type": project.project_type.value if hasattr(project.project_type, "value") else project.project_type,
+                            "status": project.status.value if hasattr(project.status, "value") else project.status,
                             "created_at": project.created_at.isoformat() if project.created_at else None,
-                        }
+                        },
                     ))
                 except NotFoundError:
                     logger.warning(f"Project {project_id} not found during fetch")
@@ -472,7 +471,7 @@ class GraphService:
                 try:
                     document = await self.document_service.get_document(
                         user_id=user_id,
-                        document_id=document_id
+                        document_id=document_id,
                     )
                     if document is None:
                         logger.warning(f"Document {document_id} not found during fetch")
@@ -486,10 +485,10 @@ class GraphService:
                             "id": document.id,
                             "title": document.title,
                             "description": document.description,
-                            "document_type": document.document_type.value if hasattr(document.document_type, 'value') else document.document_type,
+                            "document_type": document.document_type.value if hasattr(document.document_type, "value") else document.document_type,
                             "project_id": document.project_id,
                             "created_at": document.created_at.isoformat() if document.created_at else None,
-                        }
+                        },
                     ))
                 except NotFoundError:
                     logger.warning(f"Document {document_id} not found during fetch")
@@ -501,7 +500,7 @@ class GraphService:
                 try:
                     artifact = await self.code_artifact_service.get_code_artifact(
                         user_id=user_id,
-                        artifact_id=artifact_id
+                        artifact_id=artifact_id,
                     )
                     if artifact is None:
                         logger.warning(f"Code artifact {artifact_id} not found during fetch")
@@ -518,7 +517,7 @@ class GraphService:
                             "language": artifact.language,
                             "project_id": artifact.project_id,
                             "created_at": artifact.created_at.isoformat() if artifact.created_at else None,
-                        }
+                        },
                     ))
                 except NotFoundError:
                     logger.warning(f"Code artifact {artifact_id} not found during fetch")
@@ -547,7 +546,7 @@ class GraphService:
                             "size_bytes": file_summary.size_bytes,
                             "project_id": file_summary.project_id,
                             "created_at": file_summary.created_at.isoformat() if file_summary.created_at else None,
-                        }
+                        },
                     ))
             except Exception:
                 logger.warning("Failed to fetch file summaries for graph nodes")
@@ -558,7 +557,7 @@ class GraphService:
                 try:
                     skill = await self.skill_service.get_skill(
                         user_id=user_id,
-                        skill_id=skill_id
+                        skill_id=skill_id,
                     )
                     if skill is None:
                         logger.warning(f"Skill {skill_id} not found during fetch")
@@ -573,7 +572,7 @@ class GraphService:
                             "name": skill.name,
                             "description": skill.description,
                             "created_at": skill.created_at.isoformat() if skill.created_at else None,
-                        }
+                        },
                     ))
                 except NotFoundError:
                     logger.warning(f"Skill {skill_id} not found during fetch")
@@ -590,7 +589,7 @@ class GraphService:
         document_ids: list[int],
         code_artifact_ids: list[int],
         file_ids: list[int] | None = None,
-        skill_ids: list[int] | None = None
+        skill_ids: list[int] | None = None,
     ) -> list[SubgraphEdge]:
         """Fetch all edges between nodes in the subgraph.
 
@@ -639,7 +638,7 @@ class GraphService:
                 try:
                     memory = await self.memory_repo.get_memory_by_id(
                         user_id=user_id,
-                        memory_id=memory_id
+                        memory_id=memory_id,
                     )
                     # Memory -> Memory links
                     for linked_id in memory.linked_memory_ids:
@@ -729,7 +728,7 @@ class GraphService:
         # Fetch entity-to-memory edges
         if entity_ids and memory_ids:
             entity_memory_links = await self.entity_repo.get_all_entity_memory_links(
-                user_id=user_id
+                user_id=user_id,
             )
             for entity_id, mem_id in entity_memory_links:
                 if entity_id in entity_id_set and mem_id in memory_id_set:
@@ -746,7 +745,7 @@ class GraphService:
         # Fetch entity-to-entity edges
         if entity_ids:
             entity_relationships = await self.entity_repo.get_all_entity_relationships(
-                user_id=user_id
+                user_id=user_id,
             )
             for rel in entity_relationships:
                 if rel.source_entity_id in entity_id_set and rel.target_entity_id in entity_id_set:
@@ -767,13 +766,13 @@ class GraphService:
                                 "strength": rel.strength,
                                 "confidence": rel.confidence,
                                 "metadata": rel.metadata,
-                            }
+                            },
                         ))
 
         # Fetch entity-to-project edges
         if entity_ids and project_ids:
             entity_project_links = await self.entity_repo.get_all_entity_project_links(
-                user_id=user_id
+                user_id=user_id,
             )
             for entity_id, proj_id in entity_project_links:
                 if entity_id in entity_id_set and proj_id in project_id_set:
@@ -793,7 +792,7 @@ class GraphService:
                 try:
                     document = await self.document_service.get_document(
                         user_id=user_id,
-                        document_id=document_id
+                        document_id=document_id,
                     )
                     if document and document.project_id and document.project_id in project_id_set:
                         edge_id = f"document_{document_id}_project_{document.project_id}"
@@ -814,7 +813,7 @@ class GraphService:
                 try:
                     artifact = await self.code_artifact_service.get_code_artifact(
                         user_id=user_id,
-                        artifact_id=artifact_id
+                        artifact_id=artifact_id,
                     )
                     if artifact and artifact.project_id and artifact.project_id in project_id_set:
                         edge_id = f"code_artifact_{artifact_id}_project_{artifact.project_id}"
@@ -850,7 +849,7 @@ class GraphService:
         # Fetch entity-to-file edges
         if entity_ids and file_ids:
             entity_file_links = await self.entity_repo.get_all_entity_file_links(
-                user_id=user_id
+                user_id=user_id,
             )
             for entity_id, fid in entity_file_links:
                 if entity_id in entity_id_set and fid in file_id_set:
@@ -870,7 +869,7 @@ class GraphService:
                 try:
                     skill = await self.skill_service.get_skill(
                         user_id=user_id,
-                        skill_id=sid
+                        skill_id=sid,
                     )
                     if skill and skill.project_id and skill.project_id in project_id_set:
                         edge_id = f"skill_{sid}_project_{skill.project_id}"

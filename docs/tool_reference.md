@@ -13,6 +13,7 @@ This guide provides comprehensive documentation for all tools available in the F
 - [Project Tools](#project-tools)
 - [Code Artifact Tools](#code-artifact-tools)
 - [Document Tools](#document-tools)
+- [Skill Tools](#skill-tools)
 - [Entity Tools](#entity-tools)
 - [Plan Tools](#plan-tools)
 - [Task Tools](#task-tools)
@@ -30,7 +31,7 @@ Forgetful uses a **meta-tools pattern** to preserve your LLM's context window. I
 List available tools, optionally filtered by category.
 
 **Parameters:**
-- `category` (optional): Filter by category (`user`, `memory`, `project`, `code_artifact`, `document`, `entity`, `plan`, `task`)
+- `category` (optional): Filter by category (`user`, `memory`, `project`, `code_artifact`, `document`, `entity`, `plan`, `task`, `skill`)
 
 **Returns:**
 - `tools_by_category`: Tools grouped by category
@@ -87,7 +88,7 @@ execute_forgetful_tool(
 
 ## Tool Categories Overview
 
-Forgetful organizes **59 tools** across **8 categories**:
+Forgetful organizes **69 tools** across **9 categories**:
 
 | Category | Tool Count | Purpose |
 |----------|-----------|---------|
@@ -96,6 +97,7 @@ Forgetful organizes **59 tools** across **8 categories**:
 | **Project** | 5 | Project organization and scope management |
 | **Code Artifact** | 5 | Reusable code snippet storage |
 | **Document** | 5 | Long-form content storage (>400 words) |
+| **Skill** | 10 | Procedural knowledge storage and Agent Skills standard import/export |
 | **Entity** | 17 | Real-world entity tracking and knowledge graphs |
 | **Plan** | 4 | Plan creation and lifecycle management within projects |
 | **Task** | 11 | Task management with criteria, dependencies, and agent assignment |
@@ -781,6 +783,216 @@ Delete document (cascades memory associations).
 **Example:**
 ```python
 execute_forgetful_tool("delete_document", {"document_id": 89})
+```
+
+---
+
+## Skill Tools
+
+Store and manage procedural knowledge (step-by-step instructions, agent capabilities) following the [Agent Skills](https://agentskills.io) open standard.
+
+### `create_skill`
+
+Create a skill for storing procedural knowledge.
+
+**Parameters:**
+- `name` (required): Kebab-case skill name (e.g., 'code-review'). Must match `^[a-z0-9]+(-[a-z0-9]+)*$`
+- `description` (required): What the skill does and when to use it. Gets embedded for semantic search (max 1024 chars)
+- `content` (required): Full SKILL.md body - markdown instructions, steps, examples (max 100KB)
+- `license` (optional): License identifier (e.g., 'MIT', 'Apache-2.0')
+- `compatibility` (optional): Environment requirements (e.g., 'Requires Python 3.14+ and uv')
+- `allowed_tools` (optional): Tool restrictions (e.g., `['Bash(python:*)', 'Read', 'WebFetch']`)
+- `metadata` (optional): Custom key-value pairs (author, version, mcp-server, etc.)
+- `tags` (optional): Categorization tags (max 10)
+- `importance` (optional): Importance 1-10 (default: 7)
+- `project_id` (optional): Link to project
+
+**Returns:**
+- Complete Skill with generated ID and timestamps
+
+**Example:**
+```python
+skill = execute_forgetful_tool(
+    "create_skill",
+    {
+        "name": "code-review",
+        "description": "Systematic code review process for pull requests",
+        "content": "# Code Review\n\n## Steps\n1. Check for breaking changes...",
+        "tags": ["development", "review", "quality"],
+        "importance": 8
+    }
+)
+```
+
+### `list_skills`
+
+List skills with optional filtering.
+
+**Parameters:**
+- `project_id` (optional): Filter by project
+- `tags` (optional): Filter by tags (OR logic - skills with ANY of these tags)
+- `importance_threshold` (optional): Minimum importance level (1-10)
+
+**Returns:**
+- List of SkillSummary (excludes full content)
+
+**Example:**
+```python
+skills = execute_forgetful_tool(
+    "list_skills",
+    {"tags": ["deployment"], "importance_threshold": 7}
+)
+```
+
+### `get_skill`
+
+Retrieve complete skill by ID.
+
+**Parameters:**
+- `skill_id` (required): Skill ID
+
+**Returns:**
+- Complete skill with full content and metadata
+
+**Example:**
+```python
+skill = execute_forgetful_tool("get_skill", {"skill_id": 5})
+```
+
+### `update_skill`
+
+Update skill (PATCH semantics).
+
+**Parameters:**
+- `skill_id` (required): Skill ID
+- `name`, `description`, `content`, `license`, `compatibility`, `allowed_tools`, `metadata`, `tags`, `importance`, `project_id` (all optional)
+
+**Returns:**
+- Updated skill object
+
+**Example:**
+```python
+execute_forgetful_tool(
+    "update_skill",
+    {
+        "skill_id": 5,
+        "content": "# Updated Code Review\n\n## Steps\n1. Run linter first...",
+        "importance": 9
+    }
+)
+```
+
+### `delete_skill`
+
+Delete skill (cascades memory and artifact associations).
+
+**Parameters:**
+- `skill_id` (required): Skill ID
+
+**Returns:**
+- Confirmation of deletion
+
+**Example:**
+```python
+execute_forgetful_tool("delete_skill", {"skill_id": 5})
+```
+
+### `search_skills`
+
+Semantic search across skills by description similarity.
+
+**Parameters:**
+- `query` (required): Search query string (semantic, not keyword-only)
+- `k` (optional): Number of results (default: 5)
+- `project_id` (optional): Filter by project
+
+**Returns:**
+- List of SkillSummary ranked by relevance
+
+**Example:**
+```python
+results = execute_forgetful_tool(
+    "search_skills",
+    {"query": "how to deploy to production", "k": 3}
+)
+```
+
+### `import_skill`
+
+Import a skill from Agent Skills markdown format (SKILL.md).
+
+**Parameters:**
+- `skill_md` (required): Raw SKILL.md content with YAML frontmatter between `---` delimiters
+- `project_id` (optional): Project association
+- `importance` (optional): Importance level (default: 7)
+
+**Returns:**
+- Created Skill with generated ID
+
+**Example:**
+```python
+skill = execute_forgetful_tool(
+    "import_skill",
+    {
+        "skill_md": "---\nname: code-review\ndescription: Systematic code review\nlicense: MIT\n---\n\n# Code Review\n\n## Steps\n1. Check for...",
+        "project_id": 3,
+        "importance": 8
+    }
+)
+```
+
+### `export_skill`
+
+Export a skill to Agent Skills markdown format (SKILL.md).
+
+**Parameters:**
+- `skill_id` (required): Skill ID to export
+
+**Returns:**
+- Formatted SKILL.md string with YAML frontmatter
+
+**Example:**
+```python
+skill_md = execute_forgetful_tool("export_skill", {"skill_id": 5})
+# Returns: "---\nname: code-review\ndescription: ...\n---\n\n# Code Review\n..."
+```
+
+### `link_skill_to_memory`
+
+Link a skill to a memory (bidirectional association).
+
+**Parameters:**
+- `skill_id` (required): Skill ID
+- `memory_id` (required): Memory ID
+
+**Returns:**
+- Confirmation dict
+
+**Example:**
+```python
+execute_forgetful_tool(
+    "link_skill_to_memory",
+    {"skill_id": 5, "memory_id": 123}
+)
+```
+
+### `unlink_skill_from_memory`
+
+Remove association between a skill and a memory.
+
+**Parameters:**
+- `skill_id` (required): Skill ID
+- `memory_id` (required): Memory ID
+
+**Returns:**
+- Confirmation dict
+
+**Example:**
+```python
+execute_forgetful_tool(
+    "unlink_skill_from_memory",
+    {"skill_id": 5, "memory_id": 123}
+)
 ```
 
 ---

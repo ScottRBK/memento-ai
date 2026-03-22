@@ -1,5 +1,4 @@
-"""
-Auth provider factory for FastMCP v3.
+"""Auth provider factory for FastMCP v3.
 
 FastMCP v3 removed automatic auth provider construction from environment
 variables. This factory reads the same FASTMCP_SERVER_AUTH + FASTMCP_SERVER_AUTH_*
@@ -32,7 +31,7 @@ def _required(value: str, field_name: str) -> str:
     """Validate a required setting is not empty."""
     if not value:
         raise ValueError(
-            f"{field_name} is required when using this auth provider"
+            f"{field_name} is required when using this auth provider",
         )
     return value
 
@@ -78,7 +77,7 @@ def _build_jwt():
     if not jwks_uri and not public_key:
         raise ValueError(
             "Either FASTMCP_SERVER_AUTH_JWT_JWKS_URI or "
-            "FASTMCP_SERVER_AUTH_JWT_PUBLIC_KEY is required for JWTVerifier"
+            "FASTMCP_SERVER_AUTH_JWT_PUBLIC_KEY is required for JWTVerifier",
         )
 
     return JWTVerifier(
@@ -105,8 +104,7 @@ def _build_introspection():
 
 
 def build_auth_provider():
-    """
-    Build auth provider from FASTMCP_SERVER_AUTH setting.
+    """Build auth provider from FASTMCP_SERVER_AUTH setting.
 
     Returns None when FASTMCP_SERVER_AUTH is not set (no auth mode).
     Raises ValueError for unrecognized provider class paths.
@@ -122,7 +120,7 @@ def build_auth_provider():
         supported = ", ".join(sorted(_PROVIDER_FACTORIES.keys()))
         raise ValueError(
             f"Unrecognized auth provider: {auth_class_path}. "
-            f"Supported providers: {supported}"
+            f"Supported providers: {supported}",
         )
 
     provider = factory()

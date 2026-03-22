@@ -1,5 +1,4 @@
-"""
-E2E tests for Entity REST API endpoints.
+"""E2E tests for Entity REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/entities endpoints.
@@ -26,7 +25,7 @@ class TestEntityAPIList:
         payload = {
             "name": "Test Person",
             "entity_type": "Individual",
-            "notes": "A test individual"
+            "notes": "A test individual",
         }
         create_response = await http_client.post("/api/v1/entities", json=payload)
         assert create_response.status_code == 201
@@ -45,12 +44,12 @@ class TestEntityAPIList:
         await http_client.post("/api/v1/entities", json={
             "name": "Test Organization",
             "entity_type": "Organization",
-            "notes": "A test org"
+            "notes": "A test org",
         })
         await http_client.post("/api/v1/entities", json={
             "name": "Test Individual",
             "entity_type": "Individual",
-            "notes": "A test person"
+            "notes": "A test person",
         })
 
         # Filter by organization
@@ -75,7 +74,7 @@ class TestEntityAPIList:
             await http_client.post("/api/v1/entities", json={
                 "name": f"Pagination Entity {i}",
                 "entity_type": "Individual",
-                "tags": ["pagination-test"]
+                "tags": ["pagination-test"],
             })
 
         # Get first page (limit=2, offset=0)
@@ -147,13 +146,13 @@ class TestEntityAPIList:
             await http_client.post("/api/v1/entities", json={
                 "name": f"Filtered Org {i}",
                 "entity_type": "Organization",
-                "tags": ["filter-pagination-test"]
+                "tags": ["filter-pagination-test"],
             })
         for i in range(3):
             await http_client.post("/api/v1/entities", json={
                 "name": f"Filtered Individual {i}",
                 "entity_type": "Individual",
-                "tags": ["filter-pagination-test"]
+                "tags": ["filter-pagination-test"],
             })
 
         # Get organizations only, with pagination
@@ -176,7 +175,7 @@ class TestEntityAPICrud:
         payload = {
             "name": "New Entity",
             "entity_type": "Team",
-            "notes": "A new team entity"
+            "notes": "A new team entity",
         }
         response = await http_client.post("/api/v1/entities", json=payload)
         assert response.status_code == 201
@@ -190,7 +189,7 @@ class TestEntityAPICrud:
         """POST /api/v1/entities returns 400 for invalid data."""
         payload = {
             "name": "",  # Empty name should fail
-            "entity_type": "Individual"
+            "entity_type": "Individual",
         }
         response = await http_client.post("/api/v1/entities", json=payload)
         assert response.status_code == 400
@@ -202,7 +201,7 @@ class TestEntityAPICrud:
         create_response = await http_client.post("/api/v1/entities", json={
             "name": "Get Test Entity",
             "entity_type": "Device",
-            "notes": "Testing get endpoint"
+            "notes": "Testing get endpoint",
         })
         entity_id = create_response.json()["id"]
 
@@ -226,14 +225,14 @@ class TestEntityAPICrud:
         create_response = await http_client.post("/api/v1/entities", json={
             "name": "Update Test Entity",
             "entity_type": "Device",
-            "notes": "Original notes"
+            "notes": "Original notes",
         })
         entity_id = create_response.json()["id"]
 
         # Update
         update_payload = {
             "name": "Updated Entity Name",
-            "notes": "Updated notes"
+            "notes": "Updated notes",
         }
         response = await http_client.put(f"/api/v1/entities/{entity_id}", json=update_payload)
         assert response.status_code == 200
@@ -255,7 +254,7 @@ class TestEntityAPICrud:
             "name": "Delete Test Entity",
             "entity_type": "Other",
             "custom_type": "Temporary",
-            "notes": "Will be deleted"
+            "notes": "Will be deleted",
         })
         entity_id = create_response.json()["id"]
 
@@ -285,13 +284,13 @@ class TestEntityAPISearch:
         await http_client.post("/api/v1/entities", json={
             "name": "Searchable Company",
             "entity_type": "Organization",
-            "notes": "A searchable organization"
+            "notes": "A searchable organization",
         })
 
         # Search
         response = await http_client.post("/api/v1/entities/search", json={
             "query": "Searchable",
-            "limit": 10
+            "limit": 10,
         })
         assert response.status_code == 200
         data = response.json()
@@ -315,7 +314,7 @@ class TestEntityMemoryLinks:
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "Link Test Entity",
             "entity_type": "Individual",
-            "notes": "For link testing"
+            "notes": "For link testing",
         })
         entity_id = entity_response.json()["id"]
 
@@ -326,13 +325,13 @@ class TestEntityMemoryLinks:
             "context": "Testing entity links",
             "keywords": ["entity", "link"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = memory_response.json()["id"]
 
         # Link
         response = await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
         assert response.status_code == 200
         assert response.json()["success"] is True
@@ -344,7 +343,7 @@ class TestEntityMemoryLinks:
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "Link Error Test Entity",
             "entity_type": "Individual",
-            "notes": "For error testing"
+            "notes": "For error testing",
         })
         entity_id = entity_response.json()["id"]
 
@@ -358,7 +357,7 @@ class TestEntityMemoryLinks:
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "Unlink Test Entity",
             "entity_type": "Organization",
-            "notes": "For unlink testing"
+            "notes": "For unlink testing",
         })
         entity_id = entity_response.json()["id"]
 
@@ -369,13 +368,13 @@ class TestEntityMemoryLinks:
             "context": "Testing entity unlinks",
             "keywords": ["unlink", "test"],
             "tags": ["test"],
-            "importance": 7
+            "importance": 7,
         })
         memory_id = memory_response.json()["id"]
 
         # Link first
         await http_client.post(f"/api/v1/entities/{entity_id}/memories", json={
-            "memory_id": memory_id
+            "memory_id": memory_id,
         })
 
         # Unlink
@@ -389,7 +388,7 @@ class TestEntityMemoryLinks:
         # Create entity
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "Get Memories Test Entity",
-            "entity_type": "Individual"
+            "entity_type": "Individual",
         })
         entity_id = entity_response.json()["id"]
 
@@ -402,7 +401,7 @@ class TestEntityMemoryLinks:
                 "context": "Testing",
                 "keywords": ["test"],
                 "tags": ["test"],
-                "importance": 7
+                "importance": 7,
             })
             memory_id = mem_resp.json()["id"]
             memory_ids.append(memory_id)
@@ -420,7 +419,7 @@ class TestEntityMemoryLinks:
         """GET /api/v1/entities/{id}/memories returns empty for entity with no links."""
         entity_response = await http_client.post("/api/v1/entities", json={
             "name": "Empty Memories Entity",
-            "entity_type": "Organization"
+            "entity_type": "Organization",
         })
         entity_id = entity_response.json()["id"]
 
@@ -447,14 +446,14 @@ class TestEntityRelationships:
         entity1_response = await http_client.post("/api/v1/entities", json={
             "name": "Parent Entity",
             "entity_type": "Organization",
-            "notes": "Parent org"
+            "notes": "Parent org",
         })
         entity1_id = entity1_response.json()["id"]
 
         entity2_response = await http_client.post("/api/v1/entities", json={
             "name": "Child Entity",
             "entity_type": "Team",
-            "notes": "Child team"
+            "notes": "Child team",
         })
         entity2_id = entity2_response.json()["id"]
 
@@ -462,7 +461,7 @@ class TestEntityRelationships:
         response = await http_client.post(f"/api/v1/entities/{entity1_id}/relationships", json={
             "target_entity_id": entity2_id,
             "relationship_type": "manages",
-            "description": "Parent manages child"
+            "description": "Parent manages child",
         })
         assert response.status_code == 201
         data = response.json()
@@ -476,14 +475,14 @@ class TestEntityRelationships:
         entity1_response = await http_client.post("/api/v1/entities", json={
             "name": "Relationship Source",
             "entity_type": "Individual",
-            "notes": "Source entity"
+            "notes": "Source entity",
         })
         entity1_id = entity1_response.json()["id"]
 
         entity2_response = await http_client.post("/api/v1/entities", json={
             "name": "Relationship Target",
             "entity_type": "Organization",
-            "notes": "Target entity"
+            "notes": "Target entity",
         })
         entity2_id = entity2_response.json()["id"]
 
@@ -491,7 +490,7 @@ class TestEntityRelationships:
         await http_client.post(f"/api/v1/entities/{entity1_id}/relationships", json={
             "target_entity_id": entity2_id,
             "relationship_type": "works_for",
-            "description": "Employment"
+            "description": "Employment",
         })
 
         # Get relationships
@@ -508,14 +507,14 @@ class TestEntityRelationships:
         entity1_response = await http_client.post("/api/v1/entities", json={
             "name": "Delete Rel Source",
             "entity_type": "Team",
-            "notes": "Source"
+            "notes": "Source",
         })
         entity1_id = entity1_response.json()["id"]
 
         entity2_response = await http_client.post("/api/v1/entities", json={
             "name": "Delete Rel Target",
             "entity_type": "Device",
-            "notes": "Target"
+            "notes": "Target",
         })
         entity2_id = entity2_response.json()["id"]
 
@@ -523,7 +522,7 @@ class TestEntityRelationships:
         rel_response = await http_client.post(f"/api/v1/entities/{entity1_id}/relationships", json={
             "target_entity_id": entity2_id,
             "relationship_type": "uses",
-            "description": "Team uses device"
+            "description": "Team uses device",
         })
         relationship_id = rel_response.json()["id"]
 

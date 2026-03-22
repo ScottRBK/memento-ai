@@ -1,5 +1,4 @@
-"""
-Context variable for logging - request/operation tracking.
+"""Context variable for logging - request/operation tracking.
 
 This module provides:
 
@@ -8,7 +7,6 @@ This module provides:
 """
 
 from contextvars import ContextVar
-
 
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_var: ContextVar[str | None] = ContextVar("user_id", default=None)

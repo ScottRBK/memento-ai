@@ -1,7 +1,9 @@
-"This module defines the models for the health service"
+"""This module defines the models for the health service"""
+
+from datetime import datetime
 
 from pydantic import BaseModel, Field
-from datetime import datetime
+
 
 class HealthStatus(BaseModel):
     status: str = Field(..., description="Health Status of the Service", examples=["healthy", "unhealthy"])

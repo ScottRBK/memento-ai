@@ -1,15 +1,16 @@
-"""
-Integration test fixtures with in-memory stubs (no real database required)
+"""Integration test fixtures with in-memory stubs (no real database required)
 """
 
 import hashlib
 import random
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
 
+from app.events import EventBus
+from app.exceptions import ConflictError
+from app.models.activity_models import ActivityEvent
 from app.models.code_artifact_models import (
     CodeArtifact,
     CodeArtifactCreate,
@@ -22,12 +23,6 @@ from app.models.document_models import (
     DocumentSummary,
     DocumentUpdate,
 )
-from app.models.file_models import (
-    File,
-    FileCreate,
-    FileSummary,
-    FileUpdate,
-)
 from app.models.entity_models import (
     Entity,
     EntityCreate,
@@ -38,15 +33,17 @@ from app.models.entity_models import (
     EntityType,
     EntityUpdate,
 )
-from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
-from app.models.project_models import (
-    Project,
-    ProjectCreate,
-    ProjectStatus,
-    ProjectSummary,
-    ProjectUpdate,
+from app.models.file_models import (
+    File,
+    FileCreate,
+    FileSummary,
+    FileUpdate,
 )
+from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
 from app.models.plan_models import (
+    Criterion,
+    CriterionCreate,
+    CriterionUpdate,
     Plan,
     PlanCreate,
     PlanStatus,
@@ -54,14 +51,18 @@ from app.models.plan_models import (
     PlanUpdate,
     Task,
     TaskCreate,
-    TaskState,
+    TaskDependency,
     TaskPriority,
+    TaskState,
     TaskSummary,
     TaskUpdate,
-    Criterion,
-    CriterionCreate,
-    CriterionUpdate,
-    TaskDependency,
+)
+from app.models.project_models import (
+    Project,
+    ProjectCreate,
+    ProjectStatus,
+    ProjectSummary,
+    ProjectUpdate,
 )
 from app.models.skill_models import (
     Skill,
@@ -72,26 +73,23 @@ from app.models.skill_models import (
 from app.models.user_models import User, UserCreate, UserUpdate
 from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.protocols.document_protocol import DocumentRepository
-from app.protocols.file_protocol import FileRepository
 from app.protocols.entity_protocol import EntityRepository
+from app.protocols.file_protocol import FileRepository
 from app.protocols.memory_protocol import MemoryRepository
 from app.protocols.plan_protocol import PlanRepository
 from app.protocols.project_protocol import ProjectRepository
 from app.protocols.skill_protocol import SkillRepository
 from app.protocols.task_protocol import TaskRepository
 from app.protocols.user_protocol import UserRepository
-from app.events import EventBus
-from app.exceptions import ConflictError
-from app.models.activity_models import ActivityEvent
 from app.services.code_artifact_service import CodeArtifactService
 from app.services.document_service import DocumentService
-from app.services.file_service import FileService
 from app.services.entity_service import EntityService
+from app.services.file_service import FileService
 from app.services.memory_service import MemoryService
 from app.services.plan_service import PlanService
 from app.services.project_service import ProjectService
-from app.services.task_service import TaskService
 from app.services.skill_service import SkillService
+from app.services.task_service import TaskService
 from app.services.user_service import UserService
 
 
@@ -113,7 +111,7 @@ class InMemoryUserRepository(UserRepository):
 
     async def create_user(self, user: UserCreate) -> User:
         user_id = uuid4()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_user = User(
             id=user_id,
@@ -141,7 +139,7 @@ class InMemoryUserRepository(UserRepository):
             if field != "external_id":  # Don't update external_id
                 setattr(user, field, value)
 
-        user.updated_at = datetime.now(timezone.utc)
+        user.updated_at = datetime.now(UTC)
         return user
 
 
@@ -149,7 +147,7 @@ class InMemoryUserRepository(UserRepository):
 def clean_test_data():
     """Fixture that provides a clean slate for each test"""
     # Setup: nothing needed
-    yield
+    return
     # Teardown: nothing needed (new instance per test)
 
 
@@ -196,7 +194,7 @@ class InMemoryMemoryRepository(MemoryRepository):
 
     def __init__(self):
         self._memories: dict[
-            UUID, dict[int, Memory]
+            UUID, dict[int, Memory],
         ] = {}  # user_id -> {memory_id -> Memory}
         self._links: dict[int, set[int]] = {}  # memory_id -> set of linked memory_ids
         self._next_id = 1
@@ -206,7 +204,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         memory_id = self._next_id
         self._next_id += 1
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_memory = Memory(
             id=memory_id,
@@ -280,7 +278,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         return memories[:k]
 
     async def find_similar_memories(
-        self, user_id: UUID, memory_id: int, max_links: int
+        self, user_id: UUID, memory_id: int, max_links: int,
     ) -> list[Memory]:
         """Find similar memories - uses keyword overlap as proxy for similarity"""
         user_memories = self._memories.get(user_id, {})
@@ -309,7 +307,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         return similar[:max_links]
 
     async def create_links_batch(
-        self, user_id: UUID, source_id: int, target_ids: list[int]
+        self, user_id: UUID, source_id: int, target_ids: list[int],
     ) -> list[int]:
         """Create bidirectional links between memories"""
         if not target_ids:
@@ -399,7 +397,7 @@ class InMemoryMemoryRepository(MemoryRepository):
         for field, value in update_data.items():
             setattr(memory, field, value)
 
-        memory.updated_at = datetime.now(timezone.utc)
+        memory.updated_at = datetime.now(UTC)
         return memory
 
     async def mark_obsolete(
@@ -415,12 +413,12 @@ class InMemoryMemoryRepository(MemoryRepository):
             return False
 
         # Mark as obsolete but keep in storage for audit trail
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         memory.is_obsolete = True
         memory.obsolete_reason = reason
         memory.superseded_by = superseded_by
-        memory.obsoleted_at = datetime.now(timezone.utc)
+        memory.obsoleted_at = datetime.now(UTC)
 
         return True
 
@@ -576,12 +574,12 @@ class InMemoryProjectRepository(ProjectRepository):
 
     def __init__(self):
         self._projects: dict[
-            UUID, dict[int, Project]
+            UUID, dict[int, Project],
         ] = {}  # user_id -> {project_id -> Project}
         self._next_id = 1
         # Track memories per project for memory_count calculation
         self._project_memories: dict[
-            int, set[int]
+            int, set[int],
         ] = {}  # project_id -> set of memory_ids
 
     async def list_projects(
@@ -634,13 +632,13 @@ class InMemoryProjectRepository(ProjectRepository):
         return user_projects.get(project_id)
 
     async def create_project(
-        self, user_id: UUID, project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate,
     ) -> Project:
         """Create new project"""
         project_id = self._next_id
         self._next_id += 1
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_project = Project(
             id=project_id,
@@ -664,7 +662,7 @@ class InMemoryProjectRepository(ProjectRepository):
         return new_project
 
     async def update_project(
-        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate,
     ) -> Project:
         """Update existing project"""
         project = await self.get_project_by_id(user_id, project_id)
@@ -678,7 +676,7 @@ class InMemoryProjectRepository(ProjectRepository):
         for field, value in update_data.items():
             setattr(project, field, value)
 
-        project.updated_at = datetime.now(timezone.utc)
+        project.updated_at = datetime.now(UTC)
         return project
 
     async def delete_project(self, user_id: UUID, project_id: int) -> bool:
@@ -724,11 +722,11 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         self._next_id = 1
 
     async def create_code_artifact(
-        self, user_id: UUID, artifact_data: CodeArtifactCreate
+        self, user_id: UUID, artifact_data: CodeArtifactCreate,
     ) -> CodeArtifact:
         artifact_id = self._next_id
         self._next_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_artifact = CodeArtifact(
             id=artifact_id,
@@ -748,7 +746,7 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         return new_artifact
 
     async def get_code_artifact_by_id(
-        self, user_id: UUID, artifact_id: int
+        self, user_id: UUID, artifact_id: int,
     ) -> CodeArtifact | None:
         user_artifacts = self._artifacts.get(user_id, {})
         return user_artifacts.get(artifact_id)
@@ -774,7 +772,7 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
         return [CodeArtifactSummary.model_validate(a) for a in artifacts]
 
     async def update_code_artifact(
-        self, user_id: UUID, artifact_id: int, artifact_data: CodeArtifactUpdate
+        self, user_id: UUID, artifact_id: int, artifact_data: CodeArtifactUpdate,
     ) -> CodeArtifact:
         artifact = await self.get_code_artifact_by_id(user_id, artifact_id)
         if not artifact:
@@ -783,12 +781,12 @@ class InMemoryCodeArtifactRepository(CodeArtifactRepository):
             raise NotFoundError(f"Code artifact {artifact_id} not found")
 
         update_data = artifact_data.model_dump(exclude_unset=True)
-        if "language" in update_data and update_data["language"]:
+        if update_data.get("language"):
             update_data["language"] = update_data["language"].lower()
 
         for field, value in update_data.items():
             setattr(artifact, field, value)
-        artifact.updated_at = datetime.now(timezone.utc)
+        artifact.updated_at = datetime.now(UTC)
         return artifact
 
     async def delete_code_artifact(self, user_id: UUID, artifact_id: int) -> bool:
@@ -828,14 +826,14 @@ class InMemoryDocumentRepository(DocumentRepository):
         self._next_id = 1
 
     async def create_document(
-        self, user_id: UUID, document_data: DocumentCreate
+        self, user_id: UUID, document_data: DocumentCreate,
     ) -> Document:
         document_id = self._next_id
         self._next_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         size_bytes = document_data.size_bytes or len(
-            document_data.content.encode("utf-8")
+            document_data.content.encode("utf-8"),
         )
 
         new_document = Document(
@@ -858,7 +856,7 @@ class InMemoryDocumentRepository(DocumentRepository):
         return new_document
 
     async def get_document_by_id(
-        self, user_id: UUID, document_id: int
+        self, user_id: UUID, document_id: int,
     ) -> Document | None:
         user_documents = self._documents.get(user_id, {})
         return user_documents.get(document_id)
@@ -884,7 +882,7 @@ class InMemoryDocumentRepository(DocumentRepository):
         return [DocumentSummary.model_validate(d) for d in documents]
 
     async def update_document(
-        self, user_id: UUID, document_id: int, document_data: DocumentUpdate
+        self, user_id: UUID, document_id: int, document_data: DocumentUpdate,
     ) -> Document:
         document = await self.get_document_by_id(user_id, document_id)
         if not document:
@@ -893,12 +891,12 @@ class InMemoryDocumentRepository(DocumentRepository):
             raise NotFoundError(f"Document {document_id} not found")
 
         update_data = document_data.model_dump(exclude_unset=True)
-        if "content" in update_data and update_data["content"]:
+        if update_data.get("content"):
             update_data["size_bytes"] = len(update_data["content"].encode("utf-8"))
 
         for field, value in update_data.items():
             setattr(document, field, value)
-        document.updated_at = datetime.now(timezone.utc)
+        document.updated_at = datetime.now(UTC)
         return document
 
     async def delete_document(self, user_id: UUID, document_id: int) -> bool:
@@ -938,12 +936,12 @@ class InMemoryFileRepository(FileRepository):
         self._next_id = 1
 
     async def create_file(
-        self, user_id: UUID, file_data: FileCreate
+        self, user_id: UUID, file_data: FileCreate,
     ) -> File:
         import base64
         file_id = self._next_id
         self._next_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         decoded = base64.b64decode(file_data.data)
         size_bytes = len(decoded)
@@ -967,7 +965,7 @@ class InMemoryFileRepository(FileRepository):
         return new_file
 
     async def get_file_by_id(
-        self, user_id: UUID, file_id: int
+        self, user_id: UUID, file_id: int,
     ) -> File | None:
         user_files = self._files.get(user_id, {})
         return user_files.get(file_id)
@@ -993,7 +991,7 @@ class InMemoryFileRepository(FileRepository):
         return [FileSummary.model_validate(f) for f in files]
 
     async def update_file(
-        self, user_id: UUID, file_id: int, file_data: FileUpdate
+        self, user_id: UUID, file_id: int, file_data: FileUpdate,
     ) -> File:
         import base64
         file_obj = await self.get_file_by_id(user_id, file_id)
@@ -1002,13 +1000,13 @@ class InMemoryFileRepository(FileRepository):
             raise NotFoundError(f"File {file_id} not found")
 
         update_data = file_data.model_dump(exclude_unset=True)
-        if "data" in update_data and update_data["data"]:
+        if update_data.get("data"):
             decoded = base64.b64decode(update_data["data"])
             update_data["size_bytes"] = len(decoded)
 
         for field, value in update_data.items():
             setattr(file_obj, field, value)
-        file_obj.updated_at = datetime.now(timezone.utc)
+        file_obj.updated_at = datetime.now(UTC)
         return file_obj
 
     async def delete_file(self, user_id: UUID, file_id: int) -> bool:
@@ -1047,10 +1045,10 @@ class InMemoryEntityRepository(EntityRepository):
         self._entities: dict[UUID, dict[int, Entity]] = {}
         self._relationships: dict[UUID, dict[int, EntityRelationship]] = {}
         self._entity_memory_links: dict[
-            int, set[int]
+            int, set[int],
         ] = {}  # entity_id -> set of memory_ids
         self._entity_project_links: dict[
-            int, set[int]
+            int, set[int],
         ] = {}  # entity_id -> set of project_ids
         self._next_entity_id = 1
         self._next_relationship_id = 1
@@ -1058,7 +1056,7 @@ class InMemoryEntityRepository(EntityRepository):
     async def create_entity(self, user_id: UUID, entity_data: EntityCreate) -> Entity:
         entity_id = self._next_entity_id
         self._next_entity_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_entity = Entity(
             id=entity_id,
@@ -1155,7 +1153,7 @@ class InMemoryEntityRepository(EntityRepository):
         return [EntitySummary.model_validate(e) for e in entities[:limit]]
 
     async def update_entity(
-        self, user_id: UUID, entity_id: int, entity_data: EntityUpdate
+        self, user_id: UUID, entity_id: int, entity_data: EntityUpdate,
     ) -> Entity:
         entity = await self.get_entity_by_id(user_id, entity_id)
         if not entity:
@@ -1166,7 +1164,7 @@ class InMemoryEntityRepository(EntityRepository):
         update_data = entity_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(entity, field, value)
-        entity.updated_at = datetime.now(timezone.utc)
+        entity.updated_at = datetime.now(UTC)
         return entity
 
     async def delete_entity(self, user_id: UUID, entity_id: int) -> bool:
@@ -1190,7 +1188,7 @@ class InMemoryEntityRepository(EntityRepository):
         return False
 
     async def link_entity_to_memory(
-        self, user_id: UUID, entity_id: int, memory_id: int
+        self, user_id: UUID, entity_id: int, memory_id: int,
     ) -> bool:
         # Verify entity exists
         entity = await self.get_entity_by_id(user_id, entity_id)
@@ -1206,7 +1204,7 @@ class InMemoryEntityRepository(EntityRepository):
         return True
 
     async def unlink_entity_from_memory(
-        self, user_id: UUID, entity_id: int, memory_id: int
+        self, user_id: UUID, entity_id: int, memory_id: int,
     ) -> bool:
         if entity_id in self._entity_memory_links:
             if memory_id in self._entity_memory_links[entity_id]:
@@ -1215,7 +1213,7 @@ class InMemoryEntityRepository(EntityRepository):
         return False
 
     async def link_entity_to_project(
-        self, user_id: UUID, entity_id: int, project_id: int
+        self, user_id: UUID, entity_id: int, project_id: int,
     ) -> bool:
         # Verify entity exists
         entity = await self.get_entity_by_id(user_id, entity_id)
@@ -1231,7 +1229,7 @@ class InMemoryEntityRepository(EntityRepository):
         return True
 
     async def unlink_entity_from_project(
-        self, user_id: UUID, entity_id: int, project_id: int
+        self, user_id: UUID, entity_id: int, project_id: int,
     ) -> bool:
         if entity_id in self._entity_project_links:
             if project_id in self._entity_project_links[entity_id]:
@@ -1240,14 +1238,14 @@ class InMemoryEntityRepository(EntityRepository):
         return False
 
     async def create_entity_relationship(
-        self, user_id: UUID, relationship_data: EntityRelationshipCreate
+        self, user_id: UUID, relationship_data: EntityRelationshipCreate,
     ) -> EntityRelationship:
         # Verify both entities exist
         source = await self.get_entity_by_id(
-            user_id, relationship_data.source_entity_id
+            user_id, relationship_data.source_entity_id,
         )
         target = await self.get_entity_by_id(
-            user_id, relationship_data.target_entity_id
+            user_id, relationship_data.target_entity_id,
         )
         if not source or not target:
             from app.exceptions import NotFoundError
@@ -1256,7 +1254,7 @@ class InMemoryEntityRepository(EntityRepository):
 
         relationship_id = self._next_relationship_id
         self._next_relationship_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_relationship = EntityRelationship(
             id=relationship_id,
@@ -1326,11 +1324,11 @@ class InMemoryEntityRepository(EntityRepository):
         update_data = relationship_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(relationship, field, value)
-        relationship.updated_at = datetime.now(timezone.utc)
+        relationship.updated_at = datetime.now(UTC)
         return relationship
 
     async def delete_entity_relationship(
-        self, user_id: UUID, relationship_id: int
+        self, user_id: UUID, relationship_id: int,
     ) -> bool:
         user_relationships = self._relationships.get(user_id, {})
         if relationship_id in user_relationships:
@@ -1339,7 +1337,7 @@ class InMemoryEntityRepository(EntityRepository):
         return False
 
     async def get_all_entity_relationships(
-        self, user_id: UUID
+        self, user_id: UUID,
     ) -> list[EntityRelationship]:
         """Get all entity relationships for a user (for graph visualization)"""
         user_relationships = self._relationships.get(user_id, {})
@@ -1402,7 +1400,7 @@ class InMemoryPlanRepository(PlanRepository):
     async def create_plan(self, user_id: UUID, plan_data: PlanCreate) -> Plan:
         plan_id = self._next_id
         self._next_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_plan = Plan(
             id=plan_id,
@@ -1456,7 +1454,7 @@ class InMemoryPlanRepository(PlanRepository):
         ]
 
     async def update_plan(
-        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate
+        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate,
     ) -> Plan:
         plan = await self.get_plan_by_id(user_id, plan_id)
         if not plan:
@@ -1467,7 +1465,7 @@ class InMemoryPlanRepository(PlanRepository):
         update_data = plan_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(plan, field, value)
-        plan.updated_at = datetime.now(timezone.utc)
+        plan.updated_at = datetime.now(UTC)
         return plan
 
     async def delete_plan(self, user_id: UUID, plan_id: int) -> bool:
@@ -1514,7 +1512,7 @@ class InMemoryTaskRepository(TaskRepository):
     async def create_task(self, user_id: UUID, task_data: TaskCreate) -> Task:
         task_id = self._next_task_id
         self._next_task_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_task = Task(
             id=task_id,
@@ -1600,13 +1598,13 @@ class InMemoryTaskRepository(TaskRepository):
                     blocked=dep_tasks_not_done,
                     created_at=t.created_at,
                     updated_at=t.updated_at,
-                )
+                ),
             )
 
         return summaries
 
     async def update_task(
-        self, user_id: UUID, task_id: int, task_data: TaskUpdate
+        self, user_id: UUID, task_id: int, task_data: TaskUpdate,
     ) -> Task:
         task = await self.get_task_by_id(user_id, task_id)
         if not task:
@@ -1617,7 +1615,7 @@ class InMemoryTaskRepository(TaskRepository):
         update_data = task_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(task, field, value)
-        task.updated_at = datetime.now(timezone.utc)
+        task.updated_at = datetime.now(UTC)
         return task
 
     async def delete_task(self, user_id: UUID, task_id: int) -> bool:
@@ -1663,14 +1661,14 @@ class InMemoryTaskRepository(TaskRepository):
         if task.version != expected_version:
             raise ConflictError(
                 f"Version mismatch: expected {expected_version}, got {task.version}. "
-                f"Task was modified by another agent."
+                f"Task was modified by another agent.",
             )
 
         task.state = new_state
         task.version += 1
         if assigned_agent is not None:
             task.assigned_agent = assigned_agent
-        task.updated_at = datetime.now(timezone.utc)
+        task.updated_at = datetime.now(UTC)
 
         # Re-hydrate criteria and deps before returning
         task.criteria = await self.get_criteria_for_task(user_id, task_id)
@@ -1680,11 +1678,11 @@ class InMemoryTaskRepository(TaskRepository):
     # ---- Criteria CRUD ----
 
     async def create_criterion(
-        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate
+        self, user_id: UUID, task_id: int, criterion_data: CriterionCreate,
     ) -> Criterion:
         criterion_id = self._next_criterion_id
         self._next_criterion_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_criterion = Criterion(
             id=criterion_id,
@@ -1702,7 +1700,7 @@ class InMemoryTaskRepository(TaskRepository):
         return new_criterion
 
     async def update_criterion(
-        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate
+        self, user_id: UUID, criterion_id: int, criterion_data: CriterionUpdate,
     ) -> Criterion:
         user_criteria = self._criteria.get(user_id, {})
         criterion = user_criteria.get(criterion_id)
@@ -1717,11 +1715,11 @@ class InMemoryTaskRepository(TaskRepository):
 
         # Auto-set met_at when met changes to True
         if criterion_data.met is True:
-            criterion.met_at = datetime.now(timezone.utc)
+            criterion.met_at = datetime.now(UTC)
         elif criterion_data.met is False:
             criterion.met_at = None
 
-        criterion.updated_at = datetime.now(timezone.utc)
+        criterion.updated_at = datetime.now(UTC)
         return criterion
 
     async def delete_criterion(self, user_id: UUID, criterion_id: int) -> bool:
@@ -1732,7 +1730,7 @@ class InMemoryTaskRepository(TaskRepository):
         return False
 
     async def get_criteria_for_task(
-        self, user_id: UUID, task_id: int
+        self, user_id: UUID, task_id: int,
     ) -> list[Criterion]:
         user_criteria = self._criteria.get(user_id, {})
         criteria = [c for c in user_criteria.values() if c.task_id == task_id]
@@ -1742,11 +1740,11 @@ class InMemoryTaskRepository(TaskRepository):
     # ---- Dependencies ----
 
     async def add_dependency(
-        self, user_id: UUID, task_id: int, depends_on_task_id: int
+        self, user_id: UUID, task_id: int, depends_on_task_id: int,
     ) -> TaskDependency:
         dep_id = self._next_dependency_id
         self._next_dependency_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_dep = TaskDependency(
             id=dep_id,
@@ -1761,7 +1759,7 @@ class InMemoryTaskRepository(TaskRepository):
         return new_dep
 
     async def remove_dependency(
-        self, user_id: UUID, task_id: int, depends_on_task_id: int
+        self, user_id: UUID, task_id: int, depends_on_task_id: int,
     ) -> bool:
         user_deps = self._dependencies.get(user_id, {})
         for did, dep in list(user_deps.items()):
@@ -1815,11 +1813,11 @@ class InMemorySkillRepository(SkillRepository):
         self._next_id = 1
 
     async def create_skill(
-        self, user_id: UUID, skill_data: SkillCreate
+        self, user_id: UUID, skill_data: SkillCreate,
     ) -> Skill:
         skill_id = self._next_id
         self._next_id += 1
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         new_skill = Skill(
             id=skill_id,
@@ -1843,7 +1841,7 @@ class InMemorySkillRepository(SkillRepository):
         return new_skill
 
     async def get_skill_by_id(
-        self, user_id: UUID, skill_id: int
+        self, user_id: UUID, skill_id: int,
     ) -> Skill | None:
         user_skills = self._skills.get(user_id, {})
         return user_skills.get(skill_id)
@@ -1869,7 +1867,7 @@ class InMemorySkillRepository(SkillRepository):
         return [SkillSummary.model_validate(s) for s in skills]
 
     async def update_skill(
-        self, user_id: UUID, skill_id: int, skill_data: SkillUpdate
+        self, user_id: UUID, skill_id: int, skill_data: SkillUpdate,
     ) -> Skill:
         skill = await self.get_skill_by_id(user_id, skill_id)
         if not skill:
@@ -1880,7 +1878,7 @@ class InMemorySkillRepository(SkillRepository):
         update_data = skill_data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(skill, field, value)
-        skill.updated_at = datetime.now(timezone.utc)
+        skill.updated_at = datetime.now(UTC)
         return skill
 
     async def delete_skill(self, user_id: UUID, skill_id: int) -> bool:

@@ -1,13 +1,13 @@
-"""
-Pydantic models for Entity and EntityRelationship entities
+"""Pydantic models for Entity and EntityRelationship entities
 
 Entities represent real-world entities (organizations, individuals, teams, devices)
 that can be linked to memories and related to each other through a knowledge graph.
 """
-from datetime import datetime, timezone
-from typing import List, Dict, Any
+from datetime import UTC, datetime
 from enum import Enum
-from pydantic import BaseModel, Field, field_validator, ConfigDict, model_validator
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.config.settings import settings
 
@@ -46,35 +46,35 @@ class EntityCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.ENTITY_NAME_MAX_LENGTH,
-        description="Entity name - searchable identifier (e.g., 'John Smith', 'Anthropic', 'Production DB')"
+        description="Entity name - searchable identifier (e.g., 'John Smith', 'Anthropic', 'Production DB')",
     )
     entity_type: EntityType = Field(
         ...,
-        description="Entity type: Organization, Individual, Team, Device, or Other"
+        description="Entity type: Organization, Individual, Team, Device, or Other",
     )
     custom_type: str | None = Field(
         default=None,
         max_length=settings.ENTITY_TYPE_MAX_LENGTH,
-        description="Custom entity type (required if entity_type is 'Other', e.g., 'Infrastructure', 'Tool', 'Location')"
+        description="Custom entity type (required if entity_type is 'Other', e.g., 'Infrastructure', 'Tool', 'Location')",
     )
     notes: str | None = Field(
         default=None,
         max_length=settings.ENTITY_NOTES_MAX_LENGTH,
-        description="Additional context and information about this entity (bio, description, purpose, etc.)"
+        description="Additional context and information about this entity (bio, description, purpose, etc.)",
     )
     tags: list[str] = Field(
         default_factory=list,
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
-        description="Tags for categorization and discovery (e.g., ['engineering', 'leadership'], ['ai', 'startup'])"
+        description="Tags for categorization and discovery (e.g., ['engineering', 'leadership'], ['ai', 'startup'])",
     )
     aka: list[str] = Field(
         default_factory=list,
         max_length=settings.ENTITY_AKA_MAX_COUNT,
-        description="Alternative names/aliases for this entity (e.g., ['Johnny', 'J.S.'] for 'John Smith', ['MSFT'] for 'Microsoft')"
+        description="Alternative names/aliases for this entity (e.g., ['Johnny', 'J.S.'] for 'John Smith', ['MSFT'] for 'Microsoft')",
     )
     project_ids: list[int] | None = Field(
         default=None,
-        description="Optional project IDs for immediate association with projects"
+        description="Optional project IDs for immediate association with projects",
     )
 
     @field_validator("name", "custom_type", "notes")
@@ -90,7 +90,7 @@ class EntityCreate(BaseModel):
         if info.field_name == "name" and not stripped:
             raise ValueError("name cannot be empty or whitespace only")
 
-        return stripped if stripped else None
+        return stripped or None
 
     @field_validator("tags")
     @classmethod
@@ -122,7 +122,7 @@ class EntityCreate(BaseModel):
 
         return cleaned
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_custom_type(self):
         """Ensure custom_type is provided when entity_type is Other"""
         if self.entity_type == EntityType.OTHER and not self.custom_type:
@@ -150,35 +150,35 @@ class EntityUpdate(BaseModel):
         default=None,
         min_length=1,
         max_length=settings.ENTITY_NAME_MAX_LENGTH,
-        description="New name. Unchanged if null."
+        description="New name. Unchanged if null.",
     )
     entity_type: EntityType | None = Field(
         default=None,
-        description="New entity type. Unchanged if null."
+        description="New entity type. Unchanged if null.",
     )
     custom_type: str | None = Field(
         default=None,
         max_length=settings.ENTITY_TYPE_MAX_LENGTH,
-        description="New custom type (required if changing entity_type to 'Other'). Unchanged if null."
+        description="New custom type (required if changing entity_type to 'Other'). Unchanged if null.",
     )
     notes: str | None = Field(
         default=None,
         max_length=settings.ENTITY_NOTES_MAX_LENGTH,
-        description="New notes. Unchanged if null. Empty string clears."
+        description="New notes. Unchanged if null. Empty string clears.",
     )
     tags: list[str] | None = Field(
         default=None,
         max_length=settings.ENTITY_TAGS_MAX_COUNT,
-        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags."
+        description="New tags (replaces existing). Unchanged if null. Empty list [] clears tags.",
     )
     aka: list[str] | None = Field(
         default=None,
         max_length=settings.ENTITY_AKA_MAX_COUNT,
-        description="New alternative names (replaces existing). Unchanged if null. Empty list [] clears."
+        description="New alternative names (replaces existing). Unchanged if null. Empty list [] clears.",
     )
     project_ids: list[int] | None = Field(
         default=None,
-        description="New project associations (replaces existing). Unchanged if null. Empty list [] clears associations."
+        description="New project associations (replaces existing). Unchanged if null. Empty list [] clears associations.",
     )
 
     @field_validator("name", "custom_type", "notes")
@@ -195,7 +195,7 @@ class EntityUpdate(BaseModel):
             raise ValueError("name cannot be empty or whitespace only")
 
         # For optional fields, empty string means "clear field"
-        return stripped if stripped else None
+        return stripped or None
 
     @field_validator("tags")
     @classmethod
@@ -235,7 +235,7 @@ class EntityUpdate(BaseModel):
 
         return cleaned
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_custom_type(self):
         """Ensure custom_type is provided when entity_type is Other"""
         if self.entity_type == EntityType.OTHER and not self.custom_type:
@@ -257,19 +257,19 @@ class Entity(EntityCreate):
     """
     id: int = Field(
         ...,
-        description="Unique entity identifier (auto-generated)"
+        description="Unique entity identifier (auto-generated)",
     )
     project_ids: list[int] | None = Field(
         default=None,
-        description="Associated project IDs. Empty list if not linked to any projects."
+        description="Associated project IDs. Empty list if not linked to any projects.",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the entity was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the entity was created (UTC)",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the entity was last updated (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the entity was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -286,39 +286,39 @@ class EntitySummary(BaseModel):
     """
     id: int = Field(
         ...,
-        description="Unique entity identifier"
+        description="Unique entity identifier",
     )
     name: str = Field(
         ...,
-        description="Entity name"
+        description="Entity name",
     )
     entity_type: EntityType = Field(
         ...,
-        description="Entity type"
+        description="Entity type",
     )
     custom_type: str | None = Field(
         default=None,
-        description="Custom entity type (if entity_type is 'Other')"
+        description="Custom entity type (if entity_type is 'Other')",
     )
     tags: list[str] = Field(
         ...,
-        description="Tags for categorization"
+        description="Tags for categorization",
     )
     aka: list[str] = Field(
         ...,
-        description="Alternative names/aliases"
+        description="Alternative names/aliases",
     )
     project_ids: list[int] | None = Field(
         default=None,
-        description="Associated project IDs"
+        description="Associated project IDs",
     )
     created_at: datetime = Field(
         ...,
-        description="When the entity was created (UTC)"
+        description="When the entity was created (UTC)",
     )
     updated_at: datetime = Field(
         ...,
-        description="When the entity was last updated (UTC)"
+        description="When the entity was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)
@@ -332,19 +332,19 @@ class EntityListResponse(BaseModel):
     """
     entities: list[EntitySummary] = Field(
         ...,
-        description="List of entity summaries for the current page"
+        description="List of entity summaries for the current page",
     )
     total: int = Field(
         ...,
-        description="Total count of entities matching filters (before pagination)"
+        description="Total count of entities matching filters (before pagination)",
     )
     limit: int = Field(
         ...,
-        description="Maximum results per page"
+        description="Maximum results per page",
     )
     offset: int = Field(
         ...,
-        description="Number of results skipped"
+        description="Number of results skipped",
     )
 
 
@@ -364,33 +364,33 @@ class EntityRelationshipCreate(BaseModel):
     """
     source_entity_id: int = Field(
         ...,
-        description="Source entity ID (the 'from' entity in the relationship)"
+        description="Source entity ID (the 'from' entity in the relationship)",
     )
     target_entity_id: int = Field(
         ...,
-        description="Target entity ID (the 'to' entity in the relationship)"
+        description="Target entity ID (the 'to' entity in the relationship)",
     )
     relationship_type: str = Field(
         ...,
         min_length=1,
         max_length=settings.ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH,
-        description="Relationship type (e.g., 'works_at', 'owns', 'manages', 'part_of', 'reports_to')"
+        description="Relationship type (e.g., 'works_at', 'owns', 'manages', 'part_of', 'reports_to')",
     )
     strength: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
-        description="Relationship strength (0.0-1.0), indicating the significance or weight of this relationship"
+        description="Relationship strength (0.0-1.0), indicating the significance or weight of this relationship",
     )
     confidence: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
-        description="Confidence score (0.0-1.0), indicating certainty about this relationship"
+        description="Confidence score (0.0-1.0), indicating certainty about this relationship",
     )
     metadata: dict[str, Any] | None = Field(
         default=None,
-        description="Flexible metadata dictionary for additional context (e.g., {'source': 'linkedin', 'last_verified': '2025-03-21'})"
+        description="Flexible metadata dictionary for additional context (e.g., {'source': 'linkedin', 'last_verified': '2025-03-21'})",
     )
 
     @field_validator("relationship_type")
@@ -406,7 +406,7 @@ class EntityRelationshipCreate(BaseModel):
 
         return stripped
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_different_entities(self):
         """Ensure source and target are different entities"""
         if self.source_entity_id == self.target_entity_id:
@@ -429,23 +429,23 @@ class EntityRelationshipUpdate(BaseModel):
         default=None,
         min_length=1,
         max_length=settings.ENTITY_RELATIONSHIP_TYPE_MAX_LENGTH,
-        description="New relationship type. Unchanged if null."
+        description="New relationship type. Unchanged if null.",
     )
     strength: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
-        description="New strength. Unchanged if null."
+        description="New strength. Unchanged if null.",
     )
     confidence: float | None = Field(
         default=None,
         ge=0.0,
         le=1.0,
-        description="New confidence. Unchanged if null."
+        description="New confidence. Unchanged if null.",
     )
     metadata: dict[str, Any] | None = Field(
         default=None,
-        description="New metadata (replaces existing). Unchanged if null. Empty dict {} clears metadata."
+        description="New metadata (replaces existing). Unchanged if null. Empty dict {} clears metadata.",
     )
 
     @field_validator("relationship_type")
@@ -475,15 +475,15 @@ class EntityRelationship(EntityRelationshipCreate):
     """
     id: int = Field(
         ...,
-        description="Unique relationship identifier (auto-generated)"
+        description="Unique relationship identifier (auto-generated)",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the relationship was created (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the relationship was created (UTC)",
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When the relationship was last updated (UTC)"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When the relationship was last updated (UTC)",
     )
 
     model_config = ConfigDict(from_attributes=True)

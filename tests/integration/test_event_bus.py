@@ -1,14 +1,14 @@
-"""
-Integration tests for the EventBus.
+"""Integration tests for the EventBus.
 
 Tests pattern matching, async dispatch, and error isolation.
 """
 
 import asyncio
+
 import pytest
 
 from app.events import EventBus
-from app.models.activity_models import ActivityEvent, EntityType, ActionType
+from app.models.activity_models import ActionType, ActivityEvent, EntityType
 
 
 class TestEventBusPatternMatching:

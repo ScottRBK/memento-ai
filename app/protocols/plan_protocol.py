@@ -1,4 +1,4 @@
-from typing import List, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from app.models.plan_models import (
@@ -25,7 +25,7 @@ class PlanRepository(Protocol):
     ) -> list[PlanSummary]: ...
 
     async def update_plan(
-        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate
+        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate,
     ) -> Plan: ...
 
     async def delete_plan(self, user_id: UUID, plan_id: int) -> bool: ...

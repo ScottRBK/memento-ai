@@ -1,14 +1,14 @@
-"""
-Activity tracking models for the event-driven architecture.
+"""Activity tracking models for the event-driven architecture.
 
 Supports tracking of all entity lifecycle events (created, updated, deleted)
 and optionally read/query operations when ACTIVITY_TRACK_READS is enabled.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, List
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EntityType(str, Enum):
@@ -47,62 +47,60 @@ class ActorType(str, Enum):
 
 
 class ActivityEvent(BaseModel):
-    """
-    Event payload emitted when an entity changes.
+    """Event payload emitted when an entity changes.
 
     This is the in-memory event that flows through the event bus.
     Subscribers receive this and can persist, transform, or react to it.
     """
     entity_type: EntityType = Field(
         ...,
-        description="Type of entity that changed"
+        description="Type of entity that changed",
     )
     entity_id: int = Field(
         0,
-        description="ID of the entity (0 for links which use metadata for source/target)"
+        description="ID of the entity (0 for links which use metadata for source/target)",
     )
     action: ActionType = Field(
         ...,
-        description="What happened to the entity"
+        description="What happened to the entity",
     )
     changes: dict[str, dict[str, Any]] | None = Field(
         None,
-        description="For updates: {field: {old: value, new: value}}. Null for other actions."
+        description="For updates: {field: {old: value, new: value}}. Null for other actions.",
     )
     snapshot: dict[str, Any] = Field(
         ...,
-        description="Full entity state at event time (JSON serializable)"
+        description="Full entity state at event time (JSON serializable)",
     )
     actor: ActorType = Field(
         ActorType.USER,
-        description="Who/what triggered this event"
+        description="Who/what triggered this event",
     )
     actor_id: str | None = Field(
         None,
         max_length=255,
-        description="Optional actor identifier (session ID, user ID, etc.)"
+        description="Optional actor identifier (session ID, user ID, etc.)",
     )
     metadata: dict[str, Any] | None = Field(
         None,
-        description="Additional context (query params for searches, link details, etc.)"
+        description="Additional context (query params for searches, link details, etc.)",
     )
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(tz=timezone.utc),
-        description="When this event occurred"
+        default_factory=lambda: datetime.now(tz=UTC),
+        description="When this event occurred",
     )
 
     # User context - populated by event bus before dispatch
     user_id: str | None = Field(
         None,
-        description="User ID for RLS context (set by event bus)"
+        description="User ID for RLS context (set by event bus)",
     )
 
     model_config = ConfigDict(use_enum_values=True)
 
 
 class ActivityLogEntry(BaseModel):
-    """
-    Persisted activity event with database ID.
+    """Persisted activity event with database ID.
 
     This is what gets stored in the activity_log table and
     returned from the activity API endpoint.
@@ -114,7 +112,7 @@ class ActivityLogEntry(BaseModel):
     action: ActionType = Field(..., description="What happened")
     changes: dict[str, dict[str, Any]] | None = Field(
         None,
-        description="Field changes for updates"
+        description="Field changes for updates",
     )
     snapshot: dict[str, Any] = Field(..., description="Entity state at event time")
     actor: ActorType = Field(..., description="Who triggered the event")
@@ -126,24 +124,23 @@ class ActivityLogEntry(BaseModel):
 
 
 class ActivityListResponse(BaseModel):
-    """
-    Paginated response for GET /api/v1/activity endpoint.
+    """Paginated response for GET /api/v1/activity endpoint.
     """
     events: list[ActivityLogEntry] = Field(
         ...,
-        description="Activity events matching query filters"
+        description="Activity events matching query filters",
     )
     total: int = Field(
         ...,
-        description="Total count of events matching filters (before pagination)"
+        description="Total count of events matching filters (before pagination)",
     )
     limit: int = Field(
         ...,
-        description="Maximum results per page"
+        description="Maximum results per page",
     )
     offset: int = Field(
         ...,
-        description="Number of results skipped"
+        description="Number of results skipped",
     )
 
     model_config = ConfigDict(from_attributes=True)

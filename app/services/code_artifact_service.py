@@ -1,5 +1,4 @@
-"""
-Code Artifact Service - Business logic for code artifact operations
+"""Code Artifact Service - Business logic for code artifact operations
 
 This service implements functionality for managing code artifacts:
     - CRUD operations (create, read, update, delete)
@@ -7,25 +6,25 @@ This service implements functionality for managing code artifacts:
     - Project association
     - Memory linking (via memory service)
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
 from app.config.settings import settings
+from app.exceptions import NotFoundError
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
-from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.models.code_artifact_models import (
     CodeArtifact,
     CodeArtifactCreate,
+    CodeArtifactSummary,
     CodeArtifactUpdate,
-    CodeArtifactSummary
 )
-from app.exceptions import NotFoundError
+from app.protocols.code_artifact_protocol import CodeArtifactRepository
 from app.utils.pydantic_helper import get_changed_fields
 
 if TYPE_CHECKING:
@@ -66,8 +65,7 @@ class CodeArtifactService:
         changes: dict | None = None,
         metadata: dict | None = None,
     ) -> None:
-        """
-        Emit an activity event to the event bus.
+        """Emit an activity event to the event bus.
 
         This is a no-op if no event bus is configured.
 
@@ -99,7 +97,7 @@ class CodeArtifactService:
     async def create_code_artifact(
         self,
         user_id: UUID,
-        artifact_data: CodeArtifactCreate
+        artifact_data: CodeArtifactCreate,
     ) -> CodeArtifact:
         """Create new code artifact
 
@@ -115,21 +113,21 @@ class CodeArtifactService:
             extra={
                 "title": artifact_data.title[:50],
                 "language": artifact_data.language,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         artifact = await self.artifact_repo.create_code_artifact(
             user_id=user_id,
-            artifact_data=artifact_data
+            artifact_data=artifact_data,
         )
 
         logger.info(
             "code artifact created",
             extra={
                 "artifact_id": artifact.id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit created event
@@ -146,7 +144,7 @@ class CodeArtifactService:
     async def get_code_artifact(
         self,
         user_id: UUID,
-        artifact_id: int
+        artifact_id: int,
     ) -> CodeArtifact:
         """Get artifact by ID with ownership verification
 
@@ -164,13 +162,13 @@ class CodeArtifactService:
             "getting code artifact",
             extra={
                 "artifact_id": artifact_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         artifact = await self.artifact_repo.get_code_artifact_by_id(
             user_id=user_id,
-            artifact_id=artifact_id
+            artifact_id=artifact_id,
         )
 
         if not artifact:
@@ -180,8 +178,8 @@ class CodeArtifactService:
             "code artifact retrieved",
             extra={
                 "artifact_id": artifact_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit read event (opt-in via ACTIVITY_TRACK_READS)
@@ -201,7 +199,7 @@ class CodeArtifactService:
         user_id: UUID,
         project_id: int | None = None,
         language: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[CodeArtifactSummary]:
         """List artifacts with optional filtering
 
@@ -220,23 +218,23 @@ class CodeArtifactService:
                 "user_id": str(user_id),
                 "project_id": project_id,
                 "language": language,
-                "tags": tags
-            }
+                "tags": tags,
+            },
         )
 
         artifacts = await self.artifact_repo.list_code_artifacts(
             user_id=user_id,
             project_id=project_id,
             language=language,
-            tags=tags
+            tags=tags,
         )
 
         logger.info(
             "code artifacts retrieved",
             extra={
                 "count": len(artifacts),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
@@ -263,7 +261,7 @@ class CodeArtifactService:
         self,
         user_id: UUID,
         artifact_id: int,
-        artifact_data: CodeArtifactUpdate
+        artifact_data: CodeArtifactUpdate,
     ) -> CodeArtifact:
         """Update existing artifact (PATCH semantics)
 
@@ -284,14 +282,14 @@ class CodeArtifactService:
             "updating code artifact",
             extra={
                 "artifact_id": artifact_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Get existing artifact for change detection
         existing_artifact = await self.artifact_repo.get_code_artifact_by_id(
             user_id=user_id,
-            artifact_id=artifact_id
+            artifact_id=artifact_id,
         )
 
         if not existing_artifact:
@@ -299,21 +297,21 @@ class CodeArtifactService:
 
         # Detect changes
         changed_fields = get_changed_fields(
-            input_model=artifact_data, existing_model=existing_artifact
+            input_model=artifact_data, existing_model=existing_artifact,
         )
 
         artifact = await self.artifact_repo.update_code_artifact(
             user_id=user_id,
             artifact_id=artifact_id,
-            artifact_data=artifact_data
+            artifact_data=artifact_data,
         )
 
         logger.info(
             "code artifact updated",
             extra={
                 "artifact_id": artifact_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit updated event with changes
@@ -336,7 +334,7 @@ class CodeArtifactService:
     async def delete_code_artifact(
         self,
         user_id: UUID,
-        artifact_id: int
+        artifact_id: int,
     ) -> bool:
         """Delete artifact (cascade removes memory associations)
 
@@ -351,19 +349,19 @@ class CodeArtifactService:
             "deleting code artifact",
             extra={
                 "artifact_id": artifact_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Fetch artifact before deletion for snapshot
         existing_artifact = await self.artifact_repo.get_code_artifact_by_id(
             user_id=user_id,
-            artifact_id=artifact_id
+            artifact_id=artifact_id,
         )
 
         success = await self.artifact_repo.delete_code_artifact(
             user_id=user_id,
-            artifact_id=artifact_id
+            artifact_id=artifact_id,
         )
 
         if success:
@@ -371,8 +369,8 @@ class CodeArtifactService:
                 "code artifact deleted",
                 extra={
                     "artifact_id": artifact_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit deleted event with pre-deletion snapshot
@@ -389,8 +387,8 @@ class CodeArtifactService:
                 "code artifact not found for deletion",
                 extra={
                     "artifact_id": artifact_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success

@@ -1,5 +1,4 @@
-"""
-E2E tests for plan MCP tools with PostgreSQL backend.
+"""E2E tests for plan MCP tools with PostgreSQL backend.
 
 Mirrors tests/e2e_sqlite/test_plan_tools_sqlite.py but runs against real Postgres
 to catch type mismatches (e.g. UUID vs str) that SQLite doesn't surface.
@@ -7,7 +6,6 @@ to catch type mismatches (e.g. UUID vs str) that SQLite doesn't surface.
 
 import pytest
 from fastmcp.exceptions import ToolError
-
 
 pytestmark = [
     pytest.mark.e2e,

@@ -1,41 +1,43 @@
+"""Memory repository for postgres data access operations
 """
-Memory repository for postgres data access operations
-"""
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
-from datetime import datetime, timezone
-from typing import List, Dict, Any, Tuple
 
-from sqlalchemy import select, update, or_, text
-from sqlalchemy.orm import selectinload
+from sqlalchemy import or_, select, text, update
 from sqlalchemy.exc import IntegrityError, NoResultFound
+from sqlalchemy.orm import selectinload
 
+from app.config.logging_config import logging
+from app.config.settings import settings
+from app.exceptions import NotFoundError
+from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
+from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
+from app.repositories.embeddings.reranker_adapter import RerankAdapter
+from app.repositories.helpers import (
+    build_contextual_query,
+    build_embedding_text,
+    build_memory_text,
+)
+from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.postgres_tables import (
-    MemoryTable,
-    MemoryLinkTable,
-    ProjectsTable,
     CodeArtifactsTable,
     DocumentsTable,
     FilesTable,
-    memory_project_association
+    MemoryLinkTable,
+    MemoryTable,
+    ProjectsTable,
+    memory_project_association,
 )
-from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
-from app.repositories.embeddings.embedding_adapter import EmbeddingsAdapter
-from app.repositories.embeddings.reranker_adapter import RerankAdapter
-from app.repositories.helpers import build_embedding_text, build_memory_text, build_contextual_query
-from app.models.memory_models import Memory, MemoryCreate, MemoryUpdate
-from app.exceptions import NotFoundError
-from app.config.logging_config import logging
-from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 class PostgresMemoryRepository:
+    """Repository for Memory entity operations in Postgres
     """
-    Repository for Memory entity operations in Postgres
-    """
-    
+
     def __init__(
-            self, 
+            self,
             db_adapter: PostgresDatabaseAdapter,
             embedding_adapter: EmbeddingsAdapter,
             rerank_adapter: RerankAdapter | None = None,
@@ -43,7 +45,7 @@ class PostgresMemoryRepository:
         self.db_adapter = db_adapter
         self.embedding_adapter = embedding_adapter
         self.rerank_adapter = rerank_adapter
-        
+
     async def search(
             self,
             user_id: UUID,
@@ -54,31 +56,29 @@ class PostgresMemoryRepository:
             project_ids: list[int] | None,
             exclude_ids: list[int] | None,
     ) -> list[Memory]:
-        """
-            Performs four stage memory retrieval
-            1 -> performs a dense search for a list of candidate memories based on the query 
-            2 -> performs a sparse search for a list of candiatte memories based on the query
-            3 -> combines the candidates and provides a final list using reciprocal ranked fusion
-            4 -> uses a cross encoder to score the list of final candidates based on the query
-            AND the query context and returns the top k
+        """Performs four stage memory retrieval
+        1 -> performs a dense search for a list of candidate memories based on the query 
+        2 -> performs a sparse search for a list of candiatte memories based on the query
+        3 -> combines the candidates and provides a final list using reciprocal ranked fusion
+        4 -> uses a cross encoder to score the list of final candidates based on the query
+        AND the query context and returns the top k
 
-            Args:
-                user_id: user id for isolation
-                query: the search term to perform the dense and spare searches
-                query_context: the context in which the memories are being asked (used in cross encoder ranking)
-                k: the number of memories to return
-                importance_threshold: optional filter to only retrieve memories of a given importance or above
-                project_ids: optional list filter to only retrieve memories that belong to certain projects
-                exclude_ids: optional list of memory ids to exclude from the search
+        Args:
+            user_id: user id for isolation
+            query: the search term to perform the dense and spare searches
+            query_context: the context in which the memories are being asked (used in cross encoder ranking)
+            k: the number of memories to return
+            importance_threshold: optional filter to only retrieve memories of a given importance or above
+            project_ids: optional list filter to only retrieve memories that belong to certain projects
+            exclude_ids: optional list of memory ids to exclude from the search
                 
-            Returns:
-                List of Memories objects
+        Returns:
+            List of Memories objects
         """
-
         if settings.RERANKING_ENABLED:
             candidates_to_return = settings.DENSE_SEARCH_CANDIDATES
         else:
-            candidates_to_return = k 
+            candidates_to_return = k
 
         dense_candidates = await self.semantic_search(
             user_id=user_id,
@@ -86,7 +86,7 @@ class PostgresMemoryRepository:
             k=candidates_to_return,
             importance_threshold=importance_threshold,
             project_ids=project_ids,
-            exclude_ids=exclude_ids
+            exclude_ids=exclude_ids,
         )
 
         if not dense_candidates or not settings.RERANKING_ENABLED or len(dense_candidates) <= k:
@@ -103,13 +103,13 @@ class PostgresMemoryRepository:
             rerank_query = query
 
         ranked = await self.rerank_adapter.rerank(query=rerank_query, documents=documents)
-        
+
         top_k_memories = [dense_candidates[idx] for idx, score in ranked[:k]]
-        
+
         return top_k_memories
-         
-        
-    
+
+
+
     async def semantic_search(
             self,
             user_id: UUID,
@@ -119,8 +119,7 @@ class PostgresMemoryRepository:
             project_ids: list[int] | None,
             exclude_ids: list[int] | None,
     ) -> list[Memory]:
-        """
-        Perform semantic search using vector similarity
+        """Perform semantic search using vector similarity
 
         Args:
             session: Database session
@@ -150,10 +149,10 @@ class PostgresMemoryRepository:
             )
             .where(
                 MemoryTable.user_id==user_id,
-                MemoryTable.is_obsolete.is_(False)
+                MemoryTable.is_obsolete.is_(False),
             )
         )
-        
+
         # Apply filters first to reduce expensive vector call on all memories unless neccesary
         if importance_threshold:
             stmt = stmt.where(MemoryTable.importance >= importance_threshold)
@@ -162,7 +161,7 @@ class PostgresMemoryRepository:
             # Use exists() with subquery to avoid DISTINCT+ORDER BY PostgreSQL error
             project_filter = select(memory_project_association.c.memory_id).where(
                 memory_project_association.c.memory_id == MemoryTable.id,
-                memory_project_association.c.project_id.in_(project_ids)
+                memory_project_association.c.project_id.in_(project_ids),
             ).exists()
             stmt = stmt.where(project_filter)
 
@@ -176,11 +175,10 @@ class PostgresMemoryRepository:
             result = await session.execute(stmt)
             memories_orm = result.scalars().all()
             return [Memory.model_validate(memory) for memory in memories_orm]
-        
-        
+
+
     async def create_memory(self, user_id: UUID, memory: MemoryCreate) -> Memory:
-        """
-        Create a new memory in postgres 
+        """Create a new memory in postgres
 
         Args:
             user_id: User ID,
@@ -190,10 +188,9 @@ class PostgresMemoryRepository:
         Returns:
             Created Memory Object
         """
-
         embeddings_text = build_embedding_text(memory_data=memory)
         embeddings = await self._generate_embeddings(text=embeddings_text)
-        
+
         async with self.db_adapter.session(user_id) as session:
             memory_data = memory.model_dump(exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids", "skill_ids"})
             new_memory = MemoryTable(**memory_data, user_id=user_id, embedding=embeddings)
@@ -220,24 +217,23 @@ class PostgresMemoryRepository:
                     selectinload(MemoryTable.documents),
                     selectinload(MemoryTable.files),
                     selectinload(MemoryTable.linked_memories),
-                    selectinload(MemoryTable.linking_memories)
+                    selectinload(MemoryTable.linking_memories),
                 )
             )
             result = await session.execute(stmt)
             new_memory = result.scalar_one()
 
             return Memory.model_validate(new_memory)
-        
+
     async def update_memory(
             self,
             user_id: UUID,
             memory_id: int,
             updated_memory: MemoryUpdate,
             existing_memory: Memory,
-            search_fields_changed: bool
+            search_fields_changed: bool,
     ) -> Memory:
-        """
-        Update a memory
+        """Update a memory
 
         Args:
             user_id: User ID
@@ -251,27 +247,27 @@ class PostgresMemoryRepository:
             NotFoundError: If memory not found
         """
         async with self.db_adapter.session(user_id) as session:
-               
+
             update_data = updated_memory.model_dump(
                 exclude_unset=True,
-                exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"}
+                exclude={"project_ids", "code_artifact_ids", "document_ids", "file_ids"},
                 )
-            
-            update_data['updated_at'] = datetime.now(timezone.utc)
+
+            update_data["updated_at"] = datetime.now(UTC)
 
             if search_fields_changed:
                 merged_memory = existing_memory.model_copy(update=update_data)
                 embedding_text = build_embedding_text(memory_data=merged_memory)
                 embeddings = await self._generate_embeddings(embedding_text)
-                update_data["embedding"] = embeddings         
+                update_data["embedding"] = embeddings
 
             stmt = (
                 update(MemoryTable)
                 .where(MemoryTable.user_id==user_id, MemoryTable.id==memory_id)
                 .values(**update_data)
-                .returning(MemoryTable) 
+                .returning(MemoryTable)
             )
-            
+
             try:
                 result = await session.execute(stmt)
                 memory_orm = result.scalar_one()
@@ -279,27 +275,27 @@ class PostgresMemoryRepository:
                 # Handle relationship updates if provided
                 if updated_memory.project_ids is not None:
                     # Load projects relationship for manipulation (must include 'id' for refresh to work)
-                    await session.refresh(memory_orm, attribute_names=['id', 'projects'])
+                    await session.refresh(memory_orm, attribute_names=["id", "projects"])
                     memory_orm.projects.clear()
                     if updated_memory.project_ids:
                         await self._link_projects(session, memory_orm, updated_memory.project_ids, user_id)
 
                 if updated_memory.code_artifact_ids is not None:
                     # Load code_artifacts relationship for manipulation (must include 'id' for refresh to work)
-                    await session.refresh(memory_orm, attribute_names=['id', 'code_artifacts'])
+                    await session.refresh(memory_orm, attribute_names=["id", "code_artifacts"])
                     memory_orm.code_artifacts.clear()
                     if updated_memory.code_artifact_ids:
                         await self._link_code_artifacts(session, memory_orm, updated_memory.code_artifact_ids, user_id)
 
                 if updated_memory.document_ids is not None:
                     # Load documents relationship for manipulation (must include 'id' for refresh to work)
-                    await session.refresh(memory_orm, attribute_names=['id', 'documents'])
+                    await session.refresh(memory_orm, attribute_names=["id", "documents"])
                     memory_orm.documents.clear()
                     if updated_memory.document_ids:
                         await self._link_documents(session, memory_orm, updated_memory.document_ids, user_id)
 
                 if updated_memory.file_ids is not None:
-                    await session.refresh(memory_orm, attribute_names=['id', 'files'])
+                    await session.refresh(memory_orm, attribute_names=["id", "files"])
                     memory_orm.files.clear()
                     if updated_memory.file_ids:
                         await self._link_files(session, memory_orm, updated_memory.file_ids, user_id)
@@ -315,7 +311,7 @@ class PostgresMemoryRepository:
                         selectinload(MemoryTable.documents),
                         selectinload(MemoryTable.files),
                         selectinload(MemoryTable.linked_memories),
-                        selectinload(MemoryTable.linking_memories)
+                        selectinload(MemoryTable.linking_memories),
                     )
                 )
                 result = await session.execute(stmt)
@@ -325,36 +321,33 @@ class PostgresMemoryRepository:
 
             except NoResultFound:
                 raise NotFoundError(f"Memory with id {memory_id} not found")
-        
-        
-    async def get_memory_by_id(self, user_id: UUID, memory_id: int) -> Memory:
-        """
-            Retrieves memory by ID
 
-            Args:
-                user_id: User ID
-                memory_id: Id of the memory to be returned
+
+    async def get_memory_by_id(self, user_id: UUID, memory_id: int) -> Memory:
+        """Retrieves memory by ID
+
+        Args:
+            user_id: User ID
+            memory_id: Id of the memory to be returned
                 
-            Returns:
-                Memory object or None if not found
+        Returns:
+            Memory object or None if not found
         """
-        memory_orm = await self.get_memory_table_by_id(user_id=user_id, memory_id=memory_id)               
+        memory_orm = await self.get_memory_table_by_id(user_id=user_id, memory_id=memory_id)
 
         if memory_orm:
             return Memory.model_validate(memory_orm)
-        else:
-            raise NotFoundError(f"Memory with id {memory_id} not found")
-        
-    async def get_memory_table_by_id(self, user_id: UUID, memory_id: int) -> MemoryTable:
-        """
-            Retrieves memory by ID
+        raise NotFoundError(f"Memory with id {memory_id} not found")
 
-            Args:
-                user_id: User ID
-                memory_id: Id of the memory to be returned
+    async def get_memory_table_by_id(self, user_id: UUID, memory_id: int) -> MemoryTable:
+        """Retrieves memory by ID
+
+        Args:
+            user_id: User ID
+            memory_id: Id of the memory to be returned
                 
-            Returns:
-                Memory Table object or None if not found
+        Returns:
+            Memory Table object or None if not found
         """
         stmt = (
             select(MemoryTable)
@@ -375,18 +368,16 @@ class PostgresMemoryRepository:
 
             if memory_orm:
                 return memory_orm
-            else:
-                raise NotFoundError(f"Memory with id {memory_id} not found")      
+            raise NotFoundError(f"Memory with id {memory_id} not found")
 
     async def mark_obsolete(
             self,
             user_id: UUID,
             memory_id: int,
             reason: str,
-            superseded_by: int | None = None
+            superseded_by: int | None = None,
     ) -> bool:
-        """
-        Mark a memory as obsolete (soft delete)
+        """Mark a memory as obsolete (soft delete)
 
         Args:
             user_id: User ID
@@ -405,54 +396,52 @@ class PostgresMemoryRepository:
             if superseded_by:
                 superseding_stmt = select(MemoryTable).where(
                     MemoryTable.user_id == user_id,
-                    MemoryTable.id == superseded_by
+                    MemoryTable.id == superseded_by,
                 )
                 superseding_result = await session.execute(superseding_stmt)
                 if not superseding_result.scalar_one_or_none():
                     raise NotFoundError(f"Superseding memory {superseded_by} not found")
-            
+
             stmt = (
                 update(MemoryTable)
                 .where(
                     MemoryTable.user_id == user_id,
-                    MemoryTable.id == memory_id
+                    MemoryTable.id == memory_id,
                 )
                 .values(
                     is_obsolete=True,
                     obsolete_reason=reason,
                     superseded_by=superseded_by,
-                    obsoleted_at=datetime.now(timezone.utc)
+                    obsoleted_at=datetime.now(UTC),
                 )
                 .returning(MemoryTable)
             )
-            
+
             result = await session.execute(stmt)
             obsoleted_memory = result.scalar_one_or_none()
-            
+
             if not obsoleted_memory:
                 raise NotFoundError(f"Memory {memory_id} not found")
-            
+
             return True
-            
-    
-    
+
+
+
     async def find_similar_memories(
             self,
             user_id: UUID,
             memory_id: int,
-            max_links: int
-    ) -> list[Memory]: 
-        """
-        Finds similar memories for a given memory
+            max_links: int,
+    ) -> list[Memory]:
+        """Finds similar memories for a given memory
 
         Args:
             user_id: User ID
             memory_id: Memory ID to find similar memories for
             max_links: Maximum number of similar memories to find
         """
-        
         memory_orm = await self.get_memory_table_by_id(user_id=user_id, memory_id=memory_id)
-        
+
         stmt = (
             select(MemoryTable)
             .options(
@@ -476,9 +465,9 @@ class PostgresMemoryRepository:
             result = await session.execute(stmt)
             memories_orm = result.scalars().all()
             return [Memory.model_validate(memory) for memory in memories_orm]
-        
-        
-    
+
+
+
     async def get_linked_memories(
             self,
             user_id: UUID,
@@ -486,8 +475,7 @@ class PostgresMemoryRepository:
             project_ids: list[int] | None,
             max_links: int = 5,
     ) -> list[Memory]:
-        """
-        Get memories linked to a specific memory (1-hop neighbors)
+        """Get memories linked to a specific memory (1-hop neighbors)
 
         Args:
             user_id: User ID,
@@ -498,15 +486,14 @@ class PostgresMemoryRepository:
         Returns:
             List of linked Memory objects
         """
-        
         stmt = (
             select(MemoryTable)
             .join(
                 MemoryLinkTable,
                 or_(
                     (MemoryLinkTable.source_id==memory_id) & (MemoryLinkTable.target_id==MemoryTable.id),
-                    (MemoryLinkTable.target_id==memory_id) & (MemoryLinkTable.source_id==MemoryTable.id)
-                )
+                    (MemoryLinkTable.target_id==memory_id) & (MemoryLinkTable.source_id==MemoryTable.id),
+                ),
             )
             .options(
                 selectinload(MemoryTable.projects),
@@ -518,20 +505,20 @@ class PostgresMemoryRepository:
             )
             .where(MemoryTable.user_id==user_id, MemoryTable.id!=memory_id, MemoryTable.is_obsolete.is_(False))
         )
-        
+
         if project_ids:
             stmt = stmt.join(MemoryTable.projects).where(
-                ProjectsTable.id.in_(project_ids)
+                ProjectsTable.id.in_(project_ids),
             ).distinct()
-        
+
         stmt = stmt.order_by(MemoryTable.importance.desc()).limit(max_links)
-        
+
         async with self.db_adapter.session(user_id=user_id) as session:
             try:
 
                 result = await session.execute(stmt)
                 memories_orm = result.scalars().all()
-                return [Memory.model_validate(memory) for memory in memories_orm] 
+                return [Memory.model_validate(memory) for memory in memories_orm]
 
             except NoResultFound:
                 raise NotFoundError(f"No linked memories retrieved for {memory_id}")
@@ -542,8 +529,7 @@ class PostgresMemoryRepository:
             source_id: int,
             target_id: int,
     ) -> MemoryLinkTable:
-        """
-        Creates a bidirectional link between two memories
+        """Creates a bidirectional link between two memories
 
         Args:
             user_id: User ID,
@@ -583,7 +569,7 @@ class PostgresMemoryRepository:
             link = MemoryLinkTable(
                 source_id=link_source_id,
                 target_id=link_target_id,
-                user_id=user_id
+                user_id=user_id,
             )
 
             session.add(link)
@@ -593,7 +579,7 @@ class PostgresMemoryRepository:
                 logger.info("Created link between memories", extra={
                     "user_id": user_id,
                     "source_id": link_source_id,
-                    "target_id": link_target_id}
+                    "target_id": link_target_id},
                 )
                 return link
             except IntegrityError:
@@ -609,10 +595,9 @@ class PostgresMemoryRepository:
             self,
             user_id: UUID,
             source_id: int,
-            target_ids: list[int]
+            target_ids: list[int],
     ) -> list[int]:
-        """
-        Create multiple links from one memory to many others
+        """Create multiple links from one memory to many others
 
         Args:
             user_id: User ID
@@ -623,8 +608,8 @@ class PostgresMemoryRepository:
            List of Memory ID's that the memory has been linked with 
         """
         if not target_ids:
-            return [] 
-        
+            return []
+
         links_created = []
 
         for target_id in target_ids:
@@ -634,7 +619,7 @@ class PostgresMemoryRepository:
                 await self.create_link(
                     user_id=user_id,
                     source_id=source_id,
-                    target_id=target_id
+                    target_id=target_id,
                 )
                 links_created.append(target_id)
             except (IntegrityError, NotFoundError):
@@ -643,7 +628,7 @@ class PostgresMemoryRepository:
         logger.info("Memory links created", extra={
             "user_id": user_id,
             "source_id": source_id,
-            "links_created": links_created
+            "links_created": links_created,
         })
 
         return links_created
@@ -654,8 +639,7 @@ class PostgresMemoryRepository:
             source_id: int,
             target_id: int,
     ) -> bool:
-        """
-        Remove bidirectional link between two memories.
+        """Remove bidirectional link between two memories.
 
         Args:
             user_id: User ID for isolation
@@ -665,7 +649,7 @@ class PostgresMemoryRepository:
         Returns:
             True if link was removed, False if link didn't exist
         """
-        from sqlalchemy import delete, or_, and_
+        from sqlalchemy import and_, delete, or_
 
         async with self.db_adapter.session(user_id) as session:
             # Delete both directions (source→target and target→source)
@@ -674,13 +658,13 @@ class PostgresMemoryRepository:
                 or_(
                     and_(
                         MemoryLinkTable.source_id == source_id,
-                        MemoryLinkTable.target_id == target_id
+                        MemoryLinkTable.target_id == target_id,
                     ),
                     and_(
                         MemoryLinkTable.source_id == target_id,
-                        MemoryLinkTable.target_id == source_id
-                    )
-                )
+                        MemoryLinkTable.target_id == source_id,
+                    ),
+                ),
             )
             result = await session.execute(stmt)
             await session.commit()
@@ -690,7 +674,7 @@ class PostgresMemoryRepository:
                 "user_id": user_id,
                 "source_id": source_id,
                 "target_id": target_id,
-                "deleted": deleted
+                "deleted": deleted,
             })
 
             return deleted
@@ -706,8 +690,7 @@ class PostgresMemoryRepository:
             sort_order: str = "desc",
             tags: list[str] | None = None,
     ) -> tuple[list[Memory], int]:
-        """
-        Get memories with pagination, sorting, and filtering.
+        """Get memories with pagination, sorting, and filtering.
 
         Args:
             user_id: User ID for ownership filtering
@@ -739,7 +722,7 @@ class PostgresMemoryRepository:
         if project_ids:
             project_filter = select(memory_project_association.c.memory_id).where(
                 memory_project_association.c.memory_id == MemoryTable.id,
-                memory_project_association.c.project_id.in_(project_ids)
+                memory_project_association.c.project_id.in_(project_ids),
             ).exists()
             conditions.append(project_filter)
 
@@ -760,7 +743,7 @@ class PostgresMemoryRepository:
         sort_column_map = {
             "created_at": MemoryTable.created_at,
             "updated_at": MemoryTable.updated_at,
-            "importance": MemoryTable.importance
+            "importance": MemoryTable.importance,
         }
         sort_column = sort_column_map.get(sort_by, MemoryTable.created_at)
         order = sort_column.desc() if sort_order == "desc" else sort_column.asc()
@@ -792,7 +775,7 @@ class PostgresMemoryRepository:
                 "include_obsolete": include_obsolete,
                 "sort_by": sort_by,
                 "sort_order": sort_order,
-                "tags_filter": tags
+                "tags_filter": tags,
             })
 
             return [Memory.model_validate(m) for m in memories], total
@@ -802,12 +785,12 @@ class PostgresMemoryRepository:
             session,
             memory: MemoryTable,
             project_ids: list[int],
-            user_id: UUID
+            user_id: UUID,
     ) -> None:
         """Link memory to projects"""
         stmt = select(ProjectsTable).where(
             ProjectsTable.id.in_(project_ids),
-            ProjectsTable.user_id == user_id
+            ProjectsTable.user_id == user_id,
         )
         result = await session.execute(stmt)
         projects = result.scalars().all()
@@ -824,12 +807,12 @@ class PostgresMemoryRepository:
             session,
             memory: MemoryTable,
             code_artifact_ids: list[int],
-            user_id: UUID
+            user_id: UUID,
     ) -> None:
         """Link memory to code artifacts"""
         stmt = select(CodeArtifactsTable).where(
             CodeArtifactsTable.id.in_(code_artifact_ids),
-            CodeArtifactsTable.user_id == user_id
+            CodeArtifactsTable.user_id == user_id,
         )
         result = await session.execute(stmt)
         artifacts = result.scalars().all()
@@ -846,12 +829,12 @@ class PostgresMemoryRepository:
             session,
             memory: MemoryTable,
             document_ids: list[int],
-            user_id: UUID
+            user_id: UUID,
     ) -> None:
         """Link memory to documents"""
         stmt = select(DocumentsTable).where(
             DocumentsTable.id.in_(document_ids),
-            DocumentsTable.user_id == user_id
+            DocumentsTable.user_id == user_id,
         )
         result = await session.execute(stmt)
         documents = result.scalars().all()
@@ -868,12 +851,12 @@ class PostgresMemoryRepository:
             session,
             memory: MemoryTable,
             file_ids: list[int],
-            user_id: UUID
+            user_id: UUID,
     ) -> None:
         """Link memory to files"""
         stmt = select(FilesTable).where(
             FilesTable.id.in_(file_ids),
-            FilesTable.user_id == user_id
+            FilesTable.user_id == user_id,
         )
         result = await session.execute(stmt)
         files = result.scalars().all()
@@ -893,8 +876,8 @@ class PostgresMemoryRepository:
         async with self.db_adapter.system_session() as session:
             result = await session.scalar(
                 select(func.count()).select_from(MemoryTable).where(
-                    MemoryTable.is_obsolete.is_(False)
-                )
+                    MemoryTable.is_obsolete.is_(False),
+                ),
             )
             return result
 
@@ -930,18 +913,18 @@ class PostgresMemoryRepository:
         async with self.db_adapter.system_session() as session:
             # Drop NOT NULL so we can clear embeddings
             await session.execute(text(
-                "ALTER TABLE memories ALTER COLUMN embedding DROP NOT NULL"
+                "ALTER TABLE memories ALTER COLUMN embedding DROP NOT NULL",
             ))
             # Clear existing embeddings (can't cast across dimensions)
             await session.execute(text(
-                "UPDATE memories SET embedding = NULL"
+                "UPDATE memories SET embedding = NULL",
             ))
             # Resize the column
             await session.execute(text(
-                f"ALTER TABLE memories ALTER COLUMN embedding TYPE vector({dims})"
+                f"ALTER TABLE memories ALTER COLUMN embedding TYPE vector({dims})",
             ))
             logger.info("Altered embedding column", extra={
-                "dimensions": dims
+                "dimensions": dims,
             })
 
     async def bulk_update_embeddings(self, updates: list[tuple[int, list[float]]]) -> None:
@@ -951,7 +934,7 @@ class PostgresMemoryRepository:
                 await session.execute(
                     update(MemoryTable)
                     .where(MemoryTable.id == memory_id)
-                    .values(embedding=embedding)
+                    .values(embedding=embedding),
                 )
 
     async def validate_embedding_count(self) -> bool:
@@ -960,14 +943,14 @@ class PostgresMemoryRepository:
         async with self.db_adapter.system_session() as session:
             memory_count = await session.scalar(
                 select(func.count()).select_from(MemoryTable).where(
-                    MemoryTable.is_obsolete.is_(False)
-                )
+                    MemoryTable.is_obsolete.is_(False),
+                ),
             )
             embedding_count = await session.scalar(
                 select(func.count()).select_from(MemoryTable).where(
                     MemoryTable.is_obsolete.is_(False),
-                    MemoryTable.embedding.isnot(None)
-                )
+                    MemoryTable.embedding.isnot(None),
+                ),
             )
             return memory_count == embedding_count
 
@@ -980,7 +963,7 @@ class PostgresMemoryRepository:
                     FROM memories
                     WHERE is_obsolete = false AND embedding IS NOT NULL
                     LIMIT 5
-                """)
+                """),
             )
             rows = result.fetchall()
             if not rows:
@@ -990,7 +973,7 @@ class PostgresMemoryRepository:
                 if row[0] != settings.EMBEDDING_DIMENSIONS:
                     logger.error("Dimension mismatch", extra={
                         "expected": settings.EMBEDDING_DIMENSIONS,
-                        "actual": row[0]
+                        "actual": row[0],
                     })
                     return False
             return True
@@ -999,7 +982,7 @@ class PostgresMemoryRepository:
         """Run a smoke-test semantic search using a random memory's title"""
         async with self.db_adapter.system_session() as session:
             title_result = await session.execute(
-                text("SELECT title FROM memories WHERE is_obsolete = false LIMIT 1")
+                text("SELECT title FROM memories WHERE is_obsolete = false LIMIT 1"),
             )
             row = title_result.fetchone()
             if not row:
@@ -1012,7 +995,7 @@ class PostgresMemoryRepository:
                 select(MemoryTable.id)
                 .where(MemoryTable.is_obsolete.is_(False))
                 .order_by(MemoryTable.embedding.cosine_distance(embeddings))
-                .limit(1)
+                .limit(1),
             )
             return search_result.fetchone() is not None
 
@@ -1034,8 +1017,7 @@ class PostgresMemoryRepository:
         include_skills: bool = False,
         max_nodes: int = 50,
     ) -> tuple[list[dict[str, Any]], bool]:
-        """
-        Traverse graph using recursive CTE from center node.
+        """Traverse graph using recursive CTE from center node.
 
         Uses PostgreSQL's CROSS JOIN LATERAL pattern for recursive CTEs with multiple
         edge types. PostgreSQL only allows ONE recursive reference per recursion level,

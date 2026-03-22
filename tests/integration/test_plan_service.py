@@ -1,11 +1,11 @@
-"""
-Integration tests for PlanService with in-memory stubs
+"""Integration tests for PlanService with in-memory stubs
 """
 
-import pytest
 from uuid import uuid4
 
-from app.models.plan_models import PlanCreate, PlanUpdate, PlanStatus
+import pytest
+
+from app.models.plan_models import PlanCreate, PlanStatus, PlanUpdate
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_list_plans_by_status(test_plan_service):
     await test_plan_service.create_plan(
         user_id=user_id,
         plan_data=PlanCreate(
-            title="Active Plan", project_id=1, goal="A", status=PlanStatus.ACTIVE
+            title="Active Plan", project_id=1, goal="A", status=PlanStatus.ACTIVE,
         ),
     )
 

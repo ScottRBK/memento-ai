@@ -1,4 +1,4 @@
-from typing import List, Protocol
+from typing import Protocol
 from uuid import UUID
 
 from app.models.project_models import (
@@ -51,7 +51,7 @@ class ProjectRepository(Protocol):
         ...
 
     async def create_project(
-        self, user_id: UUID, project_data: ProjectCreate
+        self, user_id: UUID, project_data: ProjectCreate,
     ) -> Project:
         """Create new project
 
@@ -65,7 +65,7 @@ class ProjectRepository(Protocol):
         ...
 
     async def update_project(
-        self, user_id: UUID, project_id: int, project_data: ProjectUpdate
+        self, user_id: UUID, project_id: int, project_data: ProjectUpdate,
     ) -> Project:
         """Update existing project
 

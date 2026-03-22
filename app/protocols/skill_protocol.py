@@ -1,5 +1,4 @@
-"""
-Protocol (interface) for Skill Repository
+"""Protocol (interface) for Skill Repository
 
 Defines the contract for skill data access operations.
 Concrete implementations must provide all methods defined here.
@@ -7,12 +6,7 @@ Concrete implementations must provide all methods defined here.
 from typing import Protocol
 from uuid import UUID
 
-from app.models.skill_models import (
-    Skill,
-    SkillCreate,
-    SkillUpdate,
-    SkillSummary
-)
+from app.models.skill_models import Skill, SkillCreate, SkillSummary, SkillUpdate
 
 
 class SkillRepository(Protocol):
@@ -25,7 +19,7 @@ class SkillRepository(Protocol):
     async def create_skill(
         self,
         user_id: UUID,
-        skill_data: SkillCreate
+        skill_data: SkillCreate,
     ) -> Skill:
         """Create a new skill
 
@@ -44,7 +38,7 @@ class SkillRepository(Protocol):
     async def get_skill_by_id(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> Skill | None:
         """Get a single skill by ID
 
@@ -62,7 +56,7 @@ class SkillRepository(Protocol):
         user_id: UUID,
         project_id: int | None = None,
         tags: list[str] | None = None,
-        importance_threshold: int | None = None
+        importance_threshold: int | None = None,
     ) -> list[SkillSummary]:
         """List skills with optional filtering
 
@@ -82,7 +76,7 @@ class SkillRepository(Protocol):
         self,
         user_id: UUID,
         skill_id: int,
-        skill_data: SkillUpdate
+        skill_data: SkillUpdate,
     ) -> Skill:
         """Update an existing skill (PATCH semantics)
 
@@ -105,7 +99,7 @@ class SkillRepository(Protocol):
     async def delete_skill(
         self,
         user_id: UUID,
-        skill_id: int
+        skill_id: int,
     ) -> bool:
         """Delete a skill
 
@@ -123,7 +117,7 @@ class SkillRepository(Protocol):
         user_id: UUID,
         query: str,
         k: int = 5,
-        project_id: int | None = None
+        project_id: int | None = None,
     ) -> list[SkillSummary]:
         """Search skills by semantic similarity
 

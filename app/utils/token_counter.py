@@ -1,13 +1,13 @@
+"""Token counting utilies for context budget management
 """
-Token counting utilies for context budget management
-"""
+import logging
+
 import tiktoken
 
-import logging
 logger = logging.getLogger(__name__)
 
 
-class TokenCounter():
+class TokenCounter:
     """Utility class for counting tokens"""
 
     def __init__(self, model: str="gpt-4"):
@@ -17,22 +17,21 @@ class TokenCounter():
             logger.warning("Coult not intialise titoken, using fallback", exc_info=True, extra={"model": model})
             # Fallback to cl100k_base encoding
             self.encoding = tiktoken.get_encoding("cl100k_base")
-    
+
     def count_tokens(self, text: str) -> int:
-        """
-        Uses tiktoken to count the number of tokens in a string
+        """Uses tiktoken to count the number of tokens in a string
 
         Args:
             text: Text to count tokens
 
-        Returns
+        Returns:
             token count
         """
         if not text:
             return 0
         return len(self.encoding.encode(text))
-    
 
-    
-        
+
+
+
 

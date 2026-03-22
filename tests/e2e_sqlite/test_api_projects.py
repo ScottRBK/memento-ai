@@ -1,5 +1,4 @@
-"""
-E2E tests for Project REST API endpoints.
+"""E2E tests for Project REST API endpoints.
 
 Uses in-memory SQLite for test isolation.
 Tests the /api/v1/projects endpoints.
@@ -26,7 +25,7 @@ class TestProjectAPIList:
         payload = {
             "name": "Test Project",
             "description": "A test project",
-            "project_type": "development"
+            "project_type": "development",
         }
         create_response = await http_client.post("/api/v1/projects", json=payload)
         assert create_response.status_code == 201
@@ -46,7 +45,7 @@ class TestProjectAPIList:
             "name": "Active Project",
             "description": "An active project",
             "project_type": "development",
-            "status": "active"
+            "status": "active",
         })
 
         # Filter by active status
@@ -72,7 +71,7 @@ class TestProjectAPICrud:
         payload = {
             "name": "New Project",
             "description": "A new development project",
-            "project_type": "development"
+            "project_type": "development",
         }
         response = await http_client.post("/api/v1/projects", json=payload)
         assert response.status_code == 201
@@ -89,7 +88,7 @@ class TestProjectAPICrud:
             "name": "GitHub Project",
             "description": "A project linked to GitHub",
             "project_type": "open-source",
-            "repo_name": "owner/repo"
+            "repo_name": "owner/repo",
         }
         response = await http_client.post("/api/v1/projects", json=payload)
         assert response.status_code == 201
@@ -101,7 +100,7 @@ class TestProjectAPICrud:
         """POST /api/v1/projects returns 400 for invalid data."""
         payload = {
             "name": "",  # Empty name should fail
-            "project_type": "development"
+            "project_type": "development",
         }
         response = await http_client.post("/api/v1/projects", json=payload)
         assert response.status_code == 400
@@ -113,7 +112,7 @@ class TestProjectAPICrud:
         create_response = await http_client.post("/api/v1/projects", json={
             "name": "Get Test Project",
             "description": "Testing get endpoint",
-            "project_type": "documentation"
+            "project_type": "documentation",
         })
         project_id = create_response.json()["id"]
 
@@ -137,7 +136,7 @@ class TestProjectAPICrud:
         create_response = await http_client.post("/api/v1/projects", json={
             "name": "Update Test Project",
             "description": "Original description",
-            "project_type": "development"
+            "project_type": "development",
         })
         project_id = create_response.json()["id"]
 
@@ -145,7 +144,7 @@ class TestProjectAPICrud:
         update_payload = {
             "name": "Updated Project Name",
             "description": "Updated description",
-            "status": "completed"
+            "status": "completed",
         }
         response = await http_client.put(f"/api/v1/projects/{project_id}", json=update_payload)
         assert response.status_code == 200
@@ -167,7 +166,7 @@ class TestProjectAPICrud:
         create_response = await http_client.post("/api/v1/projects", json={
             "name": "Delete Test Project",
             "description": "Will be deleted",
-            "project_type": "infrastructure"
+            "project_type": "infrastructure",
         })
         project_id = create_response.json()["id"]
 
@@ -199,7 +198,7 @@ class TestProjectTypes:
             response = await http_client.post("/api/v1/projects", json={
                 "name": f"Project Type {ptype}",
                 "description": f"Testing {ptype} type",
-                "project_type": ptype
+                "project_type": ptype,
             })
             assert response.status_code == 201, f"Failed for type: {ptype}"
             assert response.json()["project_type"] == ptype

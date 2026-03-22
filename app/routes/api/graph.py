@@ -1,31 +1,29 @@
-"""
-REST API endpoints for Graph visualization.
+"""REST API endpoints for Graph visualization.
 
 Phase 4 of the Web UI foundation (Issue #3).
 Provides graph data (nodes and edges) for visualization UI.
 """
+import logging
+from typing import Any
+
+from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-import logging
-from typing import List, Dict, Any
 
-from app.middleware.auth import get_user_from_request
 from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 
 logger = logging.getLogger(__name__)
 
 
 def register(mcp: FastMCP):
     """Register graph REST routes with FastMCP"""
-
     # Constants for valid node types
     ALL_NODE_TYPES = {"memory", "entity", "project", "document", "code_artifact"}
 
     @mcp.custom_route("/api/v1/graph", methods=["GET"])
     async def get_graph(request: Request) -> JSONResponse:
-        """
-        Get graph data for visualization.
+        """Get graph data for visualization.
 
         Returns nodes (memories, entities, projects, documents, code_artifacts) and edges.
 
@@ -60,7 +58,7 @@ def register(mcp: FastMCP):
             if invalid_types:
                 return JSONResponse(
                     {"error": f"Invalid node_types: {invalid_types}. Valid values: {', '.join(sorted(ALL_NODE_TYPES))}"},
-                    status_code=400
+                    status_code=400,
                 )
             include_memories = "memory" in requested_types
             include_entities = "entity" in requested_types
@@ -82,7 +80,7 @@ def register(mcp: FastMCP):
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid limit: {limit_str}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         # Validate offset parameter
@@ -91,12 +89,12 @@ def register(mcp: FastMCP):
             if offset < 0:
                 return JSONResponse(
                     {"error": "offset must be non-negative"},
-                    status_code=400
+                    status_code=400,
                 )
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid offset: {offset_str}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         # Validate sort_by parameter
@@ -104,7 +102,7 @@ def register(mcp: FastMCP):
         if sort_by not in VALID_SORT_BY:
             return JSONResponse(
                 {"error": f"sort_by must be one of: {', '.join(sorted(VALID_SORT_BY))}"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate sort_order parameter
@@ -112,7 +110,7 @@ def register(mcp: FastMCP):
         if sort_order not in VALID_SORT_ORDER:
             return JSONResponse(
                 {"error": f"sort_order must be one of: {', '.join(sorted(VALID_SORT_ORDER))}"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate project_id parameter
@@ -123,7 +121,7 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
-                    status_code=400
+                    status_code=400,
                 )
 
         nodes: list[dict[str, Any]] = []
@@ -159,8 +157,8 @@ def register(mcp: FastMCP):
                         "title": memory.title,
                         "importance": memory.importance,
                         "tags": memory.tags,
-                        "created_at": memory.created_at.isoformat() if memory.created_at else None
-                    }
+                        "created_at": memory.created_at.isoformat() if memory.created_at else None,
+                    },
                 })
 
             # Add edges for memory links
@@ -174,7 +172,7 @@ def register(mcp: FastMCP):
                                 "id": edge_id,
                                 "source": f"memory_{memory.id}",
                                 "target": f"memory_{linked_id}",
-                                "type": "memory_link"
+                                "type": "memory_link",
                             })
 
         # Add entity nodes and edges if requested
@@ -183,7 +181,7 @@ def register(mcp: FastMCP):
             # Get all entities (no pagination limit for graph visualization)
             entities, _ = await mcp.entity_service.list_entities(
                 user_id=user.id,
-                limit=10000  # High limit to get all entities for graph
+                limit=10000,  # High limit to get all entities for graph
             )
 
             for entity in entities:
@@ -196,13 +194,13 @@ def register(mcp: FastMCP):
                         "id": entity.id,
                         "name": entity.name,
                         "entity_type": entity.entity_type,
-                        "created_at": entity.created_at.isoformat() if entity.created_at else None
-                    }
+                        "created_at": entity.created_at.isoformat() if entity.created_at else None,
+                    },
                 })
 
             # Add entity-relationship edges (with deduplication for bidirectional display)
             entity_relationships = await mcp.entity_service.get_all_entity_relationships(
-                user_id=user.id
+                user_id=user.id,
             )
 
             for rel in entity_relationships:
@@ -224,13 +222,13 @@ def register(mcp: FastMCP):
                                 "relationship_type": rel.relationship_type,
                                 "strength": rel.strength,
                                 "confidence": rel.confidence,
-                                "metadata": rel.metadata
-                            }
+                                "metadata": rel.metadata,
+                            },
                         })
 
             # Add entity-memory edges
             entity_memory_links = await mcp.entity_service.get_all_entity_memory_links(
-                user_id=user.id
+                user_id=user.id,
             )
 
             for entity_id, mem_id in entity_memory_links:
@@ -245,14 +243,14 @@ def register(mcp: FastMCP):
                             "id": edge_id,
                             "source": f"entity_{entity_id}",
                             "target": f"memory_{mem_id}",
-                            "type": "entity_memory"
+                            "type": "entity_memory",
                         })
 
         # Add project nodes
         projects = []
         if include_projects:
             projects = await mcp.project_service.list_projects(
-                user_id=user.id
+                user_id=user.id,
             )
 
             for project in projects:
@@ -264,17 +262,17 @@ def register(mcp: FastMCP):
                     "data": {
                         "id": project.id,
                         "name": project.name,
-                        "project_type": project.project_type.value if hasattr(project.project_type, 'value') else project.project_type,
-                        "status": project.status.value if hasattr(project.status, 'value') else project.status,
-                        "created_at": project.created_at.isoformat() if project.created_at else None
-                    }
+                        "project_type": project.project_type.value if hasattr(project.project_type, "value") else project.project_type,
+                        "status": project.status.value if hasattr(project.status, "value") else project.status,
+                        "created_at": project.created_at.isoformat() if project.created_at else None,
+                    },
                 })
 
         # Add document nodes
         documents = []
         if include_documents:
             documents = await mcp.document_service.list_documents(
-                user_id=user.id
+                user_id=user.id,
             )
 
             for document in documents:
@@ -289,15 +287,15 @@ def register(mcp: FastMCP):
                         "description": document.description,
                         "document_type": document.document_type,
                         "tags": document.tags,
-                        "created_at": document.created_at.isoformat() if document.created_at else None
-                    }
+                        "created_at": document.created_at.isoformat() if document.created_at else None,
+                    },
                 })
 
         # Add code artifact nodes
         code_artifacts = []
         if include_code_artifacts:
             code_artifacts = await mcp.code_artifact_service.list_code_artifacts(
-                user_id=user.id
+                user_id=user.id,
             )
 
             for artifact in code_artifacts:
@@ -312,8 +310,8 @@ def register(mcp: FastMCP):
                         "description": artifact.description,
                         "language": artifact.language,
                         "tags": artifact.tags,
-                        "created_at": artifact.created_at.isoformat() if artifact.created_at else None
-                    }
+                        "created_at": artifact.created_at.isoformat() if artifact.created_at else None,
+                    },
                 })
 
         # Add memory-project edges (from memory.project_ids)
@@ -328,7 +326,7 @@ def register(mcp: FastMCP):
                                 "id": edge_id,
                                 "source": f"memory_{memory.id}",
                                 "target": f"project_{proj_id}",
-                                "type": "memory_project"
+                                "type": "memory_project",
                             })
 
         # Add document-project edges (from document.project_id)
@@ -342,7 +340,7 @@ def register(mcp: FastMCP):
                             "id": edge_id,
                             "source": f"document_{document.id}",
                             "target": f"project_{document.project_id}",
-                            "type": "document_project"
+                            "type": "document_project",
                         })
 
         # Add code_artifact-project edges (from artifact.project_id)
@@ -356,13 +354,13 @@ def register(mcp: FastMCP):
                             "id": edge_id,
                             "source": f"code_artifact_{artifact.id}",
                             "target": f"project_{artifact.project_id}",
-                            "type": "code_artifact_project"
+                            "type": "code_artifact_project",
                         })
 
         # Add entity-project edges (from entity_project_association)
         if include_entities and include_projects:
             entity_project_links = await mcp.entity_service.get_all_entity_project_links(
-                user_id=user.id
+                user_id=user.id,
             )
             for entity_id, proj_id in entity_project_links:
                 if entity_id in seen_entity_ids and proj_id in seen_project_ids:
@@ -373,7 +371,7 @@ def register(mcp: FastMCP):
                             "id": edge_id,
                             "source": f"entity_{entity_id}",
                             "target": f"project_{proj_id}",
-                            "type": "entity_project"
+                            "type": "entity_project",
                         })
 
         # Add memory-document edges (from memory.document_ids)
@@ -388,7 +386,7 @@ def register(mcp: FastMCP):
                                 "id": edge_id,
                                 "source": f"memory_{memory.id}",
                                 "target": f"document_{doc_id}",
-                                "type": "memory_document"
+                                "type": "memory_document",
                             })
 
         # Add memory-code_artifact edges (from memory.code_artifact_ids)
@@ -403,7 +401,7 @@ def register(mcp: FastMCP):
                                 "id": edge_id,
                                 "source": f"memory_{memory.id}",
                                 "target": f"code_artifact_{artifact_id}",
-                                "type": "memory_code_artifact"
+                                "type": "memory_code_artifact",
                             })
 
         # Count edges by type for meta
@@ -442,14 +440,13 @@ def register(mcp: FastMCP):
                 "document_project_count": document_project_count,
                 "code_artifact_project_count": code_artifact_project_count,
                 "memory_document_count": memory_document_count,
-                "memory_code_artifact_count": memory_code_artifact_count
-            }
+                "memory_code_artifact_count": memory_code_artifact_count,
+            },
         })
 
     @mcp.custom_route("/api/v1/graph/memory/{memory_id}", methods=["GET"])
     async def get_memory_subgraph(request: Request) -> JSONResponse:
-        """
-        Get subgraph centered on a specific memory.
+        """Get subgraph centered on a specific memory.
 
         Returns the memory, its linked memories, and related entities.
 
@@ -467,7 +464,7 @@ def register(mcp: FastMCP):
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid memory_id: {request.path_params['memory_id']}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         params = request.query_params
@@ -479,14 +476,14 @@ def register(mcp: FastMCP):
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid depth: {depth_str}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         # Get center memory
         try:
             center_memory = await mcp.memory_service.get_memory(
                 user_id=user.id,
-                memory_id=memory_id
+                memory_id=memory_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Memory not found"}, status_code=404)
@@ -510,8 +507,8 @@ def register(mcp: FastMCP):
                     "title": memory.title,
                     "importance": memory.importance,
                     "tags": memory.tags,
-                    "created_at": memory.created_at.isoformat() if memory.created_at else None
-                }
+                    "created_at": memory.created_at.isoformat() if memory.created_at else None,
+                },
             })
 
             # Recurse for linked memories if within depth
@@ -520,7 +517,7 @@ def register(mcp: FastMCP):
                     if linked_id not in seen_memory_ids:
                         linked_memory = await mcp.memory_service.get_memory(
                             user_id=user.id,
-                            memory_id=linked_id
+                            memory_id=linked_id,
                         )
                         if linked_memory:
                             await add_memory_node(linked_memory, level + 1)
@@ -531,7 +528,7 @@ def register(mcp: FastMCP):
                                 "id": edge_id,
                                 "source": f"memory_{memory.id}",
                                 "target": f"memory_{linked_id}",
-                                "type": "memory_link"
+                                "type": "memory_link",
                             })
 
         # Build subgraph starting from center
@@ -542,7 +539,7 @@ def register(mcp: FastMCP):
         for memory_id_val in seen_memory_ids:
             memory = await mcp.memory_service.get_memory(
                 user_id=user.id,
-                memory_id=memory_id_val
+                memory_id=memory_id_val,
             )
             if memory:
                 for linked_id in memory.linked_memory_ids:
@@ -554,13 +551,13 @@ def register(mcp: FastMCP):
                                 "id": edge_id,
                                 "source": f"memory_{memory_id_val}",
                                 "target": f"memory_{linked_id}",
-                                "type": "memory_link"
+                                "type": "memory_link",
                             })
 
         # Add entities linked to memories in subgraph
         seen_entity_ids = set()
         entity_memory_links = await mcp.entity_service.get_all_entity_memory_links(
-            user_id=user.id
+            user_id=user.id,
         )
 
         # Identify entities linked to subgraph memories
@@ -573,7 +570,7 @@ def register(mcp: FastMCP):
         for entity_id in relevant_entity_ids:
             entity = await mcp.entity_service.get_entity(
                 user_id=user.id,
-                entity_id=entity_id
+                entity_id=entity_id,
             )
             if entity:
                 seen_entity_ids.add(entity.id)
@@ -584,9 +581,9 @@ def register(mcp: FastMCP):
                     "data": {
                         "id": entity.id,
                         "name": entity.name,
-                        "entity_type": entity.entity_type.value if hasattr(entity.entity_type, 'value') else entity.entity_type,
-                        "created_at": entity.created_at.isoformat() if entity.created_at else None
-                    }
+                        "entity_type": entity.entity_type.value if hasattr(entity.entity_type, "value") else entity.entity_type,
+                        "created_at": entity.created_at.isoformat() if entity.created_at else None,
+                    },
                 })
 
         # Add entity-memory edges
@@ -599,12 +596,12 @@ def register(mcp: FastMCP):
                         "id": edge_id,
                         "source": f"entity_{entity_id}",
                         "target": f"memory_{mem_id}",
-                        "type": "entity_memory"
+                        "type": "entity_memory",
                     })
 
         # Add entity-entity relationships for entities in subgraph
         entity_relationships = await mcp.entity_service.get_all_entity_relationships(
-            user_id=user.id
+            user_id=user.id,
         )
 
         for rel in entity_relationships:
@@ -624,8 +621,8 @@ def register(mcp: FastMCP):
                             "relationship_type": rel.relationship_type,
                             "strength": rel.strength,
                             "confidence": rel.confidence,
-                            "metadata": rel.metadata
-                        }
+                            "metadata": rel.metadata,
+                        },
                     })
 
         # Count by type
@@ -646,14 +643,13 @@ def register(mcp: FastMCP):
                 "memory_link_count": memory_link_count,
                 "entity_relationship_count": entity_relationship_count,
                 "entity_memory_count": entity_memory_count,
-                "depth": depth
-            }
+                "depth": depth,
+            },
         })
 
     @mcp.custom_route("/api/v1/graph/subgraph", methods=["GET"])
     async def get_subgraph(request: Request) -> JSONResponse:
-        """
-        Get subgraph centered on any node (memory or entity).
+        """Get subgraph centered on any node (memory or entity).
 
         Uses recursive CTE for efficient multi-hop traversal across all edge types.
         This is the recommended endpoint for graph visualization - replaces the
@@ -682,7 +678,7 @@ def register(mcp: FastMCP):
         if not node_id:
             return JSONResponse(
                 {"error": "Missing required parameter: node_id. Format: 'memory_{id}', 'entity_{id}', 'project_{id}', 'document_{id}', or 'code_artifact_{id}'"},
-                status_code=400
+                status_code=400,
             )
 
         # Validate depth parameter
@@ -692,12 +688,12 @@ def register(mcp: FastMCP):
             if depth < 1:
                 return JSONResponse(
                     {"error": f"Invalid depth: {depth}. Must be at least 1."},
-                    status_code=400
+                    status_code=400,
                 )
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid depth: {depth_str}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         # Parse node_types parameter (default: all 5 types)
@@ -708,7 +704,7 @@ def register(mcp: FastMCP):
         if invalid_types:
             return JSONResponse(
                 {"error": f"Invalid node_types: {invalid_types}. Valid values: memory, entity, project, document, code_artifact"},
-                status_code=400
+                status_code=400,
             )
         if not node_types:
             node_types = ["memory", "entity", "project", "document", "code_artifact"]
@@ -720,7 +716,7 @@ def register(mcp: FastMCP):
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid max_nodes: {max_nodes_str}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         # Call graph service
@@ -740,11 +736,11 @@ def register(mcp: FastMCP):
         except Exception as e:
             # Log and return detailed error for debugging
             logger.exception(f"Subgraph query failed: {e}")
-            return JSONResponse({"error": f"Internal error: {str(e)}"}, status_code=500)
+            return JSONResponse({"error": f"Internal error: {e!s}"}, status_code=500)
 
         # Convert Pydantic models to dicts for JSON response
         return JSONResponse({
             "nodes": [node.model_dump() for node in result.nodes],
             "edges": [edge.model_dump() for edge in result.edges],
-            "meta": result.meta.model_dump()
+            "meta": result.meta.model_dump(),
         })

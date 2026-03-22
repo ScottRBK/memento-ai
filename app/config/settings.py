@@ -1,11 +1,11 @@
-"""
-    Configuration Management For the Service
+"""Configuration Management For the Service
 """
 from pathlib import Path
+
 from dotenv import load_dotenv
-from pydantic_settings import BaseSettings
+from platformdirs import user_config_dir, user_data_dir
 from pydantic import ConfigDict
-from platformdirs import user_data_dir, user_config_dir
+from pydantic_settings import BaseSettings
 
 from app.version import get_version
 
@@ -147,11 +147,11 @@ class Settings(BaseSettings):
     TASK_DESCRIPTION_MAX_LENGTH: int = 5000
     TASK_AGENT_MAX_LENGTH: int = 200
     CRITERION_DESCRIPTION_MAX_LENGTH: int = 1000
-    
+
 
     # Skills Feature Flag
-    SKILLS_ENABLED: bool = False 
-    
+    SKILLS_ENABLED: bool = False
+
     # Skills Configuration
     SKILL_NAME_MAX_LENGTH: int = 64
     SKILL_DESCRIPTION_MAX_LENGTH: int = 1024
@@ -173,13 +173,13 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER: str = "FastEmbed" # FastEmbed | Azure | Google | OpenAI | Ollama
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIMENSIONS: int = 384
-    
+
     # AZURE EMBEDDING PROVIDER CONFIG
     AZURE_ENDPOINT: str = ""
     AZURE_DEPLOYMENT: str = ""
     AZURE_API_VERSION: str = ""
     AZURE_API_KEY: str = ""
-    
+
     # GOOGLE EMBEDDING PROVIDER CONFIG
     GOOGLE_AI_API_KEY: str = ""
 
@@ -211,7 +211,7 @@ class Settings(BaseSettings):
             str(_default_config_dir / ".env"),  # User config
         ],
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
 settings = Settings()

@@ -1,5 +1,4 @@
-"""
-Entity Service - Business logic for entity and entity relationship operations
+"""Entity Service - Business logic for entity and entity relationship operations
 
 This service implements functionality for managing entities and their relationships:
     - Entity CRUD operations (create, read, update, delete)
@@ -8,29 +7,31 @@ This service implements functionality for managing entities and their relationsh
     - Memory linking
     - Entity relationship management (knowledge graph)
 """
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
 from app.config.settings import settings
+from app.exceptions import NotFoundError
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
+)
+from app.models.activity_models import (
     EntityType as ActivityEntityType,  # Alias to avoid conflict with entity_models.EntityType
 )
-from app.protocols.entity_protocol import EntityRepository
 from app.models.entity_models import (
     Entity,
     EntityCreate,
-    EntityUpdate,
-    EntitySummary,
     EntityRelationship,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
-    EntityType
+    EntitySummary,
+    EntityType,
+    EntityUpdate,
 )
-from app.exceptions import NotFoundError
+from app.protocols.entity_protocol import EntityRepository
 from app.utils.pydantic_helper import get_changed_fields
 
 if TYPE_CHECKING:
@@ -71,8 +72,7 @@ class EntityService:
         changes: dict | None = None,
         metadata: dict | None = None,
     ) -> None:
-        """
-        Emit an activity event to the event bus.
+        """Emit an activity event to the event bus.
 
         This is a no-op if no event bus is configured.
 
@@ -106,7 +106,7 @@ class EntityService:
     async def create_entity(
         self,
         user_id: UUID,
-        entity_data: EntityCreate
+        entity_data: EntityCreate,
     ) -> Entity:
         """Create new entity
 
@@ -122,21 +122,21 @@ class EntityService:
             extra={
                 "entity_name": entity_data.name[:50],
                 "entity_type": entity_data.entity_type.value,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         entity = await self.entity_repo.create_entity(
             user_id=user_id,
-            entity_data=entity_data
+            entity_data=entity_data,
         )
 
         logger.info(
             "entity created",
             extra={
                 "entity_id": entity.id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit created event
@@ -153,7 +153,7 @@ class EntityService:
     async def get_entity(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> Entity:
         """Get entity by ID with ownership verification
 
@@ -171,13 +171,13 @@ class EntityService:
             "getting entity",
             extra={
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         entity = await self.entity_repo.get_entity_by_id(
             user_id=user_id,
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         if not entity:
@@ -187,8 +187,8 @@ class EntityService:
             "entity retrieved",
             extra={
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit read event (opt-in via ACTIVITY_TRACK_READS)
@@ -235,8 +235,8 @@ class EntityService:
                 "entity_type": entity_type.value if entity_type else None,
                 "tags": tags,
                 "limit": limit,
-                "offset": offset
-            }
+                "offset": offset,
+            },
         )
 
         entities, total = await self.entity_repo.list_entities(
@@ -245,7 +245,7 @@ class EntityService:
             entity_type=entity_type,
             tags=tags,
             limit=limit,
-            offset=offset
+            offset=offset,
         )
 
         logger.info(
@@ -253,8 +253,8 @@ class EntityService:
             extra={
                 "count": len(entities),
                 "total": total,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
@@ -285,7 +285,7 @@ class EntityService:
         search_query: str,
         entity_type: EntityType | None = None,
         tags: list[str] | None = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> list[EntitySummary]:
         """Search entities by name using text matching
 
@@ -306,8 +306,8 @@ class EntityService:
                 "query": search_query,
                 "entity_type": entity_type.value if entity_type else None,
                 "tags": tags,
-                "limit": limit
-            }
+                "limit": limit,
+            },
         )
 
         entities = await self.entity_repo.search_entities(
@@ -315,15 +315,15 @@ class EntityService:
             search_query=search_query,
             entity_type=entity_type,
             tags=tags,
-            limit=limit
+            limit=limit,
         )
 
         logger.info(
             "entity search completed",
             extra={
                 "count": len(entities),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit queried event (opt-in via ACTIVITY_TRACK_READS)
@@ -351,7 +351,7 @@ class EntityService:
         self,
         user_id: UUID,
         entity_id: int,
-        entity_data: EntityUpdate
+        entity_data: EntityUpdate,
     ) -> Entity:
         """Update existing entity (PATCH semantics)
 
@@ -372,14 +372,14 @@ class EntityService:
             "updating entity",
             extra={
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Get existing entity for change detection
         existing_entity = await self.entity_repo.get_entity_by_id(
             user_id=user_id,
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         if not existing_entity:
@@ -387,21 +387,21 @@ class EntityService:
 
         # Detect changes
         changed_fields = get_changed_fields(
-            input_model=entity_data, existing_model=existing_entity
+            input_model=entity_data, existing_model=existing_entity,
         )
 
         entity = await self.entity_repo.update_entity(
             user_id=user_id,
             entity_id=entity_id,
-            entity_data=entity_data
+            entity_data=entity_data,
         )
 
         logger.info(
             "entity updated",
             extra={
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit updated event with changes
@@ -424,7 +424,7 @@ class EntityService:
     async def delete_entity(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> bool:
         """Delete entity (cascade removes memory associations and relationships)
 
@@ -439,19 +439,19 @@ class EntityService:
             "deleting entity",
             extra={
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Fetch entity before deletion for snapshot
         existing_entity = await self.entity_repo.get_entity_by_id(
             user_id=user_id,
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         success = await self.entity_repo.delete_entity(
             user_id=user_id,
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         if success:
@@ -459,8 +459,8 @@ class EntityService:
                 "entity deleted",
                 extra={
                     "entity_id": entity_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit deleted event with pre-deletion snapshot
@@ -477,8 +477,8 @@ class EntityService:
                 "entity not found for deletion",
                 extra={
                     "entity_id": entity_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success
@@ -489,7 +489,7 @@ class EntityService:
         self,
         user_id: UUID,
         entity_id: int,
-        memory_id: int
+        memory_id: int,
     ) -> bool:
         """Link entity to memory
 
@@ -509,14 +509,14 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "memory_id": memory_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         success = await self.entity_repo.link_entity_to_memory(
             user_id=user_id,
             entity_id=entity_id,
-            memory_id=memory_id
+            memory_id=memory_id,
         )
 
         logger.info(
@@ -524,8 +524,8 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "memory_id": memory_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit entity-memory link created event
@@ -545,7 +545,7 @@ class EntityService:
         self,
         user_id: UUID,
         entity_id: int,
-        memory_id: int
+        memory_id: int,
     ) -> bool:
         """Unlink entity from memory
 
@@ -562,14 +562,14 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "memory_id": memory_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         success = await self.entity_repo.unlink_entity_from_memory(
             user_id=user_id,
             entity_id=entity_id,
-            memory_id=memory_id
+            memory_id=memory_id,
         )
 
         if success:
@@ -578,8 +578,8 @@ class EntityService:
                 extra={
                     "entity_id": entity_id,
                     "memory_id": memory_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit entity-memory link deleted event
@@ -597,8 +597,8 @@ class EntityService:
                 extra={
                     "entity_id": entity_id,
                     "memory_id": memory_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success
@@ -609,7 +609,7 @@ class EntityService:
         self,
         user_id: UUID,
         entity_id: int,
-        project_id: int
+        project_id: int,
     ) -> bool:
         """Link entity to project
 
@@ -629,14 +629,14 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "project_id": project_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         success = await self.entity_repo.link_entity_to_project(
             user_id=user_id,
             entity_id=entity_id,
-            project_id=project_id
+            project_id=project_id,
         )
 
         logger.info(
@@ -644,8 +644,8 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "project_id": project_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit entity-project link created event
@@ -665,7 +665,7 @@ class EntityService:
         self,
         user_id: UUID,
         entity_id: int,
-        project_id: int
+        project_id: int,
     ) -> bool:
         """Unlink entity from project
 
@@ -682,14 +682,14 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "project_id": project_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         success = await self.entity_repo.unlink_entity_from_project(
             user_id=user_id,
             entity_id=entity_id,
-            project_id=project_id
+            project_id=project_id,
         )
 
         if success:
@@ -698,8 +698,8 @@ class EntityService:
                 extra={
                     "entity_id": entity_id,
                     "project_id": project_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit entity-project link deleted event
@@ -717,8 +717,8 @@ class EntityService:
                 extra={
                     "entity_id": entity_id,
                     "project_id": project_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success
@@ -728,7 +728,7 @@ class EntityService:
     async def create_entity_relationship(
         self,
         user_id: UUID,
-        relationship_data: EntityRelationshipCreate
+        relationship_data: EntityRelationshipCreate,
     ) -> EntityRelationship:
         """Create relationship between two entities
 
@@ -748,21 +748,21 @@ class EntityService:
                 "source_entity_id": relationship_data.source_entity_id,
                 "target_entity_id": relationship_data.target_entity_id,
                 "relationship_type": relationship_data.relationship_type,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         relationship = await self.entity_repo.create_entity_relationship(
             user_id=user_id,
-            relationship_data=relationship_data
+            relationship_data=relationship_data,
         )
 
         logger.info(
             "entity relationship created",
             extra={
                 "relationship_id": relationship.id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit entity relationship created event
@@ -781,7 +781,7 @@ class EntityService:
         user_id: UUID,
         entity_id: int,
         direction: str | None = None,
-        relationship_type: str | None = None
+        relationship_type: str | None = None,
     ) -> list[EntityRelationship]:
         """Get relationships for an entity
 
@@ -803,15 +803,15 @@ class EntityService:
                 "entity_id": entity_id,
                 "direction": direction,
                 "relationship_type": relationship_type,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         relationships = await self.entity_repo.get_entity_relationships(
             user_id=user_id,
             entity_id=entity_id,
             direction=direction,
-            relationship_type=relationship_type
+            relationship_type=relationship_type,
         )
 
         logger.info(
@@ -819,8 +819,8 @@ class EntityService:
             extra={
                 "count": len(relationships),
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Note: Optional READ event for relationships could be added here
@@ -832,7 +832,7 @@ class EntityService:
         self,
         user_id: UUID,
         relationship_id: int,
-        relationship_data: EntityRelationshipUpdate
+        relationship_data: EntityRelationshipUpdate,
     ) -> EntityRelationship:
         """Update entity relationship (PATCH semantics)
 
@@ -853,8 +853,8 @@ class EntityService:
             "updating entity relationship",
             extra={
                 "relationship_id": relationship_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Note: The repo doesn't have a direct get_relationship_by_id, so we'll emit
@@ -863,15 +863,15 @@ class EntityService:
         relationship = await self.entity_repo.update_entity_relationship(
             user_id=user_id,
             relationship_id=relationship_id,
-            relationship_data=relationship_data
+            relationship_data=relationship_data,
         )
 
         logger.info(
             "entity relationship updated",
             extra={
                 "relationship_id": relationship_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Emit entity relationship updated event
@@ -890,7 +890,7 @@ class EntityService:
     async def delete_entity_relationship(
         self,
         user_id: UUID,
-        relationship_id: int
+        relationship_id: int,
     ) -> bool:
         """Delete entity relationship
 
@@ -905,8 +905,8 @@ class EntityService:
             "deleting entity relationship",
             extra={
                 "relationship_id": relationship_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         # Note: We can't easily fetch the relationship before deletion without
@@ -914,7 +914,7 @@ class EntityService:
 
         success = await self.entity_repo.delete_entity_relationship(
             user_id=user_id,
-            relationship_id=relationship_id
+            relationship_id=relationship_id,
         )
 
         if success:
@@ -922,8 +922,8 @@ class EntityService:
                 "entity relationship deleted",
                 extra={
                     "relationship_id": relationship_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
             # Emit entity relationship deleted event
@@ -939,8 +939,8 @@ class EntityService:
                 "entity relationship not found for deletion",
                 extra={
                     "relationship_id": relationship_id,
-                    "user_id": str(user_id)
-                }
+                    "user_id": str(user_id),
+                },
             )
 
         return success
@@ -949,7 +949,7 @@ class EntityService:
 
     async def get_all_entity_relationships(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[EntityRelationship]:
         """Get all entity relationships for graph visualization
 
@@ -961,26 +961,26 @@ class EntityService:
         """
         logger.info(
             "getting all entity relationships for graph",
-            extra={"user_id": str(user_id)}
+            extra={"user_id": str(user_id)},
         )
 
         relationships = await self.entity_repo.get_all_entity_relationships(
-            user_id=user_id
+            user_id=user_id,
         )
 
         logger.info(
             "entity relationships retrieved for graph",
             extra={
                 "count": len(relationships),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         return relationships
 
     async def get_all_entity_memory_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-memory links for graph visualization
 
@@ -992,26 +992,26 @@ class EntityService:
         """
         logger.info(
             "getting all entity-memory links for graph",
-            extra={"user_id": str(user_id)}
+            extra={"user_id": str(user_id)},
         )
 
         links = await self.entity_repo.get_all_entity_memory_links(
-            user_id=user_id
+            user_id=user_id,
         )
 
         logger.info(
             "entity-memory links retrieved for graph",
             extra={
                 "count": len(links),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         return links
 
     async def get_all_entity_project_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-project links for graph visualization
 
@@ -1023,19 +1023,19 @@ class EntityService:
         """
         logger.info(
             "getting all entity-project links for graph",
-            extra={"user_id": str(user_id)}
+            extra={"user_id": str(user_id)},
         )
 
         links = await self.entity_repo.get_all_entity_project_links(
-            user_id=user_id
+            user_id=user_id,
         )
 
         logger.info(
             "entity-project links retrieved for graph",
             extra={
                 "count": len(links),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         return links
@@ -1043,7 +1043,7 @@ class EntityService:
     async def get_entity_memories(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> tuple[list[int], int]:
         """Get all memories linked to a specific entity
 
@@ -1061,13 +1061,13 @@ class EntityService:
             "getting memories for entity",
             extra={
                 "entity_id": entity_id,
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         memory_ids = await self.entity_repo.get_entity_memories(
             user_id=user_id,
-            entity_id=entity_id
+            entity_id=entity_id,
         )
 
         logger.info(
@@ -1075,8 +1075,8 @@ class EntityService:
             extra={
                 "entity_id": entity_id,
                 "count": len(memory_ids),
-                "user_id": str(user_id)
-            }
+                "user_id": str(user_id),
+            },
         )
 
         return memory_ids, len(memory_ids)

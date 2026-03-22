@@ -1,23 +1,22 @@
-"""
-Integration tests for the ScopeResolver module.
+"""Integration tests for the ScopeResolver module.
 
 Tests scope parsing, validation, resolution, and the effective scopes logic.
 """
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from app.models.tool_registry_models import ToolCategory, ToolParameter
 from app.routes.mcp.scope_resolver import (
-    parse_scopes,
-    resolve_permitted_tools,
-    get_required_scope,
-    get_effective_scopes,
     CATEGORY_TO_SCOPE,
     VALID_ACTIONS,
     VALID_CATEGORIES,
+    get_effective_scopes,
+    get_required_scope,
+    parse_scopes,
+    resolve_permitted_tools,
 )
 from app.routes.mcp.tool_registry import ToolRegistry
-from app.models.tool_registry_models import ToolCategory, ToolParameter
-
 
 # ============================================================================
 # Fixtures

@@ -1,18 +1,17 @@
-"""
-Tool Registry for Meta-tools
+"""Tool Registry for Meta-tools
 
 This module provides a registry system for storing tool metadata and implementations,
 enabling the meta-tools.
 """
-from typing import Dict, List, Optional, Any
+from typing import Any
 
+from app.config.logging_config import logging
 from app.models.tool_registry_models import (
     ToolCategory,
+    ToolImplementation,
     ToolMetadata,
     ToolParameter,
-    ToolImplementation,
 )
-from app.config.logging_config import logging
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +35,7 @@ class ToolRegistry:
         tags: list[str] = None,
         mutates: bool = False,
     ) -> None:
-        """
-        Register a tool with its metadata and implementation
+        """Register a tool with its metadata and implementation
 
         Args:
             name: Unique tool name
@@ -71,9 +69,8 @@ class ToolRegistry:
 
         logger.debug(f"Registered tool: {name} (category: {category.value})")
 
-    def get_tool(self, name: str) -> Optional[ToolImplementation]:
-        """
-        Retrieve a tool by name
+    def get_tool(self, name: str) -> ToolImplementation | None:
+        """Retrieve a tool by name
 
         Args:
             name: Tool name
@@ -84,8 +81,7 @@ class ToolRegistry:
         return self._tools.get(name)
 
     def list_all_tools(self) -> list[ToolMetadata]:
-        """
-        List all registered tools
+        """List all registered tools
 
         Returns:
             List of all tool metadata
@@ -93,8 +89,7 @@ class ToolRegistry:
         return [impl.metadata for impl in self._tools.values()]
 
     def list_by_category(self, category: ToolCategory) -> list[ToolMetadata]:
-        """
-        List tools filtered by category
+        """List tools filtered by category
 
         Args:
             category: Category to filter by
@@ -109,8 +104,7 @@ class ToolRegistry:
         ]
 
     def list_categories(self) -> dict[str, int]:
-        """
-        List all categories with tool counts
+        """List all categories with tool counts
 
         Returns:
             Dict mapping category name to count of tools
@@ -122,8 +116,7 @@ class ToolRegistry:
         return categories
 
     def tool_exists(self, name: str) -> bool:
-        """
-        Check if a tool is registered
+        """Check if a tool is registered
 
         Args:
             name: Tool name
@@ -196,10 +189,9 @@ class ToolRegistry:
         self,
         name: str,
         arguments: dict[str, Any],
-        **context
+        **context,
     ) -> Any:
-        """
-        Execute a tool by name with provided arguments
+        """Execute a tool by name with provided arguments
 
         Args:
             name: Tool name
@@ -226,4 +218,4 @@ class ToolRegistry:
             return result
         except Exception as e:
             logger.error(f"Tool '{name}' execution failed: {e}", exc_info=True)
-            raise 
+            raise

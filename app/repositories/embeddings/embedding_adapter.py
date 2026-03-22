@@ -1,16 +1,16 @@
 """Embedding Adapter to abstract provider specific implementation details"""
-from typing import Protocol, List
-import time
 import asyncio
+import logging
+import time
+from typing import Protocol
 
 from fastembed import TextEmbedding
-from openai import AzureOpenAI, OpenAI
 from google import genai
 from google.genai import types
+from openai import AzureOpenAI, OpenAI
 
 from app.config.settings import settings
 
-import logging
 logger = logging.getLogger(__name__)
 
 class EmbeddingsAdapter(Protocol):
@@ -20,72 +20,72 @@ class EmbeddingsAdapter(Protocol):
 
 class FastEmbeddingAdapter(EmbeddingsAdapter):
     """Generate embeddings using the fastembed libary"""
-    
+
     def __init__(self):
         logger.info("Initialising Fastembed model", extra={
             "embedding_model": settings.EMBEDDING_MODEL,
-            "cache_dir": settings.FASTEMBED_CACHE_DIR
+            "cache_dir": settings.FASTEMBED_CACHE_DIR,
         })
 
         start_time = time.time()
         self.model = TextEmbedding(
             model_name=settings.EMBEDDING_MODEL,
-            cache_dir=settings.FASTEMBED_CACHE_DIR
+            cache_dir=settings.FASTEMBED_CACHE_DIR,
         )
         elapsed = time.time() - start_time
 
         logger.info("FasteEmbed model loaded successfully", extra={
             "elapsed_time": f"{elapsed:.2f}s",
-            "cache_dir": settings.FASTEMBED_CACHE_DIR
+            "cache_dir": settings.FASTEMBED_CACHE_DIR,
         })
-        
+
     async def generate_embedding(self, text: str) -> list[float]:
         try:
             embeddings = list(self.model.embed(text))
         except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
                 "embedding provider": "fastembed",
-                "embedding model": settings.EMBEDDING_MODEL
+                "embedding model": settings.EMBEDDING_MODEL,
             })
             raise
-        
+
         if embeddings is None:
             raise RuntimeError("FastEmbedding response did not contain embedding vector")
-        
+
         return list(map(float, embeddings[0]))
-    
+
 class AzureOpenAIAdapter(EmbeddingsAdapter):
     """Generate embeddings using Azure Open AI Embeddings Provider"""
-    
+
     def __init__(self):
         logger.info("Intialising Azure Open AI embeddings adapter", extra={
-            "embedding_model": settings.EMBEDDING_MODEL
+            "embedding_model": settings.EMBEDDING_MODEL,
         })
         self.client = AzureOpenAI(
             api_version=settings.AZURE_API_VERSION,
             azure_endpoint=settings.AZURE_ENDPOINT,
-            api_key=settings.AZURE_API_KEY
+            api_key=settings.AZURE_API_KEY,
         )
         self.model = settings.AZURE_DEPLOYMENT
-        
+
     async def generate_embedding(self, text) -> list[float]:
         try:
             response = self.client.embeddings.create(
                 input=[text],
                 model=self.model,
-                dimensions=settings.EMBEDDING_DIMENSIONS
+                dimensions=settings.EMBEDDING_DIMENSIONS,
             )
         except Exception:
             logger.error("Error generatring embeddings", exc_info=True, extra={
                 "embedding provider": "Azure",
-                "embedding model": self.model
+                "embedding model": self.model,
             })
             raise
-        
+
         if response is None:
             raise RuntimeError("Azure response did not contain embedding vector")
 
-        embeddings  = response.data[0].embedding 
+        embeddings  = response.data[0].embedding
 
         return embeddings
 
@@ -94,7 +94,7 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
 
     def __init__(self):
         logger.info("Initialising Google Generative AI embeddings adapter", extra={
-            "embedding_model": settings.EMBEDDING_MODEL
+            "embedding_model": settings.EMBEDDING_MODEL,
         })
 
         api_key = settings.GOOGLE_AI_API_KEY
@@ -111,13 +111,13 @@ class GoogleEmbeddingsAdapter(EmbeddingsAdapter):
                 model=self.model,
                 contents=text,
                 config=types.EmbedContentConfig(
-                    output_dimensionality=settings.EMBEDDING_DIMENSIONS
-                )
+                    output_dimensionality=settings.EMBEDDING_DIMENSIONS,
+                ),
             )
         except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
                 "embedding_provider": "google",
-                "embedding_model": self.model
+                "embedding_model": self.model,
             })
             raise
 
@@ -174,7 +174,7 @@ class OpenAIEmbeddingsAdapter(EmbeddingsAdapter):
         except Exception:
             logger.error("Error generating embeddings", exc_info=True, extra={
                 "embedding_provider": "openai",
-                "embedding_model": self.model
+                "embedding_model": self.model,
             })
             raise
 

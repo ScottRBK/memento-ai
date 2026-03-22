@@ -1,5 +1,4 @@
-"""
-E2E tests for task MCP tools with PostgreSQL backend.
+"""E2E tests for task MCP tools with PostgreSQL backend.
 
 Mirrors tests/e2e_sqlite/test_task_tools_sqlite.py but runs against real Postgres
 to catch type mismatches (e.g. UUID vs str) that SQLite doesn't surface.
@@ -7,7 +6,6 @@ to catch type mismatches (e.g. UUID vs str) that SQLite doesn't surface.
 
 import pytest
 from fastmcp.exceptions import ToolError
-
 
 pytestmark = [
     pytest.mark.e2e,
@@ -193,7 +191,7 @@ async def test_transition_task_lifecycle_e2e(mcp_client):
     task_id = create_result.data["id"]
     version = create_result.data["version"]
 
-    # todo -> doing
+    # TODO -> doing
     doing_result = await mcp_client.call_tool(
         "execute_forgetful_tool",
         {
@@ -238,7 +236,7 @@ async def test_transition_task_invalid_e2e(mcp_client):
     task_id = create_result.data["id"]
     version = create_result.data["version"]
 
-    # todo -> done is invalid (must go through doing)
+    # TODO -> done is invalid (must go through doing)
     with pytest.raises((ToolError, Exception)) as exc_info:
         await mcp_client.call_tool(
             "execute_forgetful_tool",

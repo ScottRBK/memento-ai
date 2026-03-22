@@ -1,20 +1,18 @@
+"""MCP Document tools - FastMCP tool definitions for document operations
 """
-MCP Document tools - FastMCP tool definitions for document operations
-"""
-from typing import List
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import ValidationError
 
+from app.config.logging_config import logging
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_auth
 from app.models.document_models import (
     Document,
     DocumentCreate,
-    DocumentUpdate
+    DocumentUpdate,
 )
-from app.middleware.auth import get_user_from_auth
-from app.config.logging_config import logging
-from app.exceptions import NotFoundError
 from app.utils.pydantic_helper import filter_none_values
 
 logger = logging.getLogger(__name__)
@@ -34,8 +32,7 @@ def register(mcp: FastMCP):
         tags: list[str] = None,
         project_id: int = None,
     ) -> Document:
-        """
-        Create document for storing long-form content and documentation.
+        """Create document for storing long-form content and documentation.
 
         WHAT: Stores long-form text like documentation, reports, meeting notes,
         analysis, and prose with metadata. Projects and memories can reference these
@@ -60,7 +57,7 @@ def register(mcp: FastMCP):
         NOT-USE: For short notes or facts <300 words (use memory content directly),
         code snippets (use create_code_artifact), or temporary information.
 
-        EXAMPLES:
+        Examples:
         create_document(
             title="Microservices Architecture Overview",
             description="High-level architecture documentation for the microservices platform",
@@ -90,10 +87,9 @@ def register(mcp: FastMCP):
         Returns:
             Complete Document with ID, timestamps, size_bytes, and metadata
         """
-
         logger.info("MCP Tool Called -> create_document", extra={
             "title": title[:50],
-            "document_type": document_type
+            "document_type": document_type,
         })
 
         user = await get_user_from_auth(ctx)
@@ -106,7 +102,7 @@ def register(mcp: FastMCP):
                 document_type=document_type,
                 filename=filename,
                 tags=tags or [],
-                project_id=project_id
+                project_id=project_id,
             )
         except ValidationError as e:
             raise ToolError(f"Invalid document data: {e}")
@@ -115,22 +111,21 @@ def register(mcp: FastMCP):
             document_service = ctx.fastmcp.document_service
             document = await document_service.create_document(
                 user_id=user.id,
-                document_data=document_data
+                document_data=document_data,
             )
 
             return document
 
         except Exception as e:
             logger.error("Failed to create document", exc_info=True)
-            raise ToolError(f"Failed to create document: {str(e)}")
+            raise ToolError(f"Failed to create document: {e!s}")
 
     @mcp.tool()
     async def get_document(
         document_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> Document:
-        """
-        Retrieve document by ID with complete content.
+        """Retrieve document by ID with complete content.
 
         WHEN: You need the full document content and metadata for a specific document.
         Common after listing documents or when a memory references a document ID.
@@ -150,9 +145,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if document not found or access denied
         """
-
         logger.info("MCP Tool Called -> get_document", extra={
-            "document_id": document_id
+            "document_id": document_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -161,7 +155,7 @@ def register(mcp: FastMCP):
             document_service = ctx.fastmcp.document_service
             document = await document_service.get_document(
                 user_id=user.id,
-                document_id=document_id
+                document_id=document_id,
             )
 
             return document
@@ -170,7 +164,7 @@ def register(mcp: FastMCP):
             raise ToolError(f"Document {document_id} not found")
         except Exception as e:
             logger.error("Failed to get document", exc_info=True)
-            raise ToolError(f"Failed to retrieve document: {str(e)}")
+            raise ToolError(f"Failed to retrieve document: {e!s}")
 
     @mcp.tool()
     async def list_documents(
@@ -179,8 +173,7 @@ def register(mcp: FastMCP):
         document_type: str = None,
         tags: list[str] = None,
     ) -> dict:
-        """
-        List documents with optional filtering.
+        """List documents with optional filtering.
 
         WHEN: Browsing available documents, searching for specific content,
         or discovering documents by type/category.
@@ -193,7 +186,7 @@ def register(mcp: FastMCP):
 
         NOT-USE: When you already have a document ID and need full content (use get_document).
 
-        EXAMPLES:
+        Examples:
         - All markdown docs: list_documents(document_type="markdown")
         - Meeting notes in project: list_documents(project_id=5, tags=["meeting-notes"])
         - Architecture docs: list_documents(tags=["architecture", "design"])
@@ -215,11 +208,10 @@ def register(mcp: FastMCP):
                 }
             }
         """
-
         logger.info("MCP Tool Called -> list_documents", extra={
             "project_id": project_id,
             "document_type": document_type,
-            "tags": tags
+            "tags": tags,
         })
 
         user = await get_user_from_auth(ctx)
@@ -230,7 +222,7 @@ def register(mcp: FastMCP):
                 user_id=user.id,
                 project_id=project_id,
                 document_type=document_type,
-                tags=tags
+                tags=tags,
             )
 
             return {
@@ -239,13 +231,13 @@ def register(mcp: FastMCP):
                 "filters": {
                     "project_id": project_id,
                     "document_type": document_type,
-                    "tags": tags
-                }
+                    "tags": tags,
+                },
             }
 
         except Exception as e:
             logger.error("Failed to list documents", exc_info=True)
-            raise ToolError(f"Failed to list documents: {str(e)}")
+            raise ToolError(f"Failed to list documents: {e!s}")
 
     @mcp.tool()
     async def update_document(
@@ -259,8 +251,7 @@ def register(mcp: FastMCP):
         tags: list[str] = None,
         project_id: int = None,
     ) -> Document:
-        """
-        Update document (PATCH semantics - only provided fields changed).
+        """Update document (PATCH semantics - only provided fields changed).
 
         WHEN: Refining content, correcting errors, updating metadata,
         changing categorization, or associating with different project.
@@ -273,7 +264,7 @@ def register(mcp: FastMCP):
 
         NOT-USE: Creating new documents (use create_document).
 
-        EXAMPLES:
+        Examples:
         - Fix typo: update_document(document_id=5, content="corrected content...")
         - Update metadata: update_document(document_id=5, description="New description")
         - Add tags: update_document(document_id=5, tags=["tag1", "tag2", "tag3"])
@@ -295,9 +286,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if document not found or update fails
         """
-
         logger.info("MCP Tool Called -> update_document", extra={
-            "document_id": document_id
+            "document_id": document_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -311,7 +301,7 @@ def register(mcp: FastMCP):
                 document_type=document_type,
                 filename=filename,
                 tags=tags,
-                project_id=project_id
+                project_id=project_id,
             )
 
             # Build update model with only provided fields
@@ -324,7 +314,7 @@ def register(mcp: FastMCP):
             document = await document_service.update_document(
                 user_id=user.id,
                 document_id=document_id,
-                document_data=update_data
+                document_data=update_data,
             )
 
             return document
@@ -333,15 +323,14 @@ def register(mcp: FastMCP):
             raise ToolError(f"Document {document_id} not found")
         except Exception as e:
             logger.error("Failed to update document", exc_info=True)
-            raise ToolError(f"Failed to update document: {str(e)}")
+            raise ToolError(f"Failed to update document: {e!s}")
 
     @mcp.tool()
     async def delete_document(
         document_id: int,
-        ctx: Context
+        ctx: Context,
     ) -> dict:
-        """
-        Delete document (cascades memory associations).
+        """Delete document (cascades memory associations).
 
         WHEN: Removing obsolete, incorrect, or no-longer-relevant documents.
 
@@ -360,9 +349,8 @@ def register(mcp: FastMCP):
         Raises:
             ToolError if document not found
         """
-
         logger.info("MCP Tool Called -> delete_document", extra={
-            "document_id": document_id
+            "document_id": document_id,
         })
 
         user = await get_user_from_auth(ctx)
@@ -371,7 +359,7 @@ def register(mcp: FastMCP):
             document_service = ctx.fastmcp.document_service
             success = await document_service.delete_document(
                 user_id=user.id,
-                document_id=document_id
+                document_id=document_id,
             )
 
             if not success:
@@ -381,4 +369,4 @@ def register(mcp: FastMCP):
 
         except Exception as e:
             logger.error("Failed to delete document", exc_info=True)
-            raise ToolError(f"Failed to delete document: {str(e)}")
+            raise ToolError(f"Failed to delete document: {e!s}")

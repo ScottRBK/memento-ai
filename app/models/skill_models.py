@@ -1,5 +1,4 @@
-"""
-Models for Skills
+"""Models for Skills
 
 Skills are what make up procedural memory and provide steps and examples
 to allow an agent to perform a particular task. Implements a superset of
@@ -7,9 +6,9 @@ the Agent Skills open standard (agentskills.io).
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.config.settings import settings
 
@@ -42,39 +41,39 @@ class SkillCreate(BaseModel):
         ...,
         min_length=1,
         max_length=settings.SKILL_CONTENT_MAX_LENGTH,
-        description="Full SKILL.md body (markdown instructions)."
+        description="Full SKILL.md body (markdown instructions).",
     )
     license: str | None = Field(
         None,
         max_length=settings.SKILL_LICENSE_MAX_LENGTH,
-        description="License identifier (e.g., 'MIT', 'Apache-2.0')."
+        description="License identifier (e.g., 'MIT', 'Apache-2.0').",
     )
     compatibility: str | None = Field(
         None,
         max_length=settings.SKILL_COMPATIBILITY_MAX_LENGTH,
-        description="Environment requirements (e.g., 'Requires Python 3.14+ and uv')."
+        description="Environment requirements (e.g., 'Requires Python 3.14+ and uv').",
     )
     allowed_tools: list[str] | None = Field(
         None,
-        description="Tool restrictions (e.g., ['Bash(python:*)', 'Read', 'WebFetch'])."
+        description="Tool restrictions (e.g., ['Bash(python:*)', 'Read', 'WebFetch']).",
     )
     metadata: dict | None = Field(
         None,
-        description="Custom key-value pairs (author, version, mcp-server, etc.)."
+        description="Custom key-value pairs (author, version, mcp-server, etc.).",
     )
     tags: list[str] = Field(
         default_factory=list,
-        description="Categorization tags."
+        description="Categorization tags.",
     )
     importance: int = Field(
         7,
         ge=1,
         le=10,
-        description="Importance 1-10 (default 7)."
+        description="Importance 1-10 (default 7).",
     )
     project_id: int | None = Field(
         None,
-        description="Optional project association."
+        description="Optional project association.",
     )
 
     @field_validator("name")
@@ -92,7 +91,7 @@ class SkillCreate(BaseModel):
         if not re.match(pattern, stripped):
             raise ValueError(
                 "name must be kebab-case (lowercase alphanumeric with hyphens, "
-                "e.g., 'my-example-skill')"
+                "e.g., 'my-example-skill')",
             )
 
         return stripped
@@ -144,7 +143,7 @@ class SkillUpdate(BaseModel):
         if not re.match(pattern, stripped):
             raise ValueError(
                 "name must be kebab-case (lowercase alphanumeric with hyphens, "
-                "e.g., 'my-example-skill')"
+                "e.g., 'my-example-skill')",
             )
 
         return stripped
@@ -171,8 +170,8 @@ class Skill(SkillCreate):
     Used for responses that include full Skill detail.
     """
     id: int = Field(..., description="Unique identifier (auto-generated)")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc), frozen=True)
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC), frozen=True)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,17 +1,16 @@
-"""
-Protocol (interface) for File Repository
+"""Protocol (interface) for File Repository
 
 Defines the contract for file data access operations.
 Concrete implementations must provide all methods defined here.
 """
-from typing import Protocol, List
+from typing import Protocol
 from uuid import UUID
 
 from app.models.file_models import (
     File,
     FileCreate,
+    FileSummary,
     FileUpdate,
-    FileSummary
 )
 
 
@@ -25,7 +24,7 @@ class FileRepository(Protocol):
     async def create_file(
         self,
         user_id: UUID,
-        file_data: FileCreate
+        file_data: FileCreate,
     ) -> File:
         """Create a new file
 
@@ -44,7 +43,7 @@ class FileRepository(Protocol):
     async def get_file_by_id(
         self,
         user_id: UUID,
-        file_id: int
+        file_id: int,
     ) -> File | None:
         """Get a single file by ID (includes base64 data)
 
@@ -62,7 +61,7 @@ class FileRepository(Protocol):
         user_id: UUID,
         project_id: int | None = None,
         mime_type: str | None = None,
-        tags: list[str] | None = None
+        tags: list[str] | None = None,
     ) -> list[FileSummary]:
         """List files with optional filtering (excludes binary data)
 
@@ -82,7 +81,7 @@ class FileRepository(Protocol):
         self,
         user_id: UUID,
         file_id: int,
-        file_data: FileUpdate
+        file_data: FileUpdate,
     ) -> File:
         """Update an existing file (PATCH semantics)
 
@@ -105,7 +104,7 @@ class FileRepository(Protocol):
     async def delete_file(
         self,
         user_id: UUID,
-        file_id: int
+        file_id: int,
     ) -> bool:
         """Delete a file
 

@@ -1,11 +1,11 @@
+"""Integration tests for DocumentService with in-memory stubs
 """
-Integration tests for DocumentService with in-memory stubs
-"""
-import pytest
 from uuid import uuid4
 
-from app.models.document_models import DocumentCreate, DocumentUpdate
+import pytest
+
 from app.exceptions import NotFoundError
+from app.models.document_models import DocumentCreate, DocumentUpdate
 
 
 @pytest.mark.asyncio
@@ -17,7 +17,7 @@ async def test_create_document(test_document_service):
         description="REST API documentation",
         content="# API\n\nThis is the API documentation...",
         document_type="markdown",
-        tags=["api", "docs"]
+        tags=["api", "docs"],
     )
 
     document = await test_document_service.create_document(user_id, document_data)
@@ -37,7 +37,7 @@ async def test_get_document(test_document_service):
         title="Test Doc",
         description="Test",
         content="Content here",
-        tags=[]
+        tags=[],
     )
     created = await test_document_service.create_document(user_id, document_data)
 
@@ -66,7 +66,7 @@ async def test_list_documents(test_document_service):
             title=f"Document {i}",
             description="Test",
             content=f"content_{i}",
-            tags=["test"]
+            tags=["test"],
         )
         await test_document_service.create_document(user_id, document_data)
 
@@ -83,13 +83,13 @@ async def test_list_documents_filter_by_type(test_document_service):
     # Create markdown document
     await test_document_service.create_document(
         user_id,
-        DocumentCreate(title="MD", description="Test", content="content", document_type="markdown", tags=[])
+        DocumentCreate(title="MD", description="Test", content="content", document_type="markdown", tags=[]),
     )
 
     # Create text document
     await test_document_service.create_document(
         user_id,
-        DocumentCreate(title="TXT", description="Test", content="content", document_type="text", tags=[])
+        DocumentCreate(title="TXT", description="Test", content="content", document_type="text", tags=[]),
     )
 
     # Filter by markdown
@@ -106,12 +106,12 @@ async def test_list_documents_filter_by_tags(test_document_service):
     # Create with different tags
     await test_document_service.create_document(
         user_id,
-        DocumentCreate(title="Design", description="Test", content="content", tags=["design"])
+        DocumentCreate(title="Design", description="Test", content="content", tags=["design"]),
     )
 
     await test_document_service.create_document(
         user_id,
-        DocumentCreate(title="Code", description="Test", content="content", tags=["code"])
+        DocumentCreate(title="Code", description="Test", content="content", tags=["code"]),
     )
 
     # Filter by design tag
@@ -130,7 +130,7 @@ async def test_update_document(test_document_service):
         title="Original",
         description="Original desc",
         content="original content",
-        tags=["original"]
+        tags=["original"],
     )
     created = await test_document_service.create_document(user_id, document_data)
 
@@ -141,7 +141,7 @@ async def test_update_document(test_document_service):
     assert updated.title == "Updated"
     assert updated.content == "new content"
     assert updated.description == "Original desc"  # Unchanged
-    assert updated.size_bytes == len("new content".encode('utf-8'))  # Recalculated
+    assert updated.size_bytes == len(b"new content")  # Recalculated
 
 
 @pytest.mark.asyncio
@@ -153,7 +153,7 @@ async def test_delete_document(test_document_service):
         title="To Delete",
         description="Test",
         content="content",
-        tags=[]
+        tags=[],
     )
     created = await test_document_service.create_document(user_id, document_data)
 

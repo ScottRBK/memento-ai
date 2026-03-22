@@ -1,21 +1,21 @@
-"""
-REST API endpoints for Skill operations.
+"""REST API endpoints for Skill operations.
 
 Provides CRUD operations, semantic search, and import/export
 for skills (procedural memory following the Agent Skills standard).
 """
-from starlette.requests import Request
-from starlette.responses import JSONResponse
-from fastmcp import FastMCP
-from pydantic import ValidationError
 import logging
 
+from fastmcp import FastMCP
+from pydantic import ValidationError
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.exceptions import NotFoundError
+from app.middleware.auth import get_user_from_request
 from app.models.skill_models import (
     SkillCreate,
     SkillUpdate,
 )
-from app.middleware.auth import get_user_from_request
-from app.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +39,14 @@ def register(mcp: FastMCP):
 
         skill = await mcp.skill_service.create_skill(
             user_id=user.id,
-            skill_data=skill_data
+            skill_data=skill_data,
         )
 
         return JSONResponse(skill.model_dump(mode="json"), status_code=201)
 
     @mcp.custom_route("/api/v1/skills", methods=["GET"])
     async def list_skills(request: Request) -> JSONResponse:
-        """
-        List skills with optional filtering.
+        """List skills with optional filtering.
 
         Query params:
             project_id: Filter by project
@@ -71,7 +70,7 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
-                    status_code=400
+                    status_code=400,
                 )
 
         tags = [t.strip() for t in tags_str.split(",")] if tags_str else None
@@ -100,13 +99,12 @@ def register(mcp: FastMCP):
 
         return JSONResponse({
             "skills": [s.model_dump(mode="json") for s in skills],
-            "total": len(skills)
+            "total": len(skills),
         })
 
     @mcp.custom_route("/api/v1/skills/search", methods=["GET"])
     async def search_skills(request: Request) -> JSONResponse:
-        """
-        Semantic search for skills.
+        """Semantic search for skills.
 
         Query params:
             query: Search query string (required)
@@ -123,7 +121,7 @@ def register(mcp: FastMCP):
         if not query:
             return JSONResponse(
                 {"error": "query parameter is required"},
-                status_code=400
+                status_code=400,
             )
 
         k_str = params.get("k", "5")
@@ -132,7 +130,7 @@ def register(mcp: FastMCP):
         except ValueError:
             return JSONResponse(
                 {"error": f"Invalid k: {k_str}. Must be an integer."},
-                status_code=400
+                status_code=400,
             )
 
         project_id_str = params.get("project_id")
@@ -143,7 +141,7 @@ def register(mcp: FastMCP):
             except ValueError:
                 return JSONResponse(
                     {"error": f"Invalid project_id: {project_id_str}. Must be an integer."},
-                    status_code=400
+                    status_code=400,
                 )
 
         skills = await mcp.skill_service.search_skills(
@@ -156,7 +154,7 @@ def register(mcp: FastMCP):
         return JSONResponse({
             "skills": [s.model_dump(mode="json") for s in skills],
             "query": query,
-            "total": len(skills)
+            "total": len(skills),
         })
 
     @mcp.custom_route("/api/v1/skills/{skill_id}", methods=["GET"])
@@ -172,7 +170,7 @@ def register(mcp: FastMCP):
         try:
             skill = await mcp.skill_service.get_skill(
                 user_id=user.id,
-                skill_id=skill_id
+                skill_id=skill_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
@@ -219,7 +217,7 @@ def register(mcp: FastMCP):
         try:
             success = await mcp.skill_service.delete_skill(
                 user_id=user.id,
-                skill_id=skill_id
+                skill_id=skill_id,
             )
         except NotFoundError:
             return JSONResponse({"error": "Skill not found"}, status_code=404)
@@ -231,8 +229,7 @@ def register(mcp: FastMCP):
 
     @mcp.custom_route("/api/v1/skills/import", methods=["POST"])
     async def import_skill(request: Request) -> JSONResponse:
-        """
-        Import a skill from Agent Skills markdown format.
+        """Import a skill from Agent Skills markdown format.
 
         Body:
             skill_md: Raw SKILL.md content with YAML frontmatter (required)
@@ -253,7 +250,7 @@ def register(mcp: FastMCP):
         if not skill_md:
             return JSONResponse(
                 {"error": "skill_md field is required"},
-                status_code=400
+                status_code=400,
             )
 
         project_id = body.get("project_id")

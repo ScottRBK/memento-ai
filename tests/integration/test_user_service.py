@@ -1,11 +1,10 @@
-"""
-Integration tests for UserService with stubbed database
+"""Integration tests for UserService with stubbed database
 
 Tests critical workflows without real PostgreSQL dependency
 """
-import pytest
 from unittest.mock import patch
 
+import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.models.user_models import UserCreate, UserUpdate
@@ -17,7 +16,7 @@ async def test_get_or_create_user_creates_new(test_user_service):
     user_create = UserCreate(
         external_id="test-user-1",
         name="Test User",
-        email="test@example.com"
+        email="test@example.com",
     )
 
     user = await test_user_service.get_or_create_user(user_create)
@@ -35,7 +34,7 @@ async def test_get_or_create_user_returns_existing(test_user_service):
     user_create = UserCreate(
         external_id="test-user-2",
         name="Existing User",
-        email="existing@example.com"
+        email="existing@example.com",
     )
 
     # First call creates
@@ -55,14 +54,14 @@ async def test_update_user_notes(test_user_service):
     user_create = UserCreate(
         external_id="test-user-3",
         name="Notes User",
-        email="notes@example.com"
+        email="notes@example.com",
     )
     user = await test_user_service.get_or_create_user(user_create)
 
     # Update notes
     user_update = UserUpdate(
         external_id="test-user-3",
-        notes="Updated notes content"
+        notes="Updated notes content",
     )
     updated_user = await test_user_service.update_user(user_update)
 
@@ -77,12 +76,12 @@ async def test_user_isolation(test_user_service):
     user1_create = UserCreate(
         external_id="test-user-4",
         name="User One",
-        email="user1@example.com"
+        email="user1@example.com",
     )
     user2_create = UserCreate(
         external_id="test-user-5",
         name="User Two",
-        email="user2@example.com"
+        email="user2@example.com",
     )
 
     user1 = await test_user_service.get_or_create_user(user1_create)
@@ -105,7 +104,7 @@ async def test_get_or_create_user_handles_race_condition(test_user_service):
     user_create = UserCreate(
         external_id="race-user",
         name="Race User",
-        email="race@example.com"
+        email="race@example.com",
     )
     existing = await test_user_service.get_or_create_user(user_create)
 
@@ -141,7 +140,7 @@ async def test_update_user_handles_race_condition(test_user_service):
     user_create = UserCreate(
         external_id="race-update-user",
         name="Race Update User",
-        email="race-update@example.com"
+        email="race-update@example.com",
     )
     existing = await test_user_service.get_or_create_user(user_create)
 

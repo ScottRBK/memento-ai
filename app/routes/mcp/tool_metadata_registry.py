@@ -1,24 +1,23 @@
-"""
-Tool Metadata Registry - Registration helpers for tool metadata
+"""Tool Metadata Registry - Registration helpers for tool metadata
 
 This module provides helper functions for registering tools with the registry,
 including detailed parameter metadata for discovery and documentation.
 """
-from typing import Dict, List, Any
+from typing import Any
 
-from app.routes.mcp.tool_registry import ToolRegistry
+from app.config.logging_config import logging
 from app.models.tool_registry_models import ToolCategory, ToolParameter
 from app.routes.mcp.tool_adapters import (
-    create_user_adapters,
+    create_file_adapters,
     create_memory_adapters,
     create_plan_adapters,
-    create_task_adapters,
-    create_file_adapters,
     create_skill_adapters,
+    create_task_adapters,
+    create_user_adapters,
 )
-from app.services.user_service import UserService
+from app.routes.mcp.tool_registry import ToolRegistry
 from app.services.memory_service import MemoryService
-from app.config.logging_config import logging
+from app.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +34,7 @@ def register_simplified_tool(
     tags: list[str] = None,
     mutates: bool = False,
 ):
-    """
-    Helper to register tools with simplified parameter definitions
+    """Helper to register tools with simplified parameter definitions
 
     Args:
         registry: ToolRegistry instance
@@ -81,10 +79,9 @@ def register_simplified_tool(
 
 def register_user_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register user tool metadata and implementations"""
-
     tools = [
         {
             "name": "get_current_user",
@@ -113,7 +110,7 @@ def register_user_tools_metadata(
                     "type": "str",
                     "description": "The new notes content to store for the user",
                     "required": True,
-                    "example": "User prefers TypeScript, uses VSCode, timezone: PST"
+                    "example": "User prefers TypeScript, uses VSCode, timezone: PST",
                 },
                 {
                     "name": "ctx",
@@ -153,10 +150,9 @@ def register_user_tools_metadata(
 
 def register_memory_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register memory tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_memory",
@@ -168,42 +164,42 @@ def register_memory_tools_metadata(
                     "type": "str",
                     "description": "Memory title (max 200 characters)",
                     "required": True,
-                    "example": "TTS preference: XTTS-v2"
+                    "example": "TTS preference: XTTS-v2",
                 },
                 {
                     "name": "content",
                     "type": "str",
                     "description": "Memory content (max 2000 characters, ~300-400 words) - single concept",
                     "required": True,
-                    "example": "Selected XTTS-v2 for voice cloning - provides high quality output with low latency"
+                    "example": "Selected XTTS-v2 for voice cloning - provides high quality output with low latency",
                 },
                 {
                     "name": "context",
                     "type": "str",
                     "description": "WHY this memory matters, HOW it relates, WHAT implications (max 500 characters)",
                     "required": True,
-                    "example": "Decision made while implementing voice integration with AI agent"
+                    "example": "Decision made while implementing voice integration with AI agent",
                 },
                 {
                     "name": "keywords",
                     "type": "List[str]",
                     "description": "Search keywords for semantic matching (max 10)",
                     "required": True,
-                    "example": ["tts", "voice-cloning", "xtts"]
+                    "example": ["tts", "voice-cloning", "xtts"],
                 },
                 {
                     "name": "tags",
                     "type": "List[str]",
                     "description": "Categorization tags (max 10)",
                     "required": True,
-                    "example": ["decision", "preference", "audio"]
+                    "example": ["decision", "preference", "audio"],
                 },
                 {
                     "name": "importance",
                     "type": "int",
                     "description": "Score 1-10. 9-10: Personal/foundational, 8-9: Critical solutions, 7-8: Useful patterns, 6-7: Milestones",
                     "required": True,
-                    "example": 9
+                    "example": 9,
                 },
                 {
                     "name": "ctx",
@@ -217,7 +213,7 @@ def register_memory_tools_metadata(
                     "description": "Project IDs to link (optional)",
                     "required": False,
                     "default": None,
-                    "example": [1, 3]
+                    "example": [1, 3],
                 },
                 {
                     "name": "code_artifact_ids",
@@ -225,7 +221,7 @@ def register_memory_tools_metadata(
                     "description": "Code artifact IDs to link (optional)",
                     "required": False,
                     "default": None,
-                    "example": [5]
+                    "example": [5],
                 },
                 {
                     "name": "document_ids",
@@ -233,7 +229,7 @@ def register_memory_tools_metadata(
                     "description": "Document IDs to link (optional)",
                     "required": False,
                     "default": None,
-                    "example": [2]
+                    "example": [2],
                 },
                 {
                     "name": "source_repo",
@@ -241,7 +237,7 @@ def register_memory_tools_metadata(
                     "description": "Repository/project source (e.g., 'owner/repo') for provenance tracking",
                     "required": False,
                     "default": None,
-                    "example": "scottrbk/forgetful"
+                    "example": "scottrbk/forgetful",
                 },
                 {
                     "name": "source_files",
@@ -249,7 +245,7 @@ def register_memory_tools_metadata(
                     "description": "Files that informed this memory (list of paths) for provenance tracking",
                     "required": False,
                     "default": None,
-                    "example": ["src/main.py", "tests/test.py"]
+                    "example": ["src/main.py", "tests/test.py"],
                 },
                 {
                     "name": "source_url",
@@ -257,7 +253,7 @@ def register_memory_tools_metadata(
                     "description": "URL to original source material for provenance tracking",
                     "required": False,
                     "default": None,
-                    "example": "https://github.com/owner/repo/blob/main/README.md"
+                    "example": "https://github.com/owner/repo/blob/main/README.md",
                 },
                 {
                     "name": "confidence",
@@ -265,7 +261,7 @@ def register_memory_tools_metadata(
                     "description": "Encoding confidence score (0.0-1.0) for provenance tracking",
                     "required": False,
                     "default": None,
-                    "example": 0.85
+                    "example": 0.85,
                 },
                 {
                     "name": "encoding_agent",
@@ -273,7 +269,7 @@ def register_memory_tools_metadata(
                     "description": "Agent/process that created this memory for provenance tracking",
                     "required": False,
                     "default": None,
-                    "example": "claude-sonnet-4-20250514"
+                    "example": "claude-sonnet-4-20250514",
                 },
                 {
                     "name": "encoding_version",
@@ -281,7 +277,7 @@ def register_memory_tools_metadata(
                     "description": "Version of encoding process/prompt for provenance tracking",
                     "required": False,
                     "default": None,
-                    "example": "0.1.0"
+                    "example": "0.1.0",
                 },
             ],
             "returns": "MemoryCreateResponse with id, title, linked_memory_ids, similar_memories",
@@ -299,14 +295,14 @@ def register_memory_tools_metadata(
                     "type": "str",
                     "description": "Natural language search query",
                     "required": True,
-                    "example": "What did we decide about authentication?"
+                    "example": "What did we decide about authentication?",
                 },
                 {
                     "name": "query_context",
                     "type": "str",
                     "description": "Context explaining why you're searching (improves ranking)",
                     "required": True,
-                    "example": "Implementing login system for new API"
+                    "example": "Implementing login system for new API",
                 },
                 {
                     "name": "ctx",
@@ -317,10 +313,10 @@ def register_memory_tools_metadata(
                 {
                     "name": "k",
                     "type": "int",
-                    "description": "Number of primary results to return (1-20), use INSTEAD of LIMIT", 
+                    "description": "Number of primary results to return (1-20), use INSTEAD of LIMIT",
                     "required": False,
                     "default": 3,
-                    "example": 5
+                    "example": 5,
                 },
                 {
                     "name": "include_links",
@@ -328,7 +324,7 @@ def register_memory_tools_metadata(
                     "description": "Whether to include linked memories for context",
                     "required": False,
                     "default": True,
-                    "example": True
+                    "example": True,
                 },
                 {
                     "name": "max_links_per_primary",
@@ -336,7 +332,7 @@ def register_memory_tools_metadata(
                     "description": "Maximum number of linked memories per primary memory",
                     "required": False,
                     "default": 5,
-                    "example": 3
+                    "example": 3,
                 },
                 {
                     "name": "importance_threshold",
@@ -344,7 +340,7 @@ def register_memory_tools_metadata(
                     "description": "Minimum importance score (1-10) to include",
                     "required": False,
                     "default": None,
-                    "example": 7
+                    "example": 7,
                 },
                 {
                     "name": "project_ids",
@@ -352,7 +348,7 @@ def register_memory_tools_metadata(
                     "description": "Filter results to specific projects",
                     "required": False,
                     "default": None,
-                    "example": [1, 2]
+                    "example": [1, 2],
                 },
                 {
                     "name": "strict_project_filter",
@@ -360,7 +356,7 @@ def register_memory_tools_metadata(
                     "description": "If True, linked memories must also be in specified projects",
                     "required": False,
                     "default": False,
-                    "example": False
+                    "example": False,
                 },
             ],
             "returns": "MemoryQueryResult with primary_memories, linked_memories, total_count, token_count, truncated flag",
@@ -380,7 +376,7 @@ def register_memory_tools_metadata(
                     "type": "int",
                     "description": "ID of the memory to update",
                     "required": True,
-                    "example": 42
+                    "example": 42,
                 },
                 {
                     "name": "ctx",
@@ -394,7 +390,7 @@ def register_memory_tools_metadata(
                     "description": "New title (optional)",
                     "required": False,
                     "default": None,
-                    "example": "Updated title"
+                    "example": "Updated title",
                 },
                 {
                     "name": "content",
@@ -402,7 +398,7 @@ def register_memory_tools_metadata(
                     "description": "New content (optional)",
                     "required": False,
                     "default": None,
-                    "example": "Updated content with new information"
+                    "example": "Updated content with new information",
                 },
                 {
                     "name": "context",
@@ -410,7 +406,7 @@ def register_memory_tools_metadata(
                     "description": "New context (optional)",
                     "required": False,
                     "default": None,
-                    "example": "Updated context explanation"
+                    "example": "Updated context explanation",
                 },
                 {
                     "name": "keywords",
@@ -418,7 +414,7 @@ def register_memory_tools_metadata(
                     "description": "New keywords - replaces existing (optional)",
                     "required": False,
                     "default": None,
-                    "example": ["new", "keywords"]
+                    "example": ["new", "keywords"],
                 },
                 {
                     "name": "tags",
@@ -426,7 +422,7 @@ def register_memory_tools_metadata(
                     "description": "New tags - replaces existing (optional)",
                     "required": False,
                     "default": None,
-                    "example": ["updated", "tag"]
+                    "example": ["updated", "tag"],
                 },
                 {
                     "name": "importance",
@@ -434,7 +430,7 @@ def register_memory_tools_metadata(
                     "description": "New importance score 1-10 (optional)",
                     "required": False,
                     "default": None,
-                    "example": 8
+                    "example": 8,
                 },
                 {
                     "name": "project_ids",
@@ -442,7 +438,7 @@ def register_memory_tools_metadata(
                     "description": "New project IDs - replaces existing links (optional)",
                     "required": False,
                     "default": None,
-                    "example": [1, 2]
+                    "example": [1, 2],
                 },
                 {
                     "name": "code_artifact_ids",
@@ -450,7 +446,7 @@ def register_memory_tools_metadata(
                     "description": "New code artifact IDs - replaces existing links (optional)",
                     "required": False,
                     "default": None,
-                    "example": [5]
+                    "example": [5],
                 },
                 {
                     "name": "document_ids",
@@ -458,7 +454,7 @@ def register_memory_tools_metadata(
                     "description": "New document IDs - replaces existing links (optional)",
                     "required": False,
                     "default": None,
-                    "example": [3]
+                    "example": [3],
                 },
                 {
                     "name": "source_repo",
@@ -466,7 +462,7 @@ def register_memory_tools_metadata(
                     "description": "New repository/project source. Unchanged if null.",
                     "required": False,
                     "default": None,
-                    "example": "scottrbk/forgetful"
+                    "example": "scottrbk/forgetful",
                 },
                 {
                     "name": "source_files",
@@ -474,7 +470,7 @@ def register_memory_tools_metadata(
                     "description": "New source files list. Replaces existing if provided, unchanged if null.",
                     "required": False,
                     "default": None,
-                    "example": ["src/main.py", "tests/test.py"]
+                    "example": ["src/main.py", "tests/test.py"],
                 },
                 {
                     "name": "source_url",
@@ -482,7 +478,7 @@ def register_memory_tools_metadata(
                     "description": "New URL to source material. Unchanged if null.",
                     "required": False,
                     "default": None,
-                    "example": "https://github.com/owner/repo/blob/main/README.md"
+                    "example": "https://github.com/owner/repo/blob/main/README.md",
                 },
                 {
                     "name": "confidence",
@@ -490,7 +486,7 @@ def register_memory_tools_metadata(
                     "description": "New encoding confidence score (0.0-1.0). Unchanged if null.",
                     "required": False,
                     "default": None,
-                    "example": 0.85
+                    "example": 0.85,
                 },
                 {
                     "name": "encoding_agent",
@@ -498,7 +494,7 @@ def register_memory_tools_metadata(
                     "description": "New agent/process identifier. Unchanged if null.",
                     "required": False,
                     "default": None,
-                    "example": "claude-sonnet-4-20250514"
+                    "example": "claude-sonnet-4-20250514",
                 },
                 {
                     "name": "encoding_version",
@@ -506,7 +502,7 @@ def register_memory_tools_metadata(
                     "description": "New encoding process version. Unchanged if null.",
                     "required": False,
                     "default": None,
-                    "example": "0.1.0"
+                    "example": "0.1.0",
                 },
             ],
             "returns": "Full Memory object after update",
@@ -526,14 +522,14 @@ def register_memory_tools_metadata(
                     "type": "int",
                     "description": "Source memory ID",
                     "required": True,
-                    "example": 42
+                    "example": 42,
                 },
                 {
                     "name": "related_ids",
                     "type": "List[int]",
                     "description": "List of target memory IDs to link",
                     "required": True,
-                    "example": [10, 15, 20]
+                    "example": [10, 15, 20],
                 },
                 {
                     "name": "ctx",
@@ -558,14 +554,14 @@ def register_memory_tools_metadata(
                     "type": "int",
                     "description": "Source memory ID",
                     "required": True,
-                    "example": 42
+                    "example": 42,
                 },
                 {
                     "name": "target_id",
                     "type": "int",
                     "description": "Target memory ID to unlink",
                     "required": True,
-                    "example": 57
+                    "example": 57,
                 },
                 {
                     "name": "ctx",
@@ -589,7 +585,7 @@ def register_memory_tools_metadata(
                     "type": "int",
                     "description": "ID of the memory to retrieve",
                     "required": True,
-                    "example": 42
+                    "example": 42,
                 },
                 {
                     "name": "ctx",
@@ -614,14 +610,14 @@ def register_memory_tools_metadata(
                     "type": "int",
                     "description": "ID of the memory to mark as obsolete",
                     "required": True,
-                    "example": 42
+                    "example": 42,
                 },
                 {
                     "name": "reason",
                     "type": "str",
                     "description": "Explanation for why this memory is obsolete",
                     "required": True,
-                    "example": "Superseded by newer decision in memory #100"
+                    "example": "Superseded by newer decision in memory #100",
                 },
                 {
                     "name": "ctx",
@@ -635,7 +631,7 @@ def register_memory_tools_metadata(
                     "description": "Optional ID of the replacement memory",
                     "required": False,
                     "default": None,
-                    "example": 100
+                    "example": 100,
                 },
             ],
             "returns": "Boolean indicating success",
@@ -660,7 +656,7 @@ def register_memory_tools_metadata(
                     "description": "Maximum number of memories to return (1-100)",
                     "required": False,
                     "default": 10,
-                    "example": 10
+                    "example": 10,
                 },
                 {
                     "name": "project_ids",
@@ -668,7 +664,7 @@ def register_memory_tools_metadata(
                     "description": "Optional filter to specific projects",
                     "required": False,
                     "default": None,
-                    "example": [1, 3]
+                    "example": [1, 3],
                 },
             ],
             "returns": "List of Memory objects sorted by created_at DESC",
@@ -714,8 +710,7 @@ def register_all_tools_metadata(
     file_service=None,
     skill_service=None,
 ):
-    """
-    Register all tool metadata and implementations
+    """Register all tool metadata and implementations
 
     Args:
         registry: ToolRegistry instance to register tools with
@@ -734,10 +729,10 @@ def register_all_tools_metadata(
 
     # Import adapter factory functions
     from app.routes.mcp.tool_adapters import (
-        create_project_adapters,
         create_code_artifact_adapters,
         create_document_adapters,
         create_entity_adapters,
+        create_project_adapters,
     )
 
     # Create adapters for all categories
@@ -792,10 +787,9 @@ def register_all_tools_metadata(
 
 def register_project_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register project tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_project",
@@ -903,10 +897,9 @@ def register_project_tools_metadata(
 
 def register_code_artifact_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register code artifact tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_code_artifact",
@@ -1015,10 +1008,9 @@ def register_code_artifact_tools_metadata(
 
 def register_document_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register document tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_document",
@@ -1129,10 +1121,9 @@ def register_document_tools_metadata(
 
 def register_entity_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register entity tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_entity",
@@ -1400,10 +1391,9 @@ def register_entity_tools_metadata(
 
 def register_plan_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register plan tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_plan",
@@ -1494,10 +1484,9 @@ def register_plan_tools_metadata(
 
 def register_task_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register task tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_task",
@@ -1697,10 +1686,9 @@ def register_task_tools_metadata(
 
 def register_file_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register file tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_file",
@@ -1809,10 +1797,9 @@ def register_file_tools_metadata(
 
 def register_skill_tools_metadata(
     registry: ToolRegistry,
-    adapters: dict[str, Any]
+    adapters: dict[str, Any],
 ):
     """Register skill tool metadata and implementations"""
-
     tools = [
         {
             "name": "create_skill",

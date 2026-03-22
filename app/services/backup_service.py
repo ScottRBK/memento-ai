@@ -1,16 +1,14 @@
-"""
-Backup service for database backup and restore operations.
+"""Backup service for database backup and restore operations.
 
 Supports both SQLite (file copy) and PostgreSQL (pg_dump/psql) backup strategies.
 """
+import logging
 import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
 from app.config.settings import settings
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +25,9 @@ class BackupService:
 
         if self.database_type == "SQLite":
             return self._backup_sqlite(timestamp)
-        elif self.database_type == "Postgres":
+        if self.database_type == "Postgres":
             return self._backup_postgres(timestamp)
-        else:
-            raise ValueError(f"Unsupported database type: {self.database_type}")
+        raise ValueError(f"Unsupported database type: {self.database_type}")
 
     async def restore_backup(self, backup_path: Path) -> None:
         """Restore database from backup."""

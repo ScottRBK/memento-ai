@@ -1,5 +1,4 @@
-"""
-Scoped Permissions for Meta-Tools
+"""Scoped Permissions for Meta-Tools
 
 Resolves OAuth-style scopes to sets of permitted tool names.
 Two-layer model:
@@ -24,6 +23,7 @@ from app.models.tool_registry_models import ToolCategory
 
 if TYPE_CHECKING:
     from fastmcp import Context
+
     from app.routes.mcp.tool_registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -82,12 +82,12 @@ def parse_scopes(scope_string: str) -> frozenset[str]:
             if action not in VALID_ACTIONS:
                 raise ValueError(
                     f"Invalid scope action '{action}' in '{token}'. "
-                    f"Valid actions: {', '.join(sorted(VALID_ACTIONS))}"
+                    f"Valid actions: {', '.join(sorted(VALID_ACTIONS))}",
                 )
             if category not in VALID_CATEGORIES:
                 raise ValueError(
                     f"Invalid scope category '{category}' in '{token}'. "
-                    f"Valid categories: {', '.join(sorted(VALID_CATEGORIES))}"
+                    f"Valid categories: {', '.join(sorted(VALID_CATEGORIES))}",
                 )
         elif token in VALID_ACTIONS:
             # Bare "read" or "write" — applies to all categories
@@ -95,7 +95,7 @@ def parse_scopes(scope_string: str) -> frozenset[str]:
         else:
             raise ValueError(
                 f"Invalid scope token '{token}'. "
-                f"Valid formats: *, read, write, read:<category>, write:<category>"
+                f"Valid formats: *, read, write, read:<category>, write:<category>",
             )
 
     return tokens
@@ -123,9 +123,7 @@ def resolve_permitted_tools(scopes: frozenset[str], registry: ToolRegistry) -> s
             is_read = action == "read"
             for tool in registry.list_all_tools():
                 if tool.category.value in cat_values:
-                    if is_read and not tool.mutates:
-                        permitted.add(tool.name)
-                    elif not is_read and tool.mutates:
+                    if (is_read and not tool.mutates) or (not is_read and tool.mutates):
                         permitted.add(tool.name)
         elif token == "read":
             for tool in registry.list_all_tools():
@@ -195,7 +193,7 @@ def get_effective_scopes(ctx: Context) -> tuple[set[str], frozenset[str]]:
 
     logger.debug(
         f"Scope intersection: instance={len(instance_permitted)} tools, "
-        f"token={len(token_permitted)} tools, effective={len(effective_permitted)} tools"
+        f"token={len(token_permitted)} tools, effective={len(effective_permitted)} tools",
     )
 
     return effective_permitted, effective_scopes

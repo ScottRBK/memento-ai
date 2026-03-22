@@ -1,22 +1,22 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from app.config.logging_config import logging
 from app.config.settings import settings
 from app.exceptions import InvalidStateTransitionError
 from app.models.activity_models import (
+    ActionType,
     ActivityEvent,
     ActorType,
-    ActionType,
     EntityType,
 )
 from app.models.plan_models import (
+    VALID_PLAN_TRANSITIONS,
     Plan,
     PlanCreate,
     PlanStatus,
     PlanSummary,
     PlanUpdate,
-    VALID_PLAN_TRANSITIONS,
 )
 from app.protocols.plan_protocol import PlanRepository
 from app.utils.pydantic_helper import get_changed_fields
@@ -105,7 +105,7 @@ class PlanService:
         return plans
 
     async def update_plan(
-        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate
+        self, user_id: UUID, plan_id: int, plan_data: PlanUpdate,
     ) -> Plan | None:
         logger.info("updating plan", extra={"user_id": str(user_id), "plan_id": plan_id})
 
@@ -121,7 +121,7 @@ class PlanService:
             if target not in VALID_PLAN_TRANSITIONS.get(current, set()):
                 raise InvalidStateTransitionError(
                     f"Cannot transition plan from {current.value} to {target.value}. "
-                    f"Valid transitions: {[s.value for s in VALID_PLAN_TRANSITIONS.get(current, set())]}"
+                    f"Valid transitions: {[s.value for s in VALID_PLAN_TRANSITIONS.get(current, set())]}",
                 )
 
         changed_fields = get_changed_fields(input_model=plan_data, existing_model=existing)

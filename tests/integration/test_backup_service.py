@@ -1,12 +1,12 @@
-"""
-Integration tests for BackupService.
+"""Integration tests for BackupService.
 
 Tests SQLite backup/restore with temporary files.
 """
-import pytest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
-from datetime import datetime
+
+import pytest
 
 from app.services.backup_service import BackupService
 

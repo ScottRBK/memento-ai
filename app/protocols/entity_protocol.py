@@ -1,21 +1,20 @@
-"""
-Protocol (interface) for Entity Repository
+"""Protocol (interface) for Entity Repository
 
 Defines the contract for entity and entity relationship data access operations.
 Concrete implementations must provide all methods defined here.
 """
-from typing import Protocol, List
+from typing import Protocol
 from uuid import UUID
 
 from app.models.entity_models import (
     Entity,
     EntityCreate,
-    EntityUpdate,
-    EntitySummary,
     EntityRelationship,
     EntityRelationshipCreate,
     EntityRelationshipUpdate,
-    EntityType
+    EntitySummary,
+    EntityType,
+    EntityUpdate,
 )
 
 
@@ -31,7 +30,7 @@ class EntityRepository(Protocol):
     async def create_entity(
         self,
         user_id: UUID,
-        entity_data: EntityCreate
+        entity_data: EntityCreate,
     ) -> Entity:
         """Create a new entity
 
@@ -50,7 +49,7 @@ class EntityRepository(Protocol):
     async def get_entity_by_id(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> Entity | None:
         """Get a single entity by ID
 
@@ -96,7 +95,7 @@ class EntityRepository(Protocol):
         search_query: str,
         entity_type: EntityType | None = None,
         tags: list[str] | None = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> list[EntitySummary]:
         """Search entities by name using text matching
 
@@ -117,7 +116,7 @@ class EntityRepository(Protocol):
         self,
         user_id: UUID,
         entity_id: int,
-        entity_data: EntityUpdate
+        entity_data: EntityUpdate,
     ) -> Entity:
         """Update an existing entity (PATCH semantics)
 
@@ -140,7 +139,7 @@ class EntityRepository(Protocol):
     async def delete_entity(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> bool:
         """Delete an entity
 
@@ -161,7 +160,7 @@ class EntityRepository(Protocol):
         self,
         user_id: UUID,
         entity_id: int,
-        memory_id: int
+        memory_id: int,
     ) -> bool:
         """Link an entity to a memory
 
@@ -182,7 +181,7 @@ class EntityRepository(Protocol):
         self,
         user_id: UUID,
         entity_id: int,
-        memory_id: int
+        memory_id: int,
     ) -> bool:
         """Unlink an entity from a memory
 
@@ -202,7 +201,7 @@ class EntityRepository(Protocol):
         self,
         user_id: UUID,
         entity_id: int,
-        project_id: int
+        project_id: int,
     ) -> bool:
         """Link an entity to a project
 
@@ -223,7 +222,7 @@ class EntityRepository(Protocol):
         self,
         user_id: UUID,
         entity_id: int,
-        project_id: int
+        project_id: int,
     ) -> bool:
         """Unlink an entity from a project
 
@@ -242,7 +241,7 @@ class EntityRepository(Protocol):
     async def create_entity_relationship(
         self,
         user_id: UUID,
-        relationship_data: EntityRelationshipCreate
+        relationship_data: EntityRelationshipCreate,
     ) -> EntityRelationship:
         """Create a relationship between two entities
 
@@ -264,7 +263,7 @@ class EntityRepository(Protocol):
         user_id: UUID,
         entity_id: int,
         direction: str | None = None,
-        relationship_type: str | None = None
+        relationship_type: str | None = None,
     ) -> list[EntityRelationship]:
         """Get relationships for an entity
 
@@ -287,7 +286,7 @@ class EntityRepository(Protocol):
         self,
         user_id: UUID,
         relationship_id: int,
-        relationship_data: EntityRelationshipUpdate
+        relationship_data: EntityRelationshipUpdate,
     ) -> EntityRelationship:
         """Update an entity relationship (PATCH semantics)
 
@@ -310,7 +309,7 @@ class EntityRepository(Protocol):
     async def delete_entity_relationship(
         self,
         user_id: UUID,
-        relationship_id: int
+        relationship_id: int,
     ) -> bool:
         """Delete an entity relationship
 
@@ -327,7 +326,7 @@ class EntityRepository(Protocol):
 
     async def get_all_entity_relationships(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[EntityRelationship]:
         """Get all entity relationships for a user (for graph visualization)
 
@@ -343,7 +342,7 @@ class EntityRepository(Protocol):
 
     async def get_all_entity_memory_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-memory associations for a user (for graph visualization)
 
@@ -357,7 +356,7 @@ class EntityRepository(Protocol):
 
     async def get_all_entity_project_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-project associations for a user (for graph visualization)
 
@@ -371,7 +370,7 @@ class EntityRepository(Protocol):
 
     async def get_all_entity_file_links(
         self,
-        user_id: UUID
+        user_id: UUID,
     ) -> list[tuple[int, int]]:
         """Get all entity-file associations for a user (for graph visualization)
 
@@ -386,7 +385,7 @@ class EntityRepository(Protocol):
     async def get_entity_memories(
         self,
         user_id: UUID,
-        entity_id: int
+        entity_id: int,
     ) -> list[int]:
         """Get all memory IDs linked to a specific entity
 

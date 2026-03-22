@@ -1,5 +1,4 @@
-"""
-End-to-end tests for MCP meta-tools via HTTP
+"""End-to-end tests for MCP meta-tools via HTTP
 
 Requires:
 - PostgreSQL running in Docker
@@ -42,7 +41,7 @@ async def test_discover_forgetful_tools_by_category_e2e(mcp_client):
     """Test discovering tools filtered by category"""
     result = await mcp_client.call_tool(
         "discover_forgetful_tools",
-        {"category": "user"}
+        {"category": "user"},
     )
 
     assert result.data is not None
@@ -69,7 +68,7 @@ async def test_discover_tools_invalid_category_e2e(mcp_client):
     with pytest.raises(Exception) as exc_info:
         await mcp_client.call_tool(
             "discover_forgetful_tools",
-            {"category": "invalid_category"}
+            {"category": "invalid_category"},
         )
 
     # Should mention valid categories in error
@@ -81,7 +80,7 @@ async def test_how_to_use_forgetful_tool_e2e(mcp_client):
     """Test getting detailed documentation for a specific tool"""
     result = await mcp_client.call_tool(
         "how_to_use_forgetful_tool",
-        {"tool_name": "get_current_user"}
+        {"tool_name": "get_current_user"},
     )
 
     assert result.data is not None
@@ -107,7 +106,7 @@ async def test_how_to_use_nonexistent_tool_e2e(mcp_client):
     with pytest.raises(Exception) as exc_info:
         await mcp_client.call_tool(
             "how_to_use_forgetful_tool",
-            {"tool_name": "nonexistent_tool"}
+            {"tool_name": "nonexistent_tool"},
         )
 
     # Should mention tool not found
@@ -121,8 +120,8 @@ async def test_execute_forgetful_tool_user_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert result.data is not None
@@ -144,9 +143,9 @@ async def test_execute_forgetful_tool_memory_create_e2e(mcp_client):
                 "context": "E2E test for meta-tools pattern",
                 "keywords": ["test", "meta-tools"],
                 "tags": ["test", "e2e"],
-                "importance": 7
-            }
-        }
+                "importance": 7,
+            },
+        },
     )
 
     assert result.data is not None
@@ -172,9 +171,9 @@ async def test_execute_forgetful_tool_memory_query_e2e(mcp_client):
                 "context": "Testing query through meta-tools",
                 "keywords": ["findable", "query-test"],
                 "tags": ["test"],
-                "importance": 8
-            }
-        }
+                "importance": 8,
+            },
+        },
     )
     assert create_result.data is not None
 
@@ -186,9 +185,9 @@ async def test_execute_forgetful_tool_memory_query_e2e(mcp_client):
             "arguments": {
                 "query": "findable query test",
                 "query_context": "Looking for the test memory we just created",
-                "k": 5
-            }
-        }
+                "k": 5,
+            },
+        },
     )
 
     assert query_result.data is not None
@@ -204,8 +203,8 @@ async def test_execute_nonexistent_tool_e2e(mcp_client):
             "execute_forgetful_tool",
             {
                 "tool_name": "nonexistent_tool",
-                "arguments": {}
-            }
+                "arguments": {},
+            },
         )
 
     # Should mention tool not found
@@ -220,8 +219,8 @@ async def test_execute_tool_preserves_user_context_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
     user1 = result1.data
 
@@ -230,8 +229,8 @@ async def test_execute_tool_preserves_user_context_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_current_user",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
     user2 = result2.data
 
@@ -247,7 +246,7 @@ async def test_meta_tools_workflow_e2e(mcp_client):
     # Step 1: Discover tools in memory category
     discover_result = await mcp_client.call_tool(
         "discover_forgetful_tools",
-        {"category": "memory"}
+        {"category": "memory"},
     )
     assert discover_result.data is not None
     memory_tools = discover_result.data["tools_by_category"]["memory"]
@@ -256,14 +255,14 @@ async def test_meta_tools_workflow_e2e(mcp_client):
     # Find create_memory tool
     create_memory_tool = next(
         (t for t in memory_tools if t["name"] == "create_memory"),
-        None
+        None,
     )
     assert create_memory_tool is not None
 
     # Step 2: Get detailed docs for create_memory
     docs_result = await mcp_client.call_tool(
         "how_to_use_forgetful_tool",
-        {"tool_name": "create_memory"}
+        {"tool_name": "create_memory"},
     )
     assert docs_result.data is not None
     assert docs_result.data["name"] == "create_memory"
@@ -280,9 +279,9 @@ async def test_meta_tools_workflow_e2e(mcp_client):
                 "context": "Testing complete meta-tools workflow",
                 "keywords": ["workflow", "test"],
                 "tags": ["test"],
-                "importance": 7
-            }
-        }
+                "importance": 7,
+            },
+        },
     )
     assert execute_result.data is not None
     assert hasattr(execute_result.data, "id") or "id" in execute_result.data
@@ -302,9 +301,9 @@ async def test_execute_create_project_via_meta_tools_e2e(mcp_client):
             "arguments": {
                 "name": "Test Project",
                 "description": "A test project created via meta-tools",
-                "project_type": "development"
-            }
-        }
+                "project_type": "development",
+            },
+        },
     )
 
     assert result.data is not None
@@ -323,9 +322,9 @@ async def test_execute_list_projects_via_meta_tools_e2e(mcp_client):
             "arguments": {
                 "name": "List Test Project",
                 "description": "Project for list test",
-                "project_type": "work"
-            }
-        }
+                "project_type": "work",
+            },
+        },
     )
     assert create_result.data is not None
 
@@ -334,8 +333,8 @@ async def test_execute_list_projects_via_meta_tools_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "list_projects",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
 
     assert list_result.data is not None
@@ -357,9 +356,9 @@ async def test_execute_create_entity_via_meta_tools_e2e(mcp_client):
             "arguments": {
                 "name": "Test Organization",
                 "entity_type": "Organization",
-                "notes": "A test organization created via meta-tools"
-            }
-        }
+                "notes": "A test organization created via meta-tools",
+            },
+        },
     )
 
     assert result.data is not None
@@ -378,9 +377,9 @@ async def test_execute_entity_workflow_via_meta_tools_e2e(mcp_client):
             "arguments": {
                 "name": "Anthropic",
                 "entity_type": "Organization",
-                "tags": ["ai", "research"]
-            }
-        }
+                "tags": ["ai", "research"],
+            },
+        },
     )
     assert create_result.data is not None
     entity_id = create_result.data.id if hasattr(create_result.data, "id") else create_result.data["id"]
@@ -390,8 +389,8 @@ async def test_execute_entity_workflow_via_meta_tools_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "get_entity",
-            "arguments": {"entity_id": entity_id}
-        }
+            "arguments": {"entity_id": entity_id},
+        },
     )
     assert get_result.data is not None
 
@@ -402,9 +401,9 @@ async def test_execute_entity_workflow_via_meta_tools_e2e(mcp_client):
             "tool_name": "update_entity",
             "arguments": {
                 "entity_id": entity_id,
-                "notes": "Updated via meta-tools"
-            }
-        }
+                "notes": "Updated via meta-tools",
+            },
+        },
     )
     assert update_result.data is not None
 
@@ -413,8 +412,8 @@ async def test_execute_entity_workflow_via_meta_tools_e2e(mcp_client):
         "execute_forgetful_tool",
         {
             "tool_name": "list_entities",
-            "arguments": {}
-        }
+            "arguments": {},
+        },
     )
     assert list_result.data is not None
 
