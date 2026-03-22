@@ -710,3 +710,303 @@ def register(mcp: FastMCP):
         except Exception as e:
             logger.error("Failed to unlink skill from memory", exc_info=True)
             raise ToolError(f"Failed to unlink skill from memory: {e!s}")
+
+    @mcp.tool()
+    async def link_skill_to_file(
+        skill_id: int,
+        file_id: int,
+        ctx: Context,
+    ) -> dict:
+        """Link skill to file (establishes reference relationship).
+
+        WHAT: Creates an association between a skill and a file
+        via the skill_file_association table.
+
+        WHEN: When a file contains supporting material for a skill
+        (e.g. templates, reference documents, images).
+
+        BEHAVIOR: Creates association between skill and file. Both
+        skill and file must exist and be owned by the user.
+
+        Args:
+            skill_id: Skill ID to link
+            file_id: File ID to link
+            ctx: Context (automatically injected)
+
+        Returns:
+            Confirmation dict with success status
+
+        Raises:
+            ToolError: If skill or file not found or not owned by user
+        """
+        logger.info("MCP Tool Called -> link_skill_to_file", extra={
+            "skill_id": skill_id,
+            "file_id": file_id,
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            skill_service = ctx.fastmcp.skill_service
+            success = await skill_service.link_skill_to_file(
+                user_id=user.id,
+                skill_id=skill_id,
+                file_id=file_id,
+            )
+
+            return {"success": success}
+
+        except NotFoundError as e:
+            raise ToolError(str(e))
+        except Exception as e:
+            logger.error("Failed to link skill to file", exc_info=True)
+            raise ToolError(f"Failed to link skill to file: {e!s}")
+
+    @mcp.tool()
+    async def unlink_skill_from_file(
+        skill_id: int,
+        file_id: int,
+        ctx: Context,
+    ) -> dict:
+        """Unlink skill from file (removes reference relationship).
+
+        WHAT: Removes the association between a skill and a file.
+
+        WHEN: When a skill-file link is no longer relevant or was
+        created in error.
+
+        BEHAVIOR: Removes association between skill and file. Safe
+        to call even if link doesn't exist. Skill and file remain
+        intact.
+
+        Args:
+            skill_id: Skill ID to unlink
+            file_id: File ID to unlink
+            ctx: Context (automatically injected)
+
+        Returns:
+            Confirmation dict with success status
+
+        Raises:
+            ToolError: If unlinking fails
+        """
+        logger.info("MCP Tool Called -> unlink_skill_from_file", extra={
+            "skill_id": skill_id,
+            "file_id": file_id,
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            skill_service = ctx.fastmcp.skill_service
+            success = await skill_service.unlink_skill_from_file(
+                user_id=user.id,
+                skill_id=skill_id,
+                file_id=file_id,
+            )
+
+            return {"success": success}
+
+        except Exception as e:
+            logger.error("Failed to unlink skill from file", exc_info=True)
+            raise ToolError(f"Failed to unlink skill from file: {e!s}")
+
+    @mcp.tool()
+    async def link_skill_to_code_artifact(
+        skill_id: int,
+        code_artifact_id: int,
+        ctx: Context,
+    ) -> dict:
+        """Link skill to code artifact (establishes reference relationship).
+
+        WHAT: Creates an association between a skill and a code artifact
+        via the skill_code_artifact_association table.
+
+        WHEN: When a code artifact contains example code, snippets, or
+        templates that support a skill's instructions.
+
+        BEHAVIOR: Creates association between skill and code artifact.
+        Both skill and code artifact must exist and be owned by the user.
+
+        Args:
+            skill_id: Skill ID to link
+            code_artifact_id: Code artifact ID to link
+            ctx: Context (automatically injected)
+
+        Returns:
+            Confirmation dict with success status
+
+        Raises:
+            ToolError: If skill or code artifact not found or not owned by user
+        """
+        logger.info("MCP Tool Called -> link_skill_to_code_artifact", extra={
+            "skill_id": skill_id,
+            "code_artifact_id": code_artifact_id,
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            skill_service = ctx.fastmcp.skill_service
+            success = await skill_service.link_skill_to_code_artifact(
+                user_id=user.id,
+                skill_id=skill_id,
+                code_artifact_id=code_artifact_id,
+            )
+
+            return {"success": success}
+
+        except NotFoundError as e:
+            raise ToolError(str(e))
+        except Exception as e:
+            logger.error("Failed to link skill to code artifact", exc_info=True)
+            raise ToolError(f"Failed to link skill to code artifact: {e!s}")
+
+    @mcp.tool()
+    async def unlink_skill_from_code_artifact(
+        skill_id: int,
+        code_artifact_id: int,
+        ctx: Context,
+    ) -> dict:
+        """Unlink skill from code artifact (removes reference relationship).
+
+        WHAT: Removes the association between a skill and a code artifact.
+
+        WHEN: When a skill-code artifact link is no longer relevant or
+        was created in error.
+
+        BEHAVIOR: Removes association between skill and code artifact.
+        Safe to call even if link doesn't exist. Skill and code artifact
+        remain intact.
+
+        Args:
+            skill_id: Skill ID to unlink
+            code_artifact_id: Code artifact ID to unlink
+            ctx: Context (automatically injected)
+
+        Returns:
+            Confirmation dict with success status
+
+        Raises:
+            ToolError: If unlinking fails
+        """
+        logger.info("MCP Tool Called -> unlink_skill_from_code_artifact", extra={
+            "skill_id": skill_id,
+            "code_artifact_id": code_artifact_id,
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            skill_service = ctx.fastmcp.skill_service
+            success = await skill_service.unlink_skill_from_code_artifact(
+                user_id=user.id,
+                skill_id=skill_id,
+                code_artifact_id=code_artifact_id,
+            )
+
+            return {"success": success}
+
+        except Exception as e:
+            logger.error("Failed to unlink skill from code artifact", exc_info=True)
+            raise ToolError(f"Failed to unlink skill from code artifact: {e!s}")
+
+    @mcp.tool()
+    async def link_skill_to_document(
+        skill_id: int,
+        document_id: int,
+        ctx: Context,
+    ) -> dict:
+        """Link skill to document (establishes reference relationship).
+
+        WHAT: Creates an association between a skill and a document
+        via the skill_document_association table.
+
+        WHEN: When a document contains detailed instructions, analysis,
+        or reference material that supports a skill.
+
+        BEHAVIOR: Creates association between skill and document. Both
+        skill and document must exist and be owned by the user.
+
+        Args:
+            skill_id: Skill ID to link
+            document_id: Document ID to link
+            ctx: Context (automatically injected)
+
+        Returns:
+            Confirmation dict with success status
+
+        Raises:
+            ToolError: If skill or document not found or not owned by user
+        """
+        logger.info("MCP Tool Called -> link_skill_to_document", extra={
+            "skill_id": skill_id,
+            "document_id": document_id,
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            skill_service = ctx.fastmcp.skill_service
+            success = await skill_service.link_skill_to_document(
+                user_id=user.id,
+                skill_id=skill_id,
+                document_id=document_id,
+            )
+
+            return {"success": success}
+
+        except NotFoundError as e:
+            raise ToolError(str(e))
+        except Exception as e:
+            logger.error("Failed to link skill to document", exc_info=True)
+            raise ToolError(f"Failed to link skill to document: {e!s}")
+
+    @mcp.tool()
+    async def unlink_skill_from_document(
+        skill_id: int,
+        document_id: int,
+        ctx: Context,
+    ) -> dict:
+        """Unlink skill from document (removes reference relationship).
+
+        WHAT: Removes the association between a skill and a document.
+
+        WHEN: When a skill-document link is no longer relevant or was
+        created in error.
+
+        BEHAVIOR: Removes association between skill and document. Safe
+        to call even if link doesn't exist. Skill and document remain
+        intact.
+
+        Args:
+            skill_id: Skill ID to unlink
+            document_id: Document ID to unlink
+            ctx: Context (automatically injected)
+
+        Returns:
+            Confirmation dict with success status
+
+        Raises:
+            ToolError: If unlinking fails
+        """
+        logger.info("MCP Tool Called -> unlink_skill_from_document", extra={
+            "skill_id": skill_id,
+            "document_id": document_id,
+        })
+
+        user = await get_user_from_auth(ctx)
+
+        try:
+            skill_service = ctx.fastmcp.skill_service
+            success = await skill_service.unlink_skill_from_document(
+                user_id=user.id,
+                skill_id=skill_id,
+                document_id=document_id,
+            )
+
+            return {"success": success}
+
+        except Exception as e:
+            logger.error("Failed to unlink skill from document", exc_info=True)
+            raise ToolError(f"Failed to unlink skill from document: {e!s}")

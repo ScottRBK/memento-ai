@@ -1966,6 +1966,96 @@ def register_skill_tools_metadata(
             ],
             "tags": ["skill", "memory", "unlink"],
         },
+        {
+            "name": "link_skill_to_file",
+            "mutates": True,
+            "description": "Link a skill to a file (establishes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "file_id", "type": "int", "description": "ID of the file", "required": True, "example": 3},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with link confirmation",
+            "examples": [
+                'execute_forgetful_tool("link_skill_to_file", {"skill_id": 1, "file_id": 3})',
+            ],
+            "tags": ["skill", "file", "link"],
+        },
+        {
+            "name": "unlink_skill_from_file",
+            "mutates": True,
+            "description": "Unlink a skill from a file (removes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "file_id", "type": "int", "description": "ID of the file", "required": True, "example": 3},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with unlink confirmation",
+            "examples": [
+                'execute_forgetful_tool("unlink_skill_from_file", {"skill_id": 1, "file_id": 3})',
+            ],
+            "tags": ["skill", "file", "unlink"],
+        },
+        {
+            "name": "link_skill_to_code_artifact",
+            "mutates": True,
+            "description": "Link a skill to a code artifact (establishes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "code_artifact_id", "type": "int", "description": "ID of the code artifact", "required": True, "example": 2},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with link confirmation",
+            "examples": [
+                'execute_forgetful_tool("link_skill_to_code_artifact", {"skill_id": 1, "code_artifact_id": 2})',
+            ],
+            "tags": ["skill", "code_artifact", "link"],
+        },
+        {
+            "name": "unlink_skill_from_code_artifact",
+            "mutates": True,
+            "description": "Unlink a skill from a code artifact (removes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "code_artifact_id", "type": "int", "description": "ID of the code artifact", "required": True, "example": 2},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with unlink confirmation",
+            "examples": [
+                'execute_forgetful_tool("unlink_skill_from_code_artifact", {"skill_id": 1, "code_artifact_id": 2})',
+            ],
+            "tags": ["skill", "code_artifact", "unlink"],
+        },
+        {
+            "name": "link_skill_to_document",
+            "mutates": True,
+            "description": "Link a skill to a document (establishes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "document_id", "type": "int", "description": "ID of the document", "required": True, "example": 4},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with link confirmation",
+            "examples": [
+                'execute_forgetful_tool("link_skill_to_document", {"skill_id": 1, "document_id": 4})',
+            ],
+            "tags": ["skill", "document", "link"],
+        },
+        {
+            "name": "unlink_skill_from_document",
+            "mutates": True,
+            "description": "Unlink a skill from a document (removes reference relationship)",
+            "parameters": [
+                {"name": "skill_id", "type": "int", "description": "ID of the skill", "required": True, "example": 1},
+                {"name": "document_id", "type": "int", "description": "ID of the document", "required": True, "example": 4},
+                {"name": "ctx", "type": "Context", "description": "FastMCP Context (automatically injected)", "required": True},
+            ],
+            "returns": "Dictionary with unlink confirmation",
+            "examples": [
+                'execute_forgetful_tool("unlink_skill_from_document", {"skill_id": 1, "document_id": 4})',
+            ],
+            "tags": ["skill", "document", "unlink"],
+        },
     ]
 
     for tool_def in tools:

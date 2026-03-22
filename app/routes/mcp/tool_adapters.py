@@ -1750,6 +1750,78 @@ class SkillToolAdapters:
 
         return result
 
+    async def link_skill_to_file(
+        self, skill_id: int, file_id: int, ctx: Context,
+    ) -> dict:
+        """Adapter for link_skill_to_file tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.link_skill_to_file(
+            user_id=user.id, skill_id=skill_id, file_id=file_id,
+        )
+
+        return result
+
+    async def unlink_skill_from_file(
+        self, skill_id: int, file_id: int, ctx: Context,
+    ) -> dict:
+        """Adapter for unlink_skill_from_file tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.unlink_skill_from_file(
+            user_id=user.id, skill_id=skill_id, file_id=file_id,
+        )
+
+        return result
+
+    async def link_skill_to_code_artifact(
+        self, skill_id: int, code_artifact_id: int, ctx: Context,
+    ) -> dict:
+        """Adapter for link_skill_to_code_artifact tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.link_skill_to_code_artifact(
+            user_id=user.id, skill_id=skill_id, code_artifact_id=code_artifact_id,
+        )
+
+        return result
+
+    async def unlink_skill_from_code_artifact(
+        self, skill_id: int, code_artifact_id: int, ctx: Context,
+    ) -> dict:
+        """Adapter for unlink_skill_from_code_artifact tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.unlink_skill_from_code_artifact(
+            user_id=user.id, skill_id=skill_id, code_artifact_id=code_artifact_id,
+        )
+
+        return result
+
+    async def link_skill_to_document(
+        self, skill_id: int, document_id: int, ctx: Context,
+    ) -> dict:
+        """Adapter for link_skill_to_document tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.link_skill_to_document(
+            user_id=user.id, skill_id=skill_id, document_id=document_id,
+        )
+
+        return result
+
+    async def unlink_skill_from_document(
+        self, skill_id: int, document_id: int, ctx: Context,
+    ) -> dict:
+        """Adapter for unlink_skill_from_document tool"""
+        user = await get_user_from_auth(ctx)
+
+        result = await self.skill_service.unlink_skill_from_document(
+            user_id=user.id, skill_id=skill_id, document_id=document_id,
+        )
+
+        return result
+
 
 def create_skill_adapters(skill_service, user_service: UserService) -> dict[str, Any]:
     """Create all skill tool adapters and return as dict"""
@@ -1765,4 +1837,10 @@ def create_skill_adapters(skill_service, user_service: UserService) -> dict[str,
         "export_skill": adapters.export_skill,
         "link_skill_to_memory": adapters.link_skill_to_memory,
         "unlink_skill_from_memory": adapters.unlink_skill_from_memory,
+        "link_skill_to_file": adapters.link_skill_to_file,
+        "unlink_skill_from_file": adapters.unlink_skill_from_file,
+        "link_skill_to_code_artifact": adapters.link_skill_to_code_artifact,
+        "unlink_skill_from_code_artifact": adapters.unlink_skill_from_code_artifact,
+        "link_skill_to_document": adapters.link_skill_to_document,
+        "unlink_skill_from_document": adapters.unlink_skill_from_document,
     }

@@ -1,8 +1,12 @@
 """E2E tests for skill MCP tools with real PostgreSQL database
 """
+import base64
+
 import pytest
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+TINY_FILE_B64 = base64.b64encode(b"skill-link-test").decode("utf-8")
 
 
 @pytest.mark.e2e
@@ -197,3 +201,184 @@ allowed-tools:
     assert "description: Roundtrip test skill for Postgres E2E" in exported
     assert "license: MIT" in exported
     assert "# Roundtrip Skill" in exported
+
+
+# ---- Resource linking E2E tests ----
+
+
+async def _create_skill_for_linking(mcp_client, suffix=""):
+    """Helper to create a skill and return its ID."""
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "create_skill",
+        "arguments": {
+            "name": f"link-e2e-skill{suffix}",
+            "description": "Skill for resource linking E2E tests",
+            "content": "# Link Test Skill",
+            "tags": ["link-test"],
+            "importance": 7,
+        },
+    })
+    return result.data["id"]
+
+
+async def _create_file_for_linking(mcp_client):
+    """Helper to create a file and return its ID."""
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "create_file",
+        "arguments": {
+            "filename": "skill-link-test.txt",
+            "description": "File for skill linking E2E test",
+            "data": TINY_FILE_B64,
+            "mime_type": "text/plain",
+            "tags": ["link-test"],
+        },
+    })
+    return result.data["id"]
+
+
+async def _create_code_artifact_for_linking(mcp_client):
+    """Helper to create a code artifact and return its ID."""
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "create_code_artifact",
+        "arguments": {
+            "title": "Skill Link Test Artifact",
+            "description": "Code artifact for skill linking E2E test",
+            "code": "def test(): pass",
+            "language": "python",
+            "tags": ["link-test"],
+        },
+    })
+    return result.data["id"]
+
+
+async def _create_document_for_linking(mcp_client):
+    """Helper to create a document and return its ID."""
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "create_document",
+        "arguments": {
+            "title": "Skill Link Test Document",
+            "description": "Document for skill linking E2E test",
+            "content": "This is a test document for skill linking.",
+            "document_type": "analysis",
+            "tags": ["link-test"],
+        },
+    })
+    return result.data["id"]
+
+
+@pytest.mark.e2e
+async def test_link_skill_to_file_e2e(mcp_client):
+    """Test linking a skill to a file via MCP tool."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-file")
+    file_id = await _create_file_for_linking(mcp_client)
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_file",
+        "arguments": {"skill_id": skill_id, "file_id": file_id},
+    })
+    assert result.data is not None
+    assert result.data["skill_id"] == skill_id
+    assert result.data["file_id"] == file_id
+    assert result.data["linked"] is True
+
+
+@pytest.mark.e2e
+async def test_unlink_skill_from_file_e2e(mcp_client):
+    """Test unlinking a skill from a file via MCP tool."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-unfile")
+    file_id = await _create_file_for_linking(mcp_client)
+
+    await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_file",
+        "arguments": {"skill_id": skill_id, "file_id": file_id},
+    })
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "unlink_skill_from_file",
+        "arguments": {"skill_id": skill_id, "file_id": file_id},
+    })
+    assert result.data is not None
+    assert result.data["unlinked"] is True
+
+
+@pytest.mark.e2e
+async def test_link_skill_to_code_artifact_e2e(mcp_client):
+    """Test linking a skill to a code artifact via MCP tool."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-ca")
+    ca_id = await _create_code_artifact_for_linking(mcp_client)
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_code_artifact",
+        "arguments": {"skill_id": skill_id, "code_artifact_id": ca_id},
+    })
+    assert result.data is not None
+    assert result.data["skill_id"] == skill_id
+    assert result.data["code_artifact_id"] == ca_id
+    assert result.data["linked"] is True
+
+
+@pytest.mark.e2e
+async def test_unlink_skill_from_code_artifact_e2e(mcp_client):
+    """Test unlinking a skill from a code artifact via MCP tool."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-unca")
+    ca_id = await _create_code_artifact_for_linking(mcp_client)
+
+    await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_code_artifact",
+        "arguments": {"skill_id": skill_id, "code_artifact_id": ca_id},
+    })
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "unlink_skill_from_code_artifact",
+        "arguments": {"skill_id": skill_id, "code_artifact_id": ca_id},
+    })
+    assert result.data is not None
+    assert result.data["unlinked"] is True
+
+
+@pytest.mark.e2e
+async def test_link_skill_to_document_e2e(mcp_client):
+    """Test linking a skill to a document via MCP tool."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-doc")
+    doc_id = await _create_document_for_linking(mcp_client)
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_document",
+        "arguments": {"skill_id": skill_id, "document_id": doc_id},
+    })
+    assert result.data is not None
+    assert result.data["skill_id"] == skill_id
+    assert result.data["document_id"] == doc_id
+    assert result.data["linked"] is True
+
+
+@pytest.mark.e2e
+async def test_unlink_skill_from_document_e2e(mcp_client):
+    """Test unlinking a skill from a document via MCP tool."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-undoc")
+    doc_id = await _create_document_for_linking(mcp_client)
+
+    await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_document",
+        "arguments": {"skill_id": skill_id, "document_id": doc_id},
+    })
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "unlink_skill_from_document",
+        "arguments": {"skill_id": skill_id, "document_id": doc_id},
+    })
+    assert result.data is not None
+    assert result.data["unlinked"] is True
+
+
+@pytest.mark.e2e
+async def test_link_skill_to_file_skill_not_found_e2e(mcp_client):
+    """Test linking a file to non-existent skill raises error."""
+    try:
+        await mcp_client.call_tool("execute_forgetful_tool", {
+            "tool_name": "link_skill_to_file",
+            "arguments": {"skill_id": 99999, "file_id": 1},
+        })
+        assert False, "Expected error for non-existent skill"
+    except Exception as e:
+        assert "not found" in str(e).lower()

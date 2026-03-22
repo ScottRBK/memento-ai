@@ -13,9 +13,15 @@ from app.repositories.embeddings.reranker_adapter import RerankAdapter
 from app.repositories.helpers import build_skill_embedding_text
 from app.repositories.postgres.postgres_adapter import PostgresDatabaseAdapter
 from app.repositories.postgres.postgres_tables import (
+    CodeArtifactsTable,
+    DocumentsTable,
+    FilesTable,
     MemoryTable,
     SkillsTable,
     memory_skill_association,
+    skill_code_artifact_association,
+    skill_document_association,
+    skill_file_association,
 )
 
 logger = logging.getLogger(__name__)
@@ -479,6 +485,345 @@ class PostgresSkillRepository:
                     "user_id": str(user_id),
                     "skill_id": skill_id,
                     "memory_id": memory_id,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def link_skill_to_file(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        file_id: int,
+    ) -> dict:
+        """Link a skill to a file via the association table.
+
+        Args:
+            user_id: User ID for ownership verification.
+            skill_id: Skill ID to link.
+            file_id: File ID to link.
+
+        Returns:
+            Dict confirming the link was created.
+
+        Raises:
+            NotFoundError: If skill or file not found or not owned by user.
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                skill_stmt = select(SkillsTable).where(
+                    SkillsTable.id == skill_id,
+                    SkillsTable.user_id == user_id,
+                )
+                skill_result = await session.execute(skill_stmt)
+                if skill_result.scalar_one_or_none() is None:
+                    msg = f"Skill {skill_id} not found"
+                    raise NotFoundError(msg)
+
+                file_stmt = select(FilesTable).where(
+                    FilesTable.id == file_id,
+                    FilesTable.user_id == user_id,
+                )
+                file_result = await session.execute(file_stmt)
+                if file_result.scalar_one_or_none() is None:
+                    msg = f"File {file_id} not found"
+                    raise NotFoundError(msg)
+
+                await session.execute(
+                    skill_file_association.insert().values(
+                        skill_id=skill_id,
+                        file_id=file_id,
+                    ),
+                )
+                await session.commit()
+
+                return {
+                    "skill_id": skill_id,
+                    "file_id": file_id,
+                    "linked": True,
+                }
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to link skill {skill_id} to file {file_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "skill_id": skill_id,
+                    "file_id": file_id,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def unlink_skill_from_file(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        file_id: int,
+    ) -> dict:
+        """Remove the link between a skill and a file.
+
+        Args:
+            user_id: User ID for ownership verification.
+            skill_id: Skill ID to unlink.
+            file_id: File ID to unlink.
+
+        Returns:
+            Dict confirming the link was removed.
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                await session.execute(
+                    skill_file_association.delete().where(
+                        skill_file_association.c.skill_id == skill_id,
+                        skill_file_association.c.file_id == file_id,
+                    ),
+                )
+                await session.commit()
+
+                return {
+                    "skill_id": skill_id,
+                    "file_id": file_id,
+                    "unlinked": True,
+                }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to unlink skill {skill_id} from file {file_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "skill_id": skill_id,
+                    "file_id": file_id,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def link_skill_to_code_artifact(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        code_artifact_id: int,
+    ) -> dict:
+        """Link a skill to a code artifact via the association table.
+
+        Args:
+            user_id: User ID for ownership verification.
+            skill_id: Skill ID to link.
+            code_artifact_id: Code artifact ID to link.
+
+        Returns:
+            Dict confirming the link was created.
+
+        Raises:
+            NotFoundError: If skill or code artifact not found or not owned by user.
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                skill_stmt = select(SkillsTable).where(
+                    SkillsTable.id == skill_id,
+                    SkillsTable.user_id == user_id,
+                )
+                skill_result = await session.execute(skill_stmt)
+                if skill_result.scalar_one_or_none() is None:
+                    msg = f"Skill {skill_id} not found"
+                    raise NotFoundError(msg)
+
+                ca_stmt = select(CodeArtifactsTable).where(
+                    CodeArtifactsTable.id == code_artifact_id,
+                    CodeArtifactsTable.user_id == user_id,
+                )
+                ca_result = await session.execute(ca_stmt)
+                if ca_result.scalar_one_or_none() is None:
+                    msg = f"Code artifact {code_artifact_id} not found"
+                    raise NotFoundError(msg)
+
+                await session.execute(
+                    skill_code_artifact_association.insert().values(
+                        skill_id=skill_id,
+                        code_artifact_id=code_artifact_id,
+                    ),
+                )
+                await session.commit()
+
+                return {
+                    "skill_id": skill_id,
+                    "code_artifact_id": code_artifact_id,
+                    "linked": True,
+                }
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to link skill {skill_id} to code artifact {code_artifact_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "skill_id": skill_id,
+                    "code_artifact_id": code_artifact_id,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def unlink_skill_from_code_artifact(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        code_artifact_id: int,
+    ) -> dict:
+        """Remove the link between a skill and a code artifact.
+
+        Args:
+            user_id: User ID for ownership verification.
+            skill_id: Skill ID to unlink.
+            code_artifact_id: Code artifact ID to unlink.
+
+        Returns:
+            Dict confirming the link was removed.
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                await session.execute(
+                    skill_code_artifact_association.delete().where(
+                        skill_code_artifact_association.c.skill_id == skill_id,
+                        skill_code_artifact_association.c.code_artifact_id == code_artifact_id,
+                    ),
+                )
+                await session.commit()
+
+                return {
+                    "skill_id": skill_id,
+                    "code_artifact_id": code_artifact_id,
+                    "unlinked": True,
+                }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to unlink skill {skill_id} from code artifact {code_artifact_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "skill_id": skill_id,
+                    "code_artifact_id": code_artifact_id,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def link_skill_to_document(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        document_id: int,
+    ) -> dict:
+        """Link a skill to a document via the association table.
+
+        Args:
+            user_id: User ID for ownership verification.
+            skill_id: Skill ID to link.
+            document_id: Document ID to link.
+
+        Returns:
+            Dict confirming the link was created.
+
+        Raises:
+            NotFoundError: If skill or document not found or not owned by user.
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                skill_stmt = select(SkillsTable).where(
+                    SkillsTable.id == skill_id,
+                    SkillsTable.user_id == user_id,
+                )
+                skill_result = await session.execute(skill_stmt)
+                if skill_result.scalar_one_or_none() is None:
+                    msg = f"Skill {skill_id} not found"
+                    raise NotFoundError(msg)
+
+                doc_stmt = select(DocumentsTable).where(
+                    DocumentsTable.id == document_id,
+                    DocumentsTable.user_id == user_id,
+                )
+                doc_result = await session.execute(doc_stmt)
+                if doc_result.scalar_one_or_none() is None:
+                    msg = f"Document {document_id} not found"
+                    raise NotFoundError(msg)
+
+                await session.execute(
+                    skill_document_association.insert().values(
+                        skill_id=skill_id,
+                        document_id=document_id,
+                    ),
+                )
+                await session.commit()
+
+                return {
+                    "skill_id": skill_id,
+                    "document_id": document_id,
+                    "linked": True,
+                }
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Failed to link skill {skill_id} to document {document_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "skill_id": skill_id,
+                    "document_id": document_id,
+                    "error": str(e),
+                },
+            )
+            raise
+
+    async def unlink_skill_from_document(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        document_id: int,
+    ) -> dict:
+        """Remove the link between a skill and a document.
+
+        Args:
+            user_id: User ID for ownership verification.
+            skill_id: Skill ID to unlink.
+            document_id: Document ID to unlink.
+
+        Returns:
+            Dict confirming the link was removed.
+        """
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                await session.execute(
+                    skill_document_association.delete().where(
+                        skill_document_association.c.skill_id == skill_id,
+                        skill_document_association.c.document_id == document_id,
+                    ),
+                )
+                await session.commit()
+
+                return {
+                    "skill_id": skill_id,
+                    "document_id": document_id,
+                    "unlinked": True,
+                }
+
+        except Exception as e:
+            logger.error(
+                f"Failed to unlink skill {skill_id} from document {document_id}",
+                exc_info=True,
+                extra={
+                    "user_id": str(user_id),
+                    "skill_id": skill_id,
+                    "document_id": document_id,
                     "error": str(e),
                 },
             )

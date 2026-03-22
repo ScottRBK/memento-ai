@@ -289,3 +289,158 @@ def register(mcp: FastMCP):
             return JSONResponse({"error": "Skill not found"}, status_code=404)
 
         return JSONResponse({"skill_md": skill_md})
+
+    # ---- Resource linking endpoints ----
+
+    @mcp.custom_route("/api/v1/skills/{skill_id}/files", methods=["POST"])
+    async def link_skill_to_file(request: Request) -> JSONResponse:
+        """Link a file to a skill."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        skill_id = int(request.path_params["skill_id"])
+
+        try:
+            body = await request.json()
+            file_id = body["file_id"]
+        except (ValueError, KeyError):
+            return JSONResponse({"error": "file_id is required"}, status_code=400)
+
+        try:
+            result = await mcp.skill_service.link_skill_to_file(
+                user_id=user.id,
+                skill_id=skill_id,
+                file_id=file_id,
+            )
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        return JSONResponse(result)
+
+    @mcp.custom_route("/api/v1/skills/{skill_id}/files/{file_id}", methods=["DELETE"])
+    async def unlink_skill_from_file(request: Request) -> JSONResponse:
+        """Unlink a file from a skill."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        skill_id = int(request.path_params["skill_id"])
+        file_id = int(request.path_params["file_id"])
+
+        try:
+            result = await mcp.skill_service.unlink_skill_from_file(
+                user_id=user.id,
+                skill_id=skill_id,
+                file_id=file_id,
+            )
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        return JSONResponse(result)
+
+    @mcp.custom_route("/api/v1/skills/{skill_id}/code-artifacts", methods=["POST"])
+    async def link_skill_to_code_artifact(request: Request) -> JSONResponse:
+        """Link a code artifact to a skill."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        skill_id = int(request.path_params["skill_id"])
+
+        try:
+            body = await request.json()
+            code_artifact_id = body["code_artifact_id"]
+        except (ValueError, KeyError):
+            return JSONResponse({"error": "code_artifact_id is required"}, status_code=400)
+
+        try:
+            result = await mcp.skill_service.link_skill_to_code_artifact(
+                user_id=user.id,
+                skill_id=skill_id,
+                code_artifact_id=code_artifact_id,
+            )
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        return JSONResponse(result)
+
+    @mcp.custom_route(
+        "/api/v1/skills/{skill_id}/code-artifacts/{code_artifact_id}",
+        methods=["DELETE"],
+    )
+    async def unlink_skill_from_code_artifact(request: Request) -> JSONResponse:
+        """Unlink a code artifact from a skill."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        skill_id = int(request.path_params["skill_id"])
+        code_artifact_id = int(request.path_params["code_artifact_id"])
+
+        try:
+            result = await mcp.skill_service.unlink_skill_from_code_artifact(
+                user_id=user.id,
+                skill_id=skill_id,
+                code_artifact_id=code_artifact_id,
+            )
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        return JSONResponse(result)
+
+    @mcp.custom_route("/api/v1/skills/{skill_id}/documents", methods=["POST"])
+    async def link_skill_to_document(request: Request) -> JSONResponse:
+        """Link a document to a skill."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        skill_id = int(request.path_params["skill_id"])
+
+        try:
+            body = await request.json()
+            document_id = body["document_id"]
+        except (ValueError, KeyError):
+            return JSONResponse({"error": "document_id is required"}, status_code=400)
+
+        try:
+            result = await mcp.skill_service.link_skill_to_document(
+                user_id=user.id,
+                skill_id=skill_id,
+                document_id=document_id,
+            )
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        return JSONResponse(result)
+
+    @mcp.custom_route(
+        "/api/v1/skills/{skill_id}/documents/{document_id}",
+        methods=["DELETE"],
+    )
+    async def unlink_skill_from_document(request: Request) -> JSONResponse:
+        """Unlink a document from a skill."""
+        try:
+            user = await get_user_from_request(request, mcp)
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=401)
+
+        skill_id = int(request.path_params["skill_id"])
+        document_id = int(request.path_params["document_id"])
+
+        try:
+            result = await mcp.skill_service.unlink_skill_from_document(
+                user_id=user.id,
+                skill_id=skill_id,
+                document_id=document_id,
+            )
+        except NotFoundError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+        return JSONResponse(result)

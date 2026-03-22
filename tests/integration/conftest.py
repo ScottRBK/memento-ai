@@ -1810,6 +1810,9 @@ class InMemorySkillRepository(SkillRepository):
     def __init__(self):
         self._skills: dict[UUID, dict[int, Skill]] = {}
         self._skill_memory_links: set[tuple[int, int]] = set()  # (skill_id, memory_id)
+        self._skill_file_links: set[tuple[int, int]] = set()  # (skill_id, file_id)
+        self._skill_code_artifact_links: set[tuple[int, int]] = set()  # (skill_id, code_artifact_id)
+        self._skill_document_links: set[tuple[int, int]] = set()  # (skill_id, document_id)
         self._next_id = 1
 
     async def create_skill(
@@ -1885,9 +1888,18 @@ class InMemorySkillRepository(SkillRepository):
         user_skills = self._skills.get(user_id, {})
         if skill_id in user_skills:
             del user_skills[skill_id]
-            # Clean up any memory links for this skill
+            # Clean up any links for this skill
             self._skill_memory_links = {
                 (sid, mid) for sid, mid in self._skill_memory_links if sid != skill_id
+            }
+            self._skill_file_links = {
+                (sid, fid) for sid, fid in self._skill_file_links if sid != skill_id
+            }
+            self._skill_code_artifact_links = {
+                (sid, caid) for sid, caid in self._skill_code_artifact_links if sid != skill_id
+            }
+            self._skill_document_links = {
+                (sid, did) for sid, did in self._skill_document_links if sid != skill_id
             }
             return True
         return False
@@ -1935,6 +1947,84 @@ class InMemorySkillRepository(SkillRepository):
         return {
             "skill_id": skill_id,
             "memory_id": memory_id,
+            "unlinked": True,
+        }
+
+    async def link_skill_to_file(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        file_id: int,
+    ) -> dict:
+        self._skill_file_links.add((skill_id, file_id))
+        return {
+            "skill_id": skill_id,
+            "file_id": file_id,
+            "linked": True,
+        }
+
+    async def unlink_skill_from_file(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        file_id: int,
+    ) -> dict:
+        self._skill_file_links.discard((skill_id, file_id))
+        return {
+            "skill_id": skill_id,
+            "file_id": file_id,
+            "unlinked": True,
+        }
+
+    async def link_skill_to_code_artifact(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        code_artifact_id: int,
+    ) -> dict:
+        self._skill_code_artifact_links.add((skill_id, code_artifact_id))
+        return {
+            "skill_id": skill_id,
+            "code_artifact_id": code_artifact_id,
+            "linked": True,
+        }
+
+    async def unlink_skill_from_code_artifact(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        code_artifact_id: int,
+    ) -> dict:
+        self._skill_code_artifact_links.discard((skill_id, code_artifact_id))
+        return {
+            "skill_id": skill_id,
+            "code_artifact_id": code_artifact_id,
+            "unlinked": True,
+        }
+
+    async def link_skill_to_document(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        document_id: int,
+    ) -> dict:
+        self._skill_document_links.add((skill_id, document_id))
+        return {
+            "skill_id": skill_id,
+            "document_id": document_id,
+            "linked": True,
+        }
+
+    async def unlink_skill_from_document(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        document_id: int,
+    ) -> dict:
+        self._skill_document_links.discard((skill_id, document_id))
+        return {
+            "skill_id": skill_id,
+            "document_id": document_id,
             "unlinked": True,
         }
 

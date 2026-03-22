@@ -615,3 +615,147 @@ class SkillService:
             skill_id=skill_id,
             memory_id=memory_id,
         )
+
+    async def link_skill_to_file(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        file_id: int,
+    ) -> dict:
+        """Link a skill to a file.
+
+        Args:
+            user_id: User ID for ownership verification
+            skill_id: Skill to link
+            file_id: File to link to
+
+        Returns:
+            Confirmation dict with linked IDs
+        """
+        await self.get_skill(user_id=user_id, skill_id=skill_id)
+
+        return await self.skill_repo.link_skill_to_file(
+            user_id=user_id,
+            skill_id=skill_id,
+            file_id=file_id,
+        )
+
+    async def unlink_skill_from_file(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        file_id: int,
+    ) -> dict:
+        """Unlink a skill from a file.
+
+        Args:
+            user_id: User ID for ownership verification
+            skill_id: Skill to unlink
+            file_id: File to unlink from
+
+        Returns:
+            Confirmation dict
+        """
+        await self.get_skill(user_id=user_id, skill_id=skill_id)
+
+        return await self.skill_repo.unlink_skill_from_file(
+            user_id=user_id,
+            skill_id=skill_id,
+            file_id=file_id,
+        )
+
+    async def link_skill_to_code_artifact(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        code_artifact_id: int,
+    ) -> dict:
+        """Link a skill to a code artifact.
+
+        Args:
+            user_id: User ID for ownership verification
+            skill_id: Skill to link
+            code_artifact_id: Code artifact to link to
+
+        Returns:
+            Confirmation dict with linked IDs
+        """
+        await self.get_skill(user_id=user_id, skill_id=skill_id)
+
+        return await self.skill_repo.link_skill_to_code_artifact(
+            user_id=user_id,
+            skill_id=skill_id,
+            code_artifact_id=code_artifact_id,
+        )
+
+    async def unlink_skill_from_code_artifact(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        code_artifact_id: int,
+    ) -> dict:
+        """Unlink a skill from a code artifact.
+
+        Args:
+            user_id: User ID for ownership verification
+            skill_id: Skill to unlink
+            code_artifact_id: Code artifact to unlink from
+
+        Returns:
+            Confirmation dict
+        """
+        await self.get_skill(user_id=user_id, skill_id=skill_id)
+
+        return await self.skill_repo.unlink_skill_from_code_artifact(
+            user_id=user_id,
+            skill_id=skill_id,
+            code_artifact_id=code_artifact_id,
+        )
+
+    async def link_skill_to_document(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        document_id: int,
+    ) -> dict:
+        """Link a skill to a document.
+
+        Args:
+            user_id: User ID for ownership verification
+            skill_id: Skill to link
+            document_id: Document to link to
+
+        Returns:
+            Confirmation dict with linked IDs
+        """
+        await self.get_skill(user_id=user_id, skill_id=skill_id)
+
+        return await self.skill_repo.link_skill_to_document(
+            user_id=user_id,
+            skill_id=skill_id,
+            document_id=document_id,
+        )
+
+    async def unlink_skill_from_document(
+        self,
+        user_id: UUID,
+        skill_id: int,
+        document_id: int,
+    ) -> dict:
+        """Unlink a skill from a document.
+
+        Args:
+            user_id: User ID for ownership verification
+            skill_id: Skill to unlink
+            document_id: Document to unlink from
+
+        Returns:
+            Confirmation dict
+        """
+        await self.get_skill(user_id=user_id, skill_id=skill_id)
+
+        return await self.skill_repo.unlink_skill_from_document(
+            user_id=user_id,
+            skill_id=skill_id,
+            document_id=document_id,
+        )

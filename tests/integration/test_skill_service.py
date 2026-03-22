@@ -364,3 +364,177 @@ This skill tests that import and export are inverses.
     assert "- Bash(python:*)" in exported
     assert "- Read" in exported
     assert "- WebFetch" in exported
+
+
+# ---- Resource linking tests ----
+
+
+@pytest.mark.asyncio
+async def test_link_skill_to_file(test_skill_service):
+    """Test linking a skill to a file returns confirmation."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="link-file-test",
+            description="Test skill for file linking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+
+    result = await test_skill_service.link_skill_to_file(
+        user_id=user_id, skill_id=skill.id, file_id=99,
+    )
+    assert result["skill_id"] == skill.id
+    assert result["file_id"] == 99
+    assert result["linked"] is True
+
+
+@pytest.mark.asyncio
+async def test_unlink_skill_from_file(test_skill_service):
+    """Test unlinking a skill from a file returns confirmation."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="unlink-file-test",
+            description="Test skill for file unlinking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+
+    await test_skill_service.link_skill_to_file(
+        user_id=user_id, skill_id=skill.id, file_id=99,
+    )
+    result = await test_skill_service.unlink_skill_from_file(
+        user_id=user_id, skill_id=skill.id, file_id=99,
+    )
+    assert result["skill_id"] == skill.id
+    assert result["file_id"] == 99
+    assert result["unlinked"] is True
+
+
+@pytest.mark.asyncio
+async def test_link_skill_to_file_skill_not_found(test_skill_service):
+    """Test linking to a non-existent skill raises NotFoundError."""
+    user_id = uuid4()
+    with pytest.raises(NotFoundError):
+        await test_skill_service.link_skill_to_file(
+            user_id=user_id, skill_id=9999, file_id=1,
+        )
+
+
+@pytest.mark.asyncio
+async def test_link_skill_to_code_artifact(test_skill_service):
+    """Test linking a skill to a code artifact returns confirmation."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="link-ca-test",
+            description="Test skill for code artifact linking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+
+    result = await test_skill_service.link_skill_to_code_artifact(
+        user_id=user_id, skill_id=skill.id, code_artifact_id=42,
+    )
+    assert result["skill_id"] == skill.id
+    assert result["code_artifact_id"] == 42
+    assert result["linked"] is True
+
+
+@pytest.mark.asyncio
+async def test_unlink_skill_from_code_artifact(test_skill_service):
+    """Test unlinking a skill from a code artifact returns confirmation."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="unlink-ca-test",
+            description="Test skill for code artifact unlinking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+
+    await test_skill_service.link_skill_to_code_artifact(
+        user_id=user_id, skill_id=skill.id, code_artifact_id=42,
+    )
+    result = await test_skill_service.unlink_skill_from_code_artifact(
+        user_id=user_id, skill_id=skill.id, code_artifact_id=42,
+    )
+    assert result["skill_id"] == skill.id
+    assert result["code_artifact_id"] == 42
+    assert result["unlinked"] is True
+
+
+@pytest.mark.asyncio
+async def test_link_skill_to_code_artifact_skill_not_found(test_skill_service):
+    """Test linking code artifact to non-existent skill raises NotFoundError."""
+    user_id = uuid4()
+    with pytest.raises(NotFoundError):
+        await test_skill_service.link_skill_to_code_artifact(
+            user_id=user_id, skill_id=9999, code_artifact_id=1,
+        )
+
+
+@pytest.mark.asyncio
+async def test_link_skill_to_document(test_skill_service):
+    """Test linking a skill to a document returns confirmation."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="link-doc-test",
+            description="Test skill for document linking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+
+    result = await test_skill_service.link_skill_to_document(
+        user_id=user_id, skill_id=skill.id, document_id=77,
+    )
+    assert result["skill_id"] == skill.id
+    assert result["document_id"] == 77
+    assert result["linked"] is True
+
+
+@pytest.mark.asyncio
+async def test_unlink_skill_from_document(test_skill_service):
+    """Test unlinking a skill from a document returns confirmation."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="unlink-doc-test",
+            description="Test skill for document unlinking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+
+    await test_skill_service.link_skill_to_document(
+        user_id=user_id, skill_id=skill.id, document_id=77,
+    )
+    result = await test_skill_service.unlink_skill_from_document(
+        user_id=user_id, skill_id=skill.id, document_id=77,
+    )
+    assert result["skill_id"] == skill.id
+    assert result["document_id"] == 77
+    assert result["unlinked"] is True
+
+
+@pytest.mark.asyncio
+async def test_link_skill_to_document_skill_not_found(test_skill_service):
+    """Test linking document to non-existent skill raises NotFoundError."""
+    user_id = uuid4()
+    with pytest.raises(NotFoundError):
+        await test_skill_service.link_skill_to_document(
+            user_id=user_id, skill_id=9999, document_id=1,
+        )
