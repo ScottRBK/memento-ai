@@ -35,6 +35,22 @@ class SkillRepository(Protocol):
         """
         ...
 
+    async def skill_name_exists(
+        self,
+        user_id: UUID,
+        name: str,
+    ) -> bool:
+        """Check if a skill with the given name already exists for this user.
+
+        Args:
+            user_id: User ID for ownership scoping
+            name: Skill name to check
+
+        Returns:
+            True if a skill with this name exists, False otherwise
+        """
+        ...
+
     async def get_skill_by_id(
         self,
         user_id: UUID,

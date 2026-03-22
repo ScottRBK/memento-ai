@@ -118,6 +118,11 @@ class SkillService:
             },
         )
 
+        # Enforce unique skill name per user
+        if await self.skill_repo.skill_name_exists(user_id, skill_data.name):
+            msg = f"A skill named '{skill_data.name}' already exists"
+            raise ValueError(msg)
+
         skill = await self.skill_repo.create_skill(
             user_id=user_id,
             skill_data=skill_data,
@@ -491,6 +496,7 @@ class SkillService:
 
         # Map allowed-tools (hyphenated standard) to allowed_tools (underscored)
         allowed_tools = frontmatter.get("allowed-tools")
+        tags = frontmatter.get("tags", [])
 
         if not name:
             raise ValueError("Skill frontmatter must include 'name'")
@@ -505,6 +511,7 @@ class SkillService:
             compatibility=compatibility,
             allowed_tools=allowed_tools,
             metadata=metadata,
+            tags=tags,
             importance=importance,
             project_id=project_id,
         )
@@ -553,6 +560,8 @@ class SkillService:
             frontmatter["compatibility"] = skill.compatibility
         if skill.metadata is not None:
             frontmatter["metadata"] = skill.metadata
+        if skill.tags:
+            frontmatter["tags"] = skill.tags
         # Map allowed_tools (underscored) back to allowed-tools (hyphenated)
         if skill.allowed_tools is not None:
             frontmatter["allowed-tools"] = skill.allowed_tools

@@ -429,3 +429,104 @@ class TestSkillResourceLinking:
             json={"file_id": 1},
         )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_duplicate_link_idempotent(self, http_client):
+        """Bug #1: Linking same file twice should succeed (idempotent)."""
+        skill_id = await self._create_skill(http_client)
+        file_id = await self._create_file(http_client)
+
+        resp1 = await http_client.post(
+            f"/api/v1/skills/{skill_id}/files",
+            json={"file_id": file_id},
+        )
+        assert resp1.status_code == 200
+
+        resp2 = await http_client.post(
+            f"/api/v1/skills/{skill_id}/files",
+            json={"file_id": file_id},
+        )
+        assert resp2.status_code == 200
+        assert resp2.json()["linked"] is True
+
+    @pytest.mark.asyncio
+    async def test_unlink_nonexistent_returns_false(self, http_client):
+        """Bug #2: Unlinking non-existent link returns unlinked=False."""
+        skill_id = await self._create_skill(http_client)
+
+        response = await http_client.delete(
+            f"/api/v1/skills/{skill_id}/files/99999",
+        )
+        assert response.status_code == 200
+        assert response.json()["unlinked"] is False
+
+
+class TestSkillBugRegressions:
+    """Regression tests for bugs found in exploratory testing."""
+
+    @pytest.mark.asyncio
+    async def test_export_includes_tags(self, http_client):
+        """Bug #3: Exported SKILL.md should contain tags."""
+        create_response = await http_client.post("/api/v1/skills", json={
+            "name": "export-tag-bug",
+            "description": "Regression test for export tags",
+            "content": "# Content",
+            "tags": ["alpha", "beta"],
+            "importance": 7,
+        })
+        skill_id = create_response.json()["id"]
+
+        export_response = await http_client.get(
+            f"/api/v1/skills/{skill_id}/export",
+        )
+        assert export_response.status_code == 200
+        skill_md = export_response.json()["skill_md"]
+        assert "tags:" in skill_md
+        assert "- alpha" in skill_md
+        assert "- beta" in skill_md
+
+    @pytest.mark.asyncio
+    async def test_import_export_roundtrip_preserves_tags(self, http_client):
+        """Bug #3: Tags survive export→import roundtrip."""
+        create_response = await http_client.post("/api/v1/skills", json={
+            "name": "roundtrip-tag-bug",
+            "description": "Roundtrip tags regression",
+            "content": "# Content",
+            "tags": ["one", "two"],
+            "importance": 7,
+        })
+        skill_id = create_response.json()["id"]
+
+        export_response = await http_client.get(
+            f"/api/v1/skills/{skill_id}/export",
+        )
+        skill_md = export_response.json()["skill_md"]
+
+        # Delete original so re-import doesn't hit name uniqueness
+        await http_client.delete(f"/api/v1/skills/{skill_id}")
+
+        import_response = await http_client.post(
+            "/api/v1/skills/import",
+            json={"skill_md": skill_md, "importance": 7},
+        )
+        assert import_response.status_code == 201
+        reimported = import_response.json()
+        assert reimported["tags"] == ["one", "two"]
+
+    @pytest.mark.asyncio
+    async def test_duplicate_skill_name_rejected(self, http_client):
+        """Bug #4: Creating two skills with the same name returns 400."""
+        payload = {
+            "name": "unique-name-bug",
+            "description": "First skill",
+            "content": "# First",
+            "tags": [],
+            "importance": 7,
+        }
+        resp1 = await http_client.post("/api/v1/skills", json=payload)
+        assert resp1.status_code == 201
+
+        payload["description"] = "Second skill, same name"
+        resp2 = await http_client.post("/api/v1/skills", json=payload)
+        assert resp2.status_code == 400
+        assert "already exists" in resp2.json()["error"]

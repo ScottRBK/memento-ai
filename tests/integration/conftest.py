@@ -1843,6 +1843,14 @@ class InMemorySkillRepository(SkillRepository):
         self._skills[user_id][skill_id] = new_skill
         return new_skill
 
+    async def skill_name_exists(
+        self,
+        user_id: UUID,
+        name: str,
+    ) -> bool:
+        user_skills = self._skills.get(user_id, {})
+        return any(s.name == name for s in user_skills.values())
+
     async def get_skill_by_id(
         self, user_id: UUID, skill_id: int,
     ) -> Skill | None:
@@ -1943,11 +1951,12 @@ class InMemorySkillRepository(SkillRepository):
         skill_id: int,
         memory_id: int,
     ) -> dict:
+        existed = (skill_id, memory_id) in self._skill_memory_links
         self._skill_memory_links.discard((skill_id, memory_id))
         return {
             "skill_id": skill_id,
             "memory_id": memory_id,
-            "unlinked": True,
+            "unlinked": existed,
         }
 
     async def link_skill_to_file(
@@ -1969,11 +1978,12 @@ class InMemorySkillRepository(SkillRepository):
         skill_id: int,
         file_id: int,
     ) -> dict:
+        existed = (skill_id, file_id) in self._skill_file_links
         self._skill_file_links.discard((skill_id, file_id))
         return {
             "skill_id": skill_id,
             "file_id": file_id,
-            "unlinked": True,
+            "unlinked": existed,
         }
 
     async def link_skill_to_code_artifact(
@@ -1995,11 +2005,12 @@ class InMemorySkillRepository(SkillRepository):
         skill_id: int,
         code_artifact_id: int,
     ) -> dict:
+        existed = (skill_id, code_artifact_id) in self._skill_code_artifact_links
         self._skill_code_artifact_links.discard((skill_id, code_artifact_id))
         return {
             "skill_id": skill_id,
             "code_artifact_id": code_artifact_id,
-            "unlinked": True,
+            "unlinked": existed,
         }
 
     async def link_skill_to_document(
@@ -2021,11 +2032,12 @@ class InMemorySkillRepository(SkillRepository):
         skill_id: int,
         document_id: int,
     ) -> dict:
+        existed = (skill_id, document_id) in self._skill_document_links
         self._skill_document_links.discard((skill_id, document_id))
         return {
             "skill_id": skill_id,
             "document_id": document_id,
-            "unlinked": True,
+            "unlinked": existed,
         }
 
 

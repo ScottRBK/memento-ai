@@ -382,3 +382,89 @@ async def test_link_skill_to_file_skill_not_found_e2e(mcp_client):
         assert False, "Expected error for non-existent skill"
     except Exception as e:
         assert "not found" in str(e).lower()
+
+
+# ---- Bug regression tests ----
+
+
+@pytest.mark.e2e
+async def test_duplicate_link_idempotent_e2e(mcp_client):
+    """Bug #1: Linking same file twice should succeed (idempotent)."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-idem")
+    file_id = await _create_file_for_linking(mcp_client)
+
+    await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_file",
+        "arguments": {"skill_id": skill_id, "file_id": file_id},
+    })
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "link_skill_to_file",
+        "arguments": {"skill_id": skill_id, "file_id": file_id},
+    })
+    assert result.data["linked"] is True
+
+
+@pytest.mark.e2e
+async def test_unlink_nonexistent_returns_false_e2e(mcp_client):
+    """Bug #2: Unlinking non-existent link returns unlinked=False."""
+    skill_id = await _create_skill_for_linking(mcp_client, "-nolink")
+
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "unlink_skill_from_file",
+        "arguments": {"skill_id": skill_id, "file_id": 99999},
+    })
+    assert result.data["unlinked"] is False
+
+
+@pytest.mark.e2e
+async def test_export_includes_tags_e2e(mcp_client):
+    """Bug #3: Exported skill markdown should include tags."""
+    result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "create_skill",
+        "arguments": {
+            "name": "export-tag-e2e",
+            "description": "Regression test for export tags",
+            "content": "# Content",
+            "tags": ["alpha", "beta"],
+            "importance": 7,
+        },
+    })
+    skill_id = result.data["id"]
+
+    export_result = await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "export_skill",
+        "arguments": {"skill_id": skill_id},
+    })
+    exported = export_result.content[0].text
+    assert "tags:" in exported
+    assert "- alpha" in exported
+    assert "- beta" in exported
+
+
+@pytest.mark.e2e
+async def test_duplicate_skill_name_rejected_e2e(mcp_client):
+    """Bug #4: Creating two skills with same name should raise error."""
+    await mcp_client.call_tool("execute_forgetful_tool", {
+        "tool_name": "create_skill",
+        "arguments": {
+            "name": "unique-name-e2e",
+            "description": "First skill",
+            "content": "# First",
+            "tags": [],
+            "importance": 7,
+        },
+    })
+    try:
+        await mcp_client.call_tool("execute_forgetful_tool", {
+            "tool_name": "create_skill",
+            "arguments": {
+                "name": "unique-name-e2e",
+                "description": "Second skill same name",
+                "content": "# Second",
+                "tags": [],
+                "importance": 7,
+            },
+        })
+        assert False, "Expected error for duplicate skill name"
+    except Exception as e:
+        assert "already exists" in str(e).lower()

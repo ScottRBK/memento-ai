@@ -538,3 +538,130 @@ async def test_link_skill_to_document_skill_not_found(test_skill_service):
         await test_skill_service.link_skill_to_document(
             user_id=user_id, skill_id=9999, document_id=1,
         )
+
+
+# ---- Bug regression tests ----
+
+
+@pytest.mark.asyncio
+async def test_duplicate_link_is_idempotent(test_skill_service):
+    """Bug #1: Linking the same resource twice should not raise an error."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="idempotent-link",
+            description="Test idempotent linking",
+            content="# Content",
+            tags=[],
+        ),
+    )
+    # Link twice — second call should succeed silently
+    await test_skill_service.link_skill_to_file(
+        user_id=user_id, skill_id=skill.id, file_id=1,
+    )
+    result = await test_skill_service.link_skill_to_file(
+        user_id=user_id, skill_id=skill.id, file_id=1,
+    )
+    assert result["linked"] is True
+
+
+@pytest.mark.asyncio
+async def test_unlink_nonexistent_returns_false(test_skill_service):
+    """Bug #2: Unlinking a non-existent link should return unlinked=False."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="unlink-false-test",
+            description="Test unlink returns false",
+            content="# Content",
+            tags=[],
+        ),
+    )
+    result = await test_skill_service.unlink_skill_from_file(
+        user_id=user_id, skill_id=skill.id, file_id=999,
+    )
+    assert result["unlinked"] is False
+
+
+@pytest.mark.asyncio
+async def test_export_includes_tags(test_skill_service):
+    """Bug #3: Exported skill markdown should include tags in frontmatter."""
+    user_id = uuid4()
+    skill = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="export-tags-test",
+            description="Test export includes tags",
+            content="# Content",
+            tags=["alpha", "beta"],
+        ),
+    )
+    exported = await test_skill_service.export_skill(user_id, skill.id)
+    assert "tags:" in exported
+    assert "- alpha" in exported
+    assert "- beta" in exported
+
+
+@pytest.mark.asyncio
+async def test_import_preserves_tags(test_skill_service):
+    """Bug #3: Imported skill should preserve tags from frontmatter."""
+    user_id = uuid4()
+    skill_md = """---
+name: import-tags-test
+description: Test import preserves tags
+tags:
+  - gamma
+  - delta
+---
+
+# Content
+"""
+    skill = await test_skill_service.import_skill(user_id, skill_md)
+    assert skill.tags == ["gamma", "delta"]
+
+
+@pytest.mark.asyncio
+async def test_export_import_roundtrip_preserves_tags(test_skill_service):
+    """Bug #3: Tags survive export→import roundtrip."""
+    user_id = uuid4()
+    original = await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="roundtrip-tags",
+            description="Roundtrip tag test",
+            content="# Content",
+            tags=["one", "two"],
+        ),
+    )
+    exported = await test_skill_service.export_skill(user_id, original.id)
+    # Delete original so re-import doesn't hit name uniqueness
+    await test_skill_service.delete_skill(user_id, original.id)
+    reimported = await test_skill_service.import_skill(user_id, exported)
+    assert reimported.tags == ["one", "two"]
+
+
+@pytest.mark.asyncio
+async def test_duplicate_skill_name_rejected(test_skill_service):
+    """Bug #4: Creating two skills with the same name should raise ValueError."""
+    user_id = uuid4()
+    await test_skill_service.create_skill(
+        user_id,
+        SkillCreate(
+            name="unique-name",
+            description="First skill",
+            content="# First",
+            tags=[],
+        ),
+    )
+    with pytest.raises(ValueError, match="already exists"):
+        await test_skill_service.create_skill(
+            user_id,
+            SkillCreate(
+                name="unique-name",
+                description="Second skill with same name",
+                content="# Second",
+                tags=[],
+            ),
+        )

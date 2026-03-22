@@ -125,6 +125,30 @@ class SqliteSkillRepository:
             )
             raise
 
+    async def skill_name_exists(
+        self,
+        user_id: UUID,
+        name: str,
+    ) -> bool:
+        """Check if a skill with the given name exists for this user."""
+        try:
+            async with self.db_adapter.session(user_id) as session:
+                stmt = select(SkillsTable.id).where(
+                    SkillsTable.user_id == str(user_id),
+                    SkillsTable.name == name,
+                ).limit(1)
+                result = await session.execute(stmt)
+                return result.scalar_one_or_none() is not None
+        except Exception:
+            logger.exception(
+                "Failed to check skill name existence",
+                extra={
+                    "user_id": str(user_id),
+                    "name": name,
+                },
+            )
+            raise
+
     async def get_skill_by_id(
         self,
         user_id: UUID,
@@ -565,14 +589,21 @@ class SqliteSkillRepository:
                     msg = f"Memory {memory_id} not found"
                     raise NotFoundError(msg)
 
-                # Insert into the association table
-                await session.execute(
-                    memory_skill_association.insert().values(
-                        skill_id=skill_id,
-                        memory_id=memory_id,
+                # Check if link already exists (idempotent)
+                existing = await session.execute(
+                    select(memory_skill_association).where(
+                        memory_skill_association.c.skill_id == skill_id,
+                        memory_skill_association.c.memory_id == memory_id,
                     ),
                 )
-                await session.commit()
+                if existing.first() is None:
+                    await session.execute(
+                        memory_skill_association.insert().values(
+                            skill_id=skill_id,
+                            memory_id=memory_id,
+                        ),
+                    )
+                    await session.commit()
 
                 return {
                     "skill_id": skill_id,
@@ -609,13 +640,13 @@ class SqliteSkillRepository:
             memory_id: Memory ID to unlink.
 
         Returns:
-            Dict confirming the link was removed.
+            Dict with unlinked=True if removed, False if link didn't exist.
         """
         try:
             async with self.db_adapter.session(
                 user_id,
             ) as session:
-                await session.execute(
+                result = await session.execute(
                     memory_skill_association.delete().where(
                         memory_skill_association.c.skill_id
                         == skill_id,
@@ -628,7 +659,7 @@ class SqliteSkillRepository:
                 return {
                     "skill_id": skill_id,
                     "memory_id": memory_id,
-                    "unlinked": True,
+                    "unlinked": result.rowcount > 0,
                 }
 
         except Exception:
@@ -684,13 +715,21 @@ class SqliteSkillRepository:
                     msg = f"File {file_id} not found"
                     raise NotFoundError(msg)
 
-                await session.execute(
-                    skill_file_association.insert().values(
-                        skill_id=skill_id,
-                        file_id=file_id,
+                # Check if link already exists (idempotent)
+                existing = await session.execute(
+                    select(skill_file_association).where(
+                        skill_file_association.c.skill_id == skill_id,
+                        skill_file_association.c.file_id == file_id,
                     ),
                 )
-                await session.commit()
+                if existing.first() is None:
+                    await session.execute(
+                        skill_file_association.insert().values(
+                            skill_id=skill_id,
+                            file_id=file_id,
+                        ),
+                    )
+                    await session.commit()
 
                 return {
                     "skill_id": skill_id,
@@ -727,13 +766,13 @@ class SqliteSkillRepository:
             file_id: File ID to unlink.
 
         Returns:
-            Dict confirming the link was removed.
+            Dict with unlinked=True if removed, False if link didn't exist.
         """
         try:
             async with self.db_adapter.session(
                 user_id,
             ) as session:
-                await session.execute(
+                result = await session.execute(
                     skill_file_association.delete().where(
                         skill_file_association.c.skill_id
                         == skill_id,
@@ -746,7 +785,7 @@ class SqliteSkillRepository:
                 return {
                     "skill_id": skill_id,
                     "file_id": file_id,
-                    "unlinked": True,
+                    "unlinked": result.rowcount > 0,
                 }
 
         except Exception:
@@ -802,13 +841,21 @@ class SqliteSkillRepository:
                     msg = f"Code artifact {code_artifact_id} not found"
                     raise NotFoundError(msg)
 
-                await session.execute(
-                    skill_code_artifact_association.insert().values(
-                        skill_id=skill_id,
-                        code_artifact_id=code_artifact_id,
+                # Check if link already exists (idempotent)
+                existing = await session.execute(
+                    select(skill_code_artifact_association).where(
+                        skill_code_artifact_association.c.skill_id == skill_id,
+                        skill_code_artifact_association.c.code_artifact_id == code_artifact_id,
                     ),
                 )
-                await session.commit()
+                if existing.first() is None:
+                    await session.execute(
+                        skill_code_artifact_association.insert().values(
+                            skill_id=skill_id,
+                            code_artifact_id=code_artifact_id,
+                        ),
+                    )
+                    await session.commit()
 
                 return {
                     "skill_id": skill_id,
@@ -845,13 +892,13 @@ class SqliteSkillRepository:
             code_artifact_id: Code artifact ID to unlink.
 
         Returns:
-            Dict confirming the link was removed.
+            Dict with unlinked=True if removed, False if link didn't exist.
         """
         try:
             async with self.db_adapter.session(
                 user_id,
             ) as session:
-                await session.execute(
+                result = await session.execute(
                     skill_code_artifact_association.delete().where(
                         skill_code_artifact_association.c.skill_id
                         == skill_id,
@@ -864,7 +911,7 @@ class SqliteSkillRepository:
                 return {
                     "skill_id": skill_id,
                     "code_artifact_id": code_artifact_id,
-                    "unlinked": True,
+                    "unlinked": result.rowcount > 0,
                 }
 
         except Exception:
@@ -920,13 +967,21 @@ class SqliteSkillRepository:
                     msg = f"Document {document_id} not found"
                     raise NotFoundError(msg)
 
-                await session.execute(
-                    skill_document_association.insert().values(
-                        skill_id=skill_id,
-                        document_id=document_id,
+                # Check if link already exists (idempotent)
+                existing = await session.execute(
+                    select(skill_document_association).where(
+                        skill_document_association.c.skill_id == skill_id,
+                        skill_document_association.c.document_id == document_id,
                     ),
                 )
-                await session.commit()
+                if existing.first() is None:
+                    await session.execute(
+                        skill_document_association.insert().values(
+                            skill_id=skill_id,
+                            document_id=document_id,
+                        ),
+                    )
+                    await session.commit()
 
                 return {
                     "skill_id": skill_id,
@@ -963,13 +1018,13 @@ class SqliteSkillRepository:
             document_id: Document ID to unlink.
 
         Returns:
-            Dict confirming the link was removed.
+            Dict with unlinked=True if removed, False if link didn't exist.
         """
         try:
             async with self.db_adapter.session(
                 user_id,
             ) as session:
-                await session.execute(
+                result = await session.execute(
                     skill_document_association.delete().where(
                         skill_document_association.c.skill_id
                         == skill_id,
@@ -982,7 +1037,7 @@ class SqliteSkillRepository:
                 return {
                     "skill_id": skill_id,
                     "document_id": document_id,
-                    "unlinked": True,
+                    "unlinked": result.rowcount > 0,
                 }
 
         except Exception:

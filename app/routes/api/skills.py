@@ -37,10 +37,13 @@ def register(mcp: FastMCP):
         except ValidationError as e:
             return JSONResponse({"error": str(e)}, status_code=400)
 
-        skill = await mcp.skill_service.create_skill(
-            user_id=user.id,
-            skill_data=skill_data,
-        )
+        try:
+            skill = await mcp.skill_service.create_skill(
+                user_id=user.id,
+                skill_data=skill_data,
+            )
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
 
         return JSONResponse(skill.model_dump(mode="json"), status_code=201)
 
