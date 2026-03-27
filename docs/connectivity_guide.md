@@ -1,10 +1,11 @@
 This section provides more detailed instructions on how to connect forgetful to various AI Agent applications.
 - [Claude Code](#claude-code)
+- [VS Code](#vs-code)
 - [Copilot CLI](#copilot-cli)
 - [Cursor](#cursor)
 - [Codex](#codex)
 - [Gemini CLI](#gemini-cli)
-- [OpenCode](#opencode) 
+- [OpenCode](#opencode)
 
 ## Claude Code
 
@@ -63,6 +64,68 @@ claude mcp add --scope user forgetful uvx forgetful-ai \
 ### HTTP Transport
 ```bash
 claude mcp add --transport http --scope user forgetful http://localhost:8020/mcp
+```
+
+
+## VS Code
+
+VS Code has built-in MCP support through GitHub Copilot Chat. Configure MCP servers in `.vscode/mcp.json` (workspace-level) or via the command palette (`Ctrl+Shift+P` → `MCP: Open User Configuration`) for user-level configuration.
+
+See [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) for more info.
+
+### STDIO Transport
+
+```json
+{
+  "servers": {
+    "forgetful": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["forgetful-ai"]
+    }
+  }
+}
+```
+
+### STDIO with Environment Variables
+
+```json
+{
+  "servers": {
+    "forgetful": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["forgetful-ai"],
+      "env": {
+        "DATABASE_URL": "postgresql://user:pass@localhost:5432/forgetful",
+        "EMBEDDING_PROVIDER": "Google",
+        "EMBEDDING_MODEL": "models/gemini-embedding-001",
+        "GOOGLE_AI_API_KEY": "${input:google-api-key}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "google-api-key",
+      "description": "Google AI API Key",
+      "password": true
+    }
+  ]
+}
+```
+
+### HTTP Transport
+
+```json
+{
+  "servers": {
+    "forgetful": {
+      "type": "http",
+      "url": "http://localhost:8020/mcp"
+    }
+  }
+}
 ```
 
 
